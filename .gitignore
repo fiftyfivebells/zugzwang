@@ -1,0 +1,46 @@
+# === sbt and Scala ===
+/target/
+/project/target/
+/project/project/
+
+# Coursier cache (if used outside of global location)
+.coursier
+
+# Scala worksheets and REPL outputs
+*.worksheet.sc
+
+# === IntelliJ IDEA ===
+.idea/
+*.iml
+out/
+*.ipr
+*.iws
+
+# === Metals + Emacs ===
+.metals/
+.bloop/
+.bsp/
+.scala-build/
+
+# Emacs temporary files
+*~
+# Lockfiles and auto-saves
+.\#*
+# Org-mode stuff (optional)
+*.org~
+
+# === MacOS ===
+.DS_Store
+
+# === Logs, misc ===
+*.log
+logs/
+.cache/
+dist/
+
+# === VSCode (in case you dabble) ===
+.vscode/
+
+# === Optional: local env stuff ===
+.env
+.envrc
