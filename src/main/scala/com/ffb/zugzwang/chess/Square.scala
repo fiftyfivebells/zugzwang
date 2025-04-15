@@ -18,14 +18,14 @@ object Square:
 
   def toAlgebraic(sq: Square): String =
     val fileChar = ('a' + sq.file).toChar
-    val rankChar = ('0' + sq.rank).toChar
+    val rankChar = ('1' + sq.rank).toChar
 
     s"$fileChar$rankChar"
 
   def fromAlgebraic(sq: String): Either[String, Square] =
     if sq.length == 2 then
       val file = sq.charAt(0) - 'a'
-      val rank = sq.charAt(1) - '0'
+      val rank = sq.charAt(1) - '1'
       Square.from(file, rank)
     else Left(s"The algebraic notation string is too long.")
 
