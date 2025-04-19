@@ -2,6 +2,7 @@ package com.ffb.zugzwang.board
 
 import org.scalatest.funsuite.AnyFunSuite
 import com.ffb.zugzwang.chess.Square
+import com.ffb.zugzwang.chess.File
 
 class SquareSpec extends AnyFunSuite:
 
