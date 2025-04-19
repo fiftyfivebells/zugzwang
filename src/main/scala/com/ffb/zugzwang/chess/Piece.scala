@@ -15,5 +15,4 @@ case class Piece(pieceType: PieceType, color: Color):
     case Color.White => pieceType.name
     case Color.Black => pieceType.name.toUpperCase
 
-
 end Piece
