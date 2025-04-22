@@ -13,8 +13,12 @@ object Square:
 
   end extension
 
+  // this uses 7 - file.value because the least significant bit in the bitboard is h1, which is the
+  // largest file value. Subtracting 7 "reverses" the file so that the index of the file corresponds
+  // with the index in the board, ie. file h goes from index 7 to index 0. I'm only doing this because
+  // it makes my bit math easier (at least to me).
   def from(file: File, rank: Rank): Square =
-    (rank.value * 8) + file.value
+    (rank.value * 8) + (7 - file.value)
 
   def from(file: Int, rank: Int): Either[String, Square] = for {
     file <- File(file)

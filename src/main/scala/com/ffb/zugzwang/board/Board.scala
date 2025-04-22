@@ -5,7 +5,7 @@ import com.ffb.zugzwang.chess.{Color, Piece, Square}
 sealed trait Board extends Product with Serializable:
   def fromFen(fen: String): Board
   def toFen: String
-    def clearBoard: Board
+  def clearBoard: Board
   def pieceAt(sq: Square): Piece
   def putPieceAt(p: Piece, sq: Square): Board
   def removePieceFrom(sq: Square): Board

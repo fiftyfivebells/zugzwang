@@ -19,6 +19,6 @@ object File:
     Left(s"Integer $x ouf of valid range for file.")
   else Right(x)
 
-  inline def of(sq: Square): File = sq.value % 8
+  inline def of(sq: Square): File = 7 - (sq.value % 8)
 
 end File

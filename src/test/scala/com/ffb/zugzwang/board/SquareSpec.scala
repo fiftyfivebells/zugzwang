@@ -73,3 +73,23 @@ class SquareSpec extends AnyFlatSpec with Matchers:
       case Left(err) =>
         fail(s"Unexpected error for valid coordinates: $err")
   }
+
+  "Square.from(63)" should "create a Square that converts to 'a8' using Square.toAlgebraic" in {
+    val squareOpt = Square.from(63)
+    assert(squareOpt.nonEmpty)
+
+    squareOpt map { square =>
+      val alg = Square.toAlgebraic(square)
+      alg shouldBe "a8"
+    }
+  }
+
+  "Square.from(0)" should "create a Square that converts to 'h1' using Square.toAlgebraic" in {
+    val squareOpt = Square.from(0)
+    assert(squareOpt.nonEmpty)
+
+    squareOpt map { square =>
+      val alg = Square.toAlgebraic(square)
+      alg shouldBe "h1"
+    }
+  }
