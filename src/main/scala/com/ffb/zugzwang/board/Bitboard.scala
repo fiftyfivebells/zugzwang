@@ -35,6 +35,8 @@ object Bitboard:
   val f8g8mask: Bitboard = 0x600000000000000L
   val b8c8d8Mask: Bitboard = 0x7000000000000000L
 
+  def apply(n: Long): Bitboard = n
+
   def from(sq: Square): Bitboard = 1L << sq.value
 
   def from(sqs: Square*): Bitboard =
