@@ -13,6 +13,7 @@ class SquareSpec extends AnyFlatSpec with Matchers:
     result match
       case Right(square) =>
         val alg = Square.toAlgebraic(square)
+        square.value shouldBe 0
         alg shouldBe "h1"
 
       case Left(error) =>
@@ -26,6 +27,7 @@ class SquareSpec extends AnyFlatSpec with Matchers:
     result match
       case Right(square) =>
         val alg = Square.toAlgebraic(square)
+        square.value shouldBe 63
         alg shouldBe "a8"
 
       case Left(error) =>
