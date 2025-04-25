@@ -1,6 +1,7 @@
 package com.ffb.zugzwang.board
 
 import com.ffb.zugzwang.chess.{Rank, Square}
+import scala.annotation.targetName
 
 opaque type Bitboard = Long
 
@@ -69,10 +70,25 @@ object Bitboard:
     inline def toLong: Long = bb
 
     inline def unary_~ : Bitboard = ~bb
+
+    @targetName("and")
+    inline def &(other: Long): Bitboard = bb & other
     inline def &(other: Bitboard): Bitboard = bb & other
+
+    @targetName("or")
+    inline def |(other: Long): Bitboard = bb | other
     inline def |(other: Bitboard): Bitboard = bb | other
+
+    @targetName("xor")
+    inline def ^(other: Long): Bitboard = bb ^ other
     inline def ^(other: Bitboard): Bitboard = bb ^ other
+
+    @targetName("leftShift")
+    inline def <<(other: Long): Bitboard = bb << other
     inline def <<(other: Bitboard): Bitboard = bb << other
+
+    @targetName("rightShift")
+    inline def >>>(other: Long): Bitboard = bb >>> other
     inline def >>>(other: Bitboard): Bitboard = bb >>> other
 
     inline def isEmpty: Boolean = bb == empty
