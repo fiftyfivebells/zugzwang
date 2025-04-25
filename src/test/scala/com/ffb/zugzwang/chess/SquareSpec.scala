@@ -6,6 +6,7 @@ import org.scalatest.matchers.should.Matchers
 
 class SquareSpec extends AnyFlatSpec with Matchers:
 
+  // TODO: these next three tests are very similar; I should figure out a way to DRY them up
   "Square.fromAlgebraic" should "convert 'h1' to a valid Square which toAlgebraic converts back to 'h1'" in {
     val result = Square.fromAlgebraic("h1")
 
@@ -32,6 +33,20 @@ class SquareSpec extends AnyFlatSpec with Matchers:
 
       case Left(error) =>
         fail(s"Unexpected error for 'a8': $error")
+  }
+
+  "Square.fromAlgebraic" should "convert 'a1' to a valid Square which toAlgebraic converts back to 'a1'" in {
+    val result = Square.fromAlgebraic("a1")
+
+    result.isRight shouldBe true
+    result match
+      case Right(square) =>
+        val alg = Square.toAlgebraic(square)
+        square.value shouldBe 7
+        alg shouldBe "a1"
+
+      case Left(error) =>
+        fail(s"Unexpected error for 'a1': $error")
   }
 
   "Square.toAlgebraic" should "convert a Square created with from(7, 0) to 'h1'" in {
