@@ -3,6 +3,7 @@ package com.ffb.zugzwang.board
 import scala.collection.immutable.ArraySeq
 import com.ffb.zugzwang.chess.{Color, Piece, Square}
 import com.ffb.zugzwang.chess.PieceType
+import scala.collection.mutable
 
 enum PieceCategory:
   case WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK
@@ -29,9 +30,35 @@ final case class BitboardBoard private (
     squares: ArraySeq[Option[Piece]]
 ) extends Board:
 
-  def toFen: String = ""
+  // TODO: this is not the most "functional" implementation, so maybe I'll revisit this
+  // and try to do this in a nicer way later on. it works for now though
+  def toFen: String =
+    val fenString = new mutable.StringBuilder("")
 
-  def clearBoard: Board = ???
+    for (rank <- 8 to 1 by -1) {
+      var emptySquares = 0
+      var startingSquare = rank * 8 - 1
+
+      for (i <- startingSquare to startingSquare - 7 by -1) {
+        squares(i) match {
+          case None => emptySquares += 1
+          case Some(p) =>
+            if emptySquares > 0 then
+              fenString.append(emptySquares.toString)
+              emptySquares = 0
+
+            fenString.append(p.toString)
+        }
+      }
+
+      if emptySquares > 0 then fenString.append(emptySquares.toString)
+
+      fenString.append("/")
+    }
+
+    fenString.dropRight(1).toString
+
+  def clearBoard: Board = BitboardBoard.empty
 
   def pieceAt(sq: Square): Option[Piece] = squares(sq.value)
 
@@ -83,7 +110,8 @@ object BitboardBoard:
   def empty: Board =
     BitboardBoard(IArray.fill(12)(Bitboard.empty), ArraySeq.fill(64)(None))
 
-  def initial: Board = BitboardBoard.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
+  def initial: Board =
+    BitboardBoard.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
 
   def from(fen: String): Board =
     val fenNoDashes = fen.replaceAll("/", "")
@@ -92,9 +120,7 @@ object BitboardBoard:
         .map(ch => if ch.isDigit then "*" * ch.asDigit else ch.toString)
         .mkString
 
-    println(fenNoNumbers)
     fenNoNumbers.zipWithIndex.foldLeft(BitboardBoard.empty) { (bb, pair) =>
-
       val (c, i) = pair
       val index = 63 - i
       if c == '*' then bb

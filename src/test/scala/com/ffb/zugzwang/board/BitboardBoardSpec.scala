@@ -6,6 +6,15 @@ import com.ffb.zugzwang.chess.{Color, Piece, PieceType, Square}
 
 class BitboardBoardSpec extends AnyFlatSpec with Matchers:
 
+  ".toFen" should "convert a board into a string representing the fen of the position" in {
+    val initial = BitboardBoard.initial
+
+    val fen = initial.toFen
+    val initialBoardFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+
+    fen shouldBe initialBoardFen
+  }
+
   "BitboardBoard.from(fen)" should "correctly add pieces to board based on fen string" in {
     val initialBoardFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
 
