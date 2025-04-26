@@ -13,6 +13,8 @@ object Square:
 
   end extension
 
+  def apply(x: Int): Square = x
+
   // this uses 7 - file.value because the least significant bit in the bitboard is h1, which is the
   // largest file value. Subtracting 7 "reverses" the file so that the index of the file corresponds
   // with the index in the board, ie. file h goes from index 7 to index 0. I'm only doing this because
