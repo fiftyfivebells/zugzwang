@@ -11,35 +11,52 @@ enum MoveType:
     Promotion,
     CapturePromotion
 
-final case class Move(
-    from: Square,
-    to: Square,
-    pieceType: PieceType,
-    promotionPieceType: Option[PieceType],
-    moveType: MoveType
-):
-  // TODO: i may want a different string implementation, but this is ok for now
-  override def toString: String = Move.toUci(this)
-end Move
+opaque type Move = Int
 
 object Move:
-  def isAttack(move: Move): Boolean =
-    val attackMoves =
-      Set(MoveType.Capture, MoveType.EnPassant, MoveType.CapturePromotion)
+  private val squareMask = 63
+  private val toShift = 6
 
-    attackMoves.contains(move.moveType)
+  private val pieceTypeMask = 7
+  private val promotionPieceShift = 12
 
-  def isPromotion(move: Move): Boolean =
-    val promotionMoves = Set(MoveType.Promotion, MoveType.CapturePromotion)
+  private val moveTypeMask = 6
+  private val moveTypeShift = 15
 
-    promotionMoves.contains(move.moveType)
+  def apply(
+      from: Square,
+      to: Square,
+      promotion: Option[PieceType],
+      moveType: MoveType
+  ): Move =
+    val promotionValue = promotion.map(_.ordinal).getOrElse(0)
+    from.value | (to.value << toShift) | (promotionValue << promotionPieceShift) | (moveType.ordinal << moveTypeShift)
 
-  def toUci(move: Move): String =
-    val promotion = move.promotionPieceType match {
-      case Some(p) => p.toString
-      case None    => ""
-    }
+  extension (move: Move)
+    inline def from: Square = Square(move & squareMask)
 
-    s"${move.from.toString}${move.to.toString}$promotion"
+    inline def to: Square = Square((move >>> toShift) & squareMask)
+
+    def promotion: Option[PieceType] =
+      val piece = (move >>> promotionPieceShift) & pieceTypeMask
+      if piece == 0 then None else Some(PieceType.fromOrdinal(piece))
+
+    inline def moveType: MoveType =
+      MoveType.fromOrdinal((move >>> moveTypeShift) & moveTypeMask)
+
+    inline def isCapture: Boolean =
+      val mt = moveType
+      mt == MoveType.Capture || mt == MoveType.EnPassant || mt == MoveType.CapturePromotion
+
+    inline def isPromotion: Boolean =
+      val mt = moveType
+      mt == MoveType.Promotion || mt == MoveType.CapturePromotion
+
+    def toUci: String =
+      val (f, t) = (Square.toAlgebraic(from), Square.toAlgebraic(to))
+      promotion match {
+        case None    => s"$f$t"
+        case Some(p) => s"$f$t${p.name}"
+      }
 
 end Move
