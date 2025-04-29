@@ -4,6 +4,7 @@ import scala.collection.immutable.ArraySeq
 import com.ffb.zugzwang.chess.{Color, Piece, Square}
 import com.ffb.zugzwang.chess.PieceType
 import scala.collection.mutable
+import com.ffb.zugzwang.move.Move
 
 enum PieceCategory:
   case WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK
@@ -142,5 +143,18 @@ object Board:
           case None         => bb
         }
     }
+
+  def applyMove(board: Board, move: Move): Board =
+    (board.pieceAt(move.from), move.promotion) match
+      // this should never happen, but if the piece at the from square is None, just
+      // return the original board unaltered
+      case (None, _) => board
+
+      case (Some(moving), None) =>
+        board.removePieceFrom(move.from).putPieceAt(moving, move.to)
+
+      case (Some(pawn), Some(promotion)) =>
+        val promoPiece = Piece(pawn.color, promotion)
+        board.removePieceFrom(move.from).putPieceAt(promoPiece, move.to)
 
 end Board
