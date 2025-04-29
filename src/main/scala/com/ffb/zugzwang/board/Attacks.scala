@@ -2,16 +2,31 @@ package com.ffb.zugzwang.board
 
 import com.ffb.zugzwang.chess.Square
 import com.ffb.zugzwang.board.Bitboard.antiDiagonal
+import com.ffb.zugzwang.chess.Color
 
 object Attacks:
   private val NotFileAOrB = ~(Bitboard.fileA | Bitboard.fileB)
   private val NotFileHOrG = ~(Bitboard.fileH | Bitboard.fileG)
 
-  private val KnightMoves = Array.fill(64)(Bitboard.empty)
-  private val KingMoves = Array.fill(64)(Bitboard.empty)
-  private val BishopMoves = Array.fill(64)(Bitboard.empty)
-  private val RookMoves = Array.fill(64)(Bitboard.empty)
-  private val QueenMoves = Array.fill(64)(Bitboard.empty)
+  private val WhitePawnPushes = Array.fill(64)(Bitboard.empty)
+  private val WhitePawnAttacks = Array.fill(64)(Bitboard.empty)
+  private val BlackPawnPushes = Array.fill(64)(Bitboard.empty)
+  private val BlackPawnAttacks = Array.fill(64)(Bitboard.empty)
+  val KnightMoves = Array.fill(64)(Bitboard.empty)
+  val KingMoves = Array.fill(64)(Bitboard.empty)
+  val BishopMoves = Array.fill(64)(Bitboard.empty)
+  val RookMoves = Array.fill(64)(Bitboard.empty)
+  val QueenMoves = Array.fill(64)(Bitboard.empty)
+
+  def PawnPushes(sq: Square, c: Color): Bitboard = c match {
+    case Color.White => WhitePawnPushes(sq.value)
+    case Color.Black => BlackPawnPushes(sq.value)
+  }
+
+  def PawnAttacks(sq: Square, c: Color): Bitboard = c match {
+    case Color.White => WhitePawnAttacks(sq.value)
+    case Color.Black => BlackPawnAttacks(sq.value)
+  }
 
   private val DiagonalMasks = Array.fill(64)(Bitboard.empty)
   private val AntiDiagonalMasks = Array.fill(64)(Bitboard.empty)
@@ -43,8 +58,22 @@ object Attacks:
   private def createVerticalMask(sq: Square): Bitboard =
     Bitboard((0x0101010101010101L << (sq.value & 7L)) ^ (1L << sq.value))
 
+  private def createWhitePawnAttacksFor(sq: Square): Bitboard =
+    val board = 1L << sq.value
+    val rightAttack = ~Bitboard.fileA & (board << 7)
+    val leftAttack = ~Bitboard.fileH & (board << 9)
+
+    leftAttack | rightAttack
+
+  private def createBlackPawnAttacksFor(sq: Square): Bitboard =
+    val board = 1L << sq.value
+    val rightAttack = ~Bitboard.fileA & (board >>> 9)
+    val leftAttack = ~Bitboard.fileH & (board >>> 7)
+
+    leftAttack | rightAttack
+
   private def createKnightMovesFor(sq: Square): Bitboard =
-    val startSquare = (1L << sq.value)
+    val startSquare = 1L << sq.value
 
     val northNorthWest = ~Bitboard.fileH & (startSquare << 17)
     val northNorthEast = ~Bitboard.fileA & (startSquare << 15)
@@ -61,7 +90,7 @@ object Attacks:
     northNorthWest | northNorthEast | eastEastNorth | eastEastSouth | westWestNorth | westWestSouth | southSouthEast | southSouthWest
 
   private def createKingMovesFor(sq: Square): Bitboard =
-    val startSquare = (1L << sq.value)
+    val startSquare = 1L << sq.value
 
     val north = Bitboard(startSquare << 8)
     val northEast = ~Bitboard.fileA & (startSquare << 7)
@@ -77,6 +106,13 @@ object Attacks:
   private def initializeMoveTables: Unit =
     (0 until 64) foreach { sq =>
       val square = Square(sq)
+      val board = 1L << square.value
+
+      WhitePawnPushes(sq) = Bitboard(board << 8L)
+      BlackPawnPushes(sq) = Bitboard(board >>> 8L)
+
+      WhitePawnAttacks(sq) = createWhitePawnAttacksFor(square)
+      BlackPawnAttacks(sq) = createBlackPawnAttacksFor(square)
       KnightMoves(sq) = createKnightMovesFor(square)
       KingMoves(sq) = createKingMovesFor(square)
 
