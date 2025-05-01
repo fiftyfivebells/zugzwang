@@ -11,6 +11,11 @@ object Square:
     def file: File = File.of(sq)
     def rank: Rank = Rank.of(sq)
 
+    def lastRank(c: Color): Boolean = c match {
+      case Color.White => rank.value == 7
+      case Color.Black => rank.value == 0
+    }
+
   end extension
 
   def apply(x: Int): Square = x
