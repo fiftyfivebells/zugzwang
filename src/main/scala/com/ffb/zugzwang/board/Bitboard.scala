@@ -2,6 +2,7 @@ package com.ffb.zugzwang.board
 
 import com.ffb.zugzwang.chess.{Rank, Square}
 import scala.annotation.targetName
+import scala.collection.Iterator
 
 opaque type Bitboard = Long
 
@@ -64,14 +65,21 @@ object Bitboard:
     case 7 => rank8
   }
 
-  def reverse(bb: Bitboard): Bitboard = java.lang.Long.reverse(bb.value)
-
   extension (bb: Bitboard)
 
     inline def value: Long = bb
     inline def toLong: Long = bb
 
     inline def unary_~ : Bitboard = ~bb
+
+    def squares: Iterator[Square] =
+      new Iterator:
+        private var bits = bb
+        def hasNext: Boolean = bits != 0L
+        def next: Square =
+          val sq = java.lang.Long.numberOfTrailingZeros(bits)
+          bits = bits.removeLsb
+          Square(sq)
 
     @targetName("and")
     inline def &(other: Long): Bitboard = bb & other
@@ -93,6 +101,14 @@ object Bitboard:
     inline def >>>(other: Long): Bitboard = bb >>> other
     inline def >>>(other: Bitboard): Bitboard = bb >>> other
 
+    @targetName("minus")
+    inline def -(other: Long): Bitboard = bb - other
+    inline def -(other: Bitboard): Bitboard = bb - other
+
+    @targetName("times")
+    inline def *(other: Long): Bitboard = bb * other
+    inline def *(other: Bitboard): Bitboard = bb * other
+
     inline def isEmpty: Boolean = bb == empty
     inline def nonEmpty: Boolean = bb != empty
 
@@ -106,6 +122,8 @@ object Bitboard:
     def removeLsb: Bitboard = bb & (bb - 1L)
 
     def popCount: Bitboard = java.lang.Long.bitCount(bb)
+
+    def reverse: Bitboard = java.lang.Long.reverse(bb.value)
 
   end extension
 
