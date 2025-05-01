@@ -1,79 +1,33 @@
 package com.ffb.zugzwang.board
 
-import com.ffb.zugzwang.chess.Square
 import com.ffb.zugzwang.board.Bitboard.antiDiagonal
-import com.ffb.zugzwang.chess.Color
+import com.ffb.zugzwang.chess.{Color, Piece, PieceType, Square}
 
-object Attacks:
-  private val NotFileAOrB = ~(Bitboard.fileA | Bitboard.fileB)
-  private val NotFileHOrG = ~(Bitboard.fileH | Bitboard.fileG)
-
-  private val WhitePawnPushes = Array.fill(64)(Bitboard.empty)
-  private val WhitePawnAttacks = Array.fill(64)(Bitboard.empty)
-  private val BlackPawnPushes = Array.fill(64)(Bitboard.empty)
-  private val BlackPawnAttacks = Array.fill(64)(Bitboard.empty)
-  val KnightMoves = Array.fill(64)(Bitboard.empty)
-  val KingMoves = Array.fill(64)(Bitboard.empty)
-  val BishopMoves = Array.fill(64)(Bitboard.empty)
-  val RookMoves = Array.fill(64)(Bitboard.empty)
-  val QueenMoves = Array.fill(64)(Bitboard.empty)
-
-  def PawnPushes(sq: Square, c: Color): Bitboard = c match {
-    case Color.White => WhitePawnPushes(sq.value)
-    case Color.Black => BlackPawnPushes(sq.value)
-  }
-
-  def PawnAttacks(sq: Square, c: Color): Bitboard = c match {
-    case Color.White => WhitePawnAttacks(sq.value)
-    case Color.Black => BlackPawnAttacks(sq.value)
-  }
-
-  private val DiagonalMasks = Array.fill(64)(Bitboard.empty)
-  private val AntiDiagonalMasks = Array.fill(64)(Bitboard.empty)
-  private val HorizontalMasks = Array.fill(64)(Bitboard.empty)
-  private val VerticalMasks = Array.fill(64)(Bitboard.empty)
-
-  // createDiagonalMask takes in a square and returns the bitboard that masks the diagonal lines
-  // (positive and negative) from that square. The formula for calculating this comes from this link:
-  // https://www.chessprogramming.org/On_an_empty_Board#By_Calculation_3
-  private def createDiagonalMask(sq: Square): Bitboard =
-    val diagonal = 56L - 8L * (sq.value & 7L) - (sq.value & 56L)
-    val north = -diagonal & (diagonal >>> 31L)
-    val south = diagonal & (-diagonal >>> 31L)
-
-    ((Bitboard.diagonal >>> south) << north) ^ (1L << sq.value)
-
-  // createAntiDiagonalMask takes in a square and returns the bitboard that masks the antidiagonal lines
-  // (positive and megative) from that square. The formula for calculating this comes from the link above.
-  private def createAntiDiagonalMask(sq: Square): Bitboard =
-    val antiDiagonal = 8L * (sq.value & 7L) - (sq.value & 56L)
-    val north = -antiDiagonal & (antiDiagonal >>> 31L)
-    val south = antiDiagonal & (-antiDiagonal >>> 31L)
-
-    ((Bitboard.antiDiagonal >>> south) << north) ^ (1L << sq.value)
-
-  private def createHorizontalMask(sq: Square): Bitboard =
-    Bitboard(0xff << (sq.value & 56L)) ^ (1L << sq.value)
-
-  private def createVerticalMask(sq: Square): Bitboard =
-    Bitboard((0x0101010101010101L << (sq.value & 7L)) ^ (1L << sq.value))
-
-  private def createWhitePawnAttacksFor(sq: Square): Bitboard =
-    val board = 1L << sq.value
+object PawnAttacks:
+  val white: IArray[Bitboard] = IArray.tabulate(64) { sq =>
+    val board = 1L << sq
     val rightAttack = ~Bitboard.fileA & (board << 7)
     val leftAttack = ~Bitboard.fileH & (board << 9)
 
     leftAttack | rightAttack
+  }
 
-  private def createBlackPawnAttacksFor(sq: Square): Bitboard =
-    val board = 1L << sq.value
+  val black: IArray[Bitboard] = IArray.tabulate(64) { sq =>
+    val board = 1L << sq
     val rightAttack = ~Bitboard.fileA & (board >>> 9)
     val leftAttack = ~Bitboard.fileH & (board >>> 7)
 
     leftAttack | rightAttack
+  }
 
-  private def createKnightMovesFor(sq: Square): Bitboard =
-    val startSquare = 1L << sq.value
+end PawnAttacks
+
+object KnightAttacks:
+  private val NotFileAOrB = ~(Bitboard.fileA | Bitboard.fileB)
+  private val NotFileHOrG = ~(Bitboard.fileH | Bitboard.fileG)
+
+  val table: IArray[Bitboard] = IArray.tabulate(64) { sq =>
+    val startSquare = 1L << sq
 
     val northNorthWest = ~Bitboard.fileH & (startSquare << 17)
     val northNorthEast = ~Bitboard.fileA & (startSquare << 15)
@@ -88,9 +42,73 @@ object Attacks:
     val southSouthWest = ~Bitboard.fileH & (startSquare >> 15)
 
     northNorthWest | northNorthEast | eastEastNorth | eastEastSouth | westWestNorth | westWestSouth | southSouthEast | southSouthWest
+  }
 
-  private def createKingMovesFor(sq: Square): Bitboard =
-    val startSquare = 1L << sq.value
+end KnightAttacks
+
+object BishopAttacks:
+
+  // DiagonalMasks takes in a square and returns the bitboard that masks the diagonal lines
+  // (positive and negative) from that square. The formula for calculating this comes from this link:
+  // https://www.chessprogramming.org/On_an_empty_Board#By_Calculation_3
+  private val DiagonalMasks = Array.tabulate(64) { sq =>
+    val diagonal = 56L - 8L * (sq & 7L) - (sq & 56L)
+    val north = -diagonal & (diagonal >>> 31L)
+    val south = diagonal & (-diagonal >>> 31L)
+
+    ((Bitboard.diagonal >>> south) << north) ^ (1L << sq)
+  }
+
+  // AntiDiagonalMask takes in a square and returns the bitboard that masks the antidiagonal lines
+  // (positive and megative) from that square. The formula for calculating this comes from the link above.
+  private val AntiDiagonalMasks = Array.tabulate(64) { sq =>
+    val antiDiagonal = 8L * (sq & 7L) - (sq & 56L)
+    val north = -antiDiagonal & (antiDiagonal >>> 31L)
+    val south = antiDiagonal & (-antiDiagonal >>> 31L)
+
+    ((Bitboard.antiDiagonal >>> south) << north) ^ (1L << sq)
+  }
+
+  def apply(sq: Square, c: Color, occ: Bitboard): Bitboard =
+    val diagonalMask = DiagonalMasks(sq.value)
+    val antiDiagonalMask = AntiDiagonalMasks(sq.value)
+
+    val diagonal = Attacks.slidingMoves(sq, c, occ, diagonalMask)
+    val antiDiagonal = Attacks.slidingMoves(sq, c, occ, antiDiagonalMask)
+
+    diagonal | antiDiagonal
+
+end BishopAttacks
+
+object RookAttacks:
+  private val HorizontalMasks = Array.tabulate(64) { sq =>
+    Bitboard(0xff << (sq & 56L)) ^ (1L << sq)
+  }
+  private val VerticalMasks = Array.tabulate(64) { sq =>
+    Bitboard((0x0101010101010101L << (sq & 7L)) ^ (1L << sq))
+  }
+
+  def apply(sq: Square, c: Color, occ: Bitboard): Bitboard =
+    val rankMask = HorizontalMasks(sq.value)
+    val fileMask = VerticalMasks(sq.value)
+
+    val rank = Attacks.slidingMoves(sq, c, occ, rankMask)
+    val file = Attacks.slidingMoves(sq, c, occ, fileMask)
+
+    rank | file
+
+end RookAttacks
+
+object QueenAttacks:
+
+  def apply(sq: Square, c: Color, occ: Bitboard): Bitboard =
+    BishopAttacks(sq, c, occ) | RookAttacks(sq, c, occ)
+
+end QueenAttacks
+
+object KingAttacks:
+  val table: IArray[Bitboard] = IArray.tabulate(64) { sq =>
+    val startSquare = 1L << sq
 
     val north = Bitboard(startSquare << 8)
     val northEast = ~Bitboard.fileA & (startSquare << 7)
@@ -102,26 +120,34 @@ object Attacks:
     val northWest = ~Bitboard.fileH & (startSquare << 9)
 
     north | northEast | east | southEast | south | southWest | west | northWest
+  }
+end KingAttacks
 
-  private def initializeMoveTables: Unit =
-    (0 until 64) foreach { sq =>
-      val square = Square(sq)
-      val board = 1L << square.value
+object Attacks:
 
-      WhitePawnPushes(sq) = Bitboard(board << 8L)
-      BlackPawnPushes(sq) = Bitboard(board >>> 8L)
+  private[board] def slidingMoves(
+      sq: Square,
+      c: Color,
+      occ: Bitboard,
+      mask: Bitboard
+  ): Bitboard =
+    val startSquare = 1L << sq.value
 
-      WhitePawnAttacks(sq) = createWhitePawnAttacksFor(square)
-      BlackPawnAttacks(sq) = createBlackPawnAttacksFor(square)
-      KnightMoves(sq) = createKnightMovesFor(square)
-      KingMoves(sq) = createKingMovesFor(square)
+    val bottom = ((occ & mask) - (startSquare << 1)) & mask
+    val top =
+      ((occ & mask).reverse - (Bitboard(startSquare).reverse) * 2L).reverse
 
-      HorizontalMasks(sq) = createHorizontalMask(square)
-      VerticalMasks(sq) = createVerticalMask(square)
-      DiagonalMasks(sq) = createDiagonalMask(square)
-      AntiDiagonalMasks(sq) = createAntiDiagonalMask(square)
+    (bottom ^ top) & mask
+
+  inline def attacks(piece: Piece, from: Square, occupied: Bitboard): Bitboard =
+    piece match {
+      case Piece(Color.White, PieceType.Pawn) => PawnAttacks.white(from.value)
+      case Piece(Color.Black, PieceType.Pawn) => PawnAttacks.black(from.value)
+      case Piece(_, PieceType.Knight)         => KnightAttacks.table(from.value)
+      case p@Piece(_, PieceType.Bishop)         => BishopAttacks(from, p.color, occupied)
+      case p@Piece(_, PieceType.Rook)           => RookAttacks(from, p.color, occupied)
+      case p@Piece(_, PieceType.Queen)          => QueenAttacks(from, p.color, occupied)
+      case Piece(_, PieceType.King)           => KingAttacks.table(from.value)
     }
-
-  initializeMoveTables
 
 end Attacks
