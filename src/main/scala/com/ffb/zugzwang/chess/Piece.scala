@@ -1,5 +1,7 @@
 package com.ffb.zugzwang.chess
 
+import com.ffb.zugzwang.board.PieceCategory
+
 enum PieceType(val name: String):
   case Pawn extends PieceType("p")
   case Knight extends PieceType("n")
@@ -31,5 +33,20 @@ object Piece:
     }
 
     Piece(color, pieceType)
+
+  def from(pc: PieceCategory): Piece = pc match {
+    case PieceCategory.WP => Piece(Color.White, PieceType.Pawn)
+    case PieceCategory.WN => Piece(Color.White, PieceType.Knight)
+    case PieceCategory.WB               => Piece(Color.White, PieceType.Bishop)
+    case PieceCategory.WR               => Piece(Color.White, PieceType.Rook)
+    case PieceCategory.WQ               => Piece(Color.White, PieceType.Queen)
+    case PieceCategory.WK               => Piece(Color.White, PieceType.King)
+    case PieceCategory.BP               => Piece(Color.Black, PieceType.Pawn)
+    case PieceCategory.BN               => Piece(Color.Black, PieceType.Knight)
+    case PieceCategory.BB               => Piece(Color.Black, PieceType.Bishop)
+    case PieceCategory.BR               => Piece(Color.Black, PieceType.Rook)
+    case PieceCategory.BQ               => Piece(Color.Black, PieceType.Queen)
+    case PieceCategory.BK               => Piece(Color.Black, PieceType.King)
+  }
 
 end Piece
