@@ -4,6 +4,7 @@ import com.ffb.zugzwang.chess.{PieceType, Square}
 
 enum MoveType:
   case Quiet,
+    DoublePush,
     Capture,
     CastleKingside,
     CastleQueenside,
@@ -20,7 +21,7 @@ object Move:
   private val pieceTypeMask = 7
   private val promotionPieceShift = 12
 
-  private val moveTypeMask = 6
+  private val moveTypeMask = 7
   private val moveTypeShift = 15
 
   def apply(
