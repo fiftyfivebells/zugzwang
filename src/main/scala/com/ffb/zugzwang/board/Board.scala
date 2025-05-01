@@ -1,8 +1,7 @@
 package com.ffb.zugzwang.board
 
 import scala.collection.immutable.ArraySeq
-import com.ffb.zugzwang.chess.{Color, Piece, Square}
-import com.ffb.zugzwang.chess.PieceType
+import com.ffb.zugzwang.chess.{Color, Piece, PieceType, Square}
 import scala.collection.mutable
 import com.ffb.zugzwang.move.Move
 
@@ -23,6 +22,27 @@ object PieceCategory:
     case Piece(Color.Black, PieceType.Rook)   => BR
     case Piece(Color.Black, PieceType.Queen)  => BQ
     case Piece(Color.Black, PieceType.King)   => BK
+  }
+
+  def byColor(c: Color): List[PieceCategory] = c match {
+    case Color.White =>
+      List(
+        PieceCategory.WP,
+        PieceCategory.WN,
+        PieceCategory.WB,
+        PieceCategory.WR,
+        PieceCategory.WQ,
+        PieceCategory.WK
+      )
+    case Color.Black =>
+      List(
+        PieceCategory.BP,
+        PieceCategory.BN,
+        PieceCategory.BB,
+        PieceCategory.BR,
+        PieceCategory.BQ,
+        PieceCategory.BK
+      )
   }
 end PieceCategory
 
@@ -58,6 +78,13 @@ final case class Board private (
     }
 
     fenString.dropRight(1).toString
+
+  def occupied: Bitboard = pieces.foldLeft(Bitboard.empty)(_ | _)
+
+  def piecesByColor(c: Color): Bitboard =
+    PieceCategory.byColor(c).foldLeft(Bitboard.empty) { (bb, pc) =>
+      bb | pieces(pc.ordinal)
+    }
 
   def clearBoard: Board = Board.empty
 
@@ -97,6 +124,7 @@ final case class Board private (
       case None => false
 
   def isAttacked(sq: Square, c: Color): Boolean = ???
+
 
   def isAttackedByPawn(sq: Square, c: Color): Boolean = ???
 
