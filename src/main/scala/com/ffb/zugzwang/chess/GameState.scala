@@ -17,6 +17,19 @@ object CastleRights:
       kingsideBlack = true,
       queensideBlack = true
     )
+
+  def updateRights(
+      c: Color,
+      rights: CastleRights,
+      kingside: Boolean = true,
+      queenside: Boolean = true
+  ): CastleRights = c match {
+    case Color.White =>
+      rights.copy(kingsideWhite = kingside, queensideWhite = queenside)
+    case Color.Black =>
+      rights.copy(kingsideBlack = kingside, queensideBlack = queenside)
+  }
+
 end CastleRights
 
 final case class GameState(
@@ -26,7 +39,13 @@ final case class GameState(
     enPassant: Option[Square],
     halfMoveClock: Int,
     fullMoveClock: Int
-)
+):
+  def hasCastleRights: Boolean = activeSide match {
+    case Color.White =>
+      castleRights.kingsideWhite || castleRights.queensideWhite
+    case Color.Black =>
+      castleRights.kingsideBlack || castleRights.queensideBlack
+  }
 
 object GameState:
   val initial: GameState =
