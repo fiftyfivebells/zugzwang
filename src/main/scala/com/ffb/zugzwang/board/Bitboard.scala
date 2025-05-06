@@ -125,6 +125,29 @@ object Bitboard:
 
     def reverse: Bitboard = java.lang.Long.reverse(bb.value)
 
+    def toString(): String =
+      val sb = new StringBuilder
+      for rank <- 7 to 0 by -1 do
+        for file <- 7 to 0 by -1 do
+          val square = rank * 8 + file
+          val bit = 1L << square
+          if (bb & bit) != 0 then sb.append("1 ")
+          else sb.append(". ")
+        sb.append("\n")
+      sb.toString
+
+    def toPrettyString: String =
+      val sb = new StringBuilder
+      for rank <- 7 to 0 by -1 do
+        sb.append(s"${rank + 1} ")
+        for file <- 7 to 0 by -1 do
+          val square = rank * 8 + file
+          val bit = 1L << square
+          sb.append(if (bb & bit) != 0 then "1 " else ". ")
+        sb.append("\n")
+      sb.append("  a b c d e f g h\n")
+      sb.toString
+
   end extension
 
 end Bitboard
