@@ -14,13 +14,13 @@ object Bitboard:
   val antiDiagonal: Bitboard = 0x8040201008040201L
 
   val fileA: Bitboard = 0x8080808080808080L
-  val fileB: Bitboard = fileA >> 1
-  val fileC: Bitboard = fileB >> 1
-  val fileD: Bitboard = fileC >> 1
-  val fileE: Bitboard = fileD >> 1
-  val fileF: Bitboard = fileE >> 1
-  val fileG: Bitboard = fileF >> 1
-  val fileH: Bitboard = fileH >> 1
+  val fileB: Bitboard = fileA >>> 1
+  val fileC: Bitboard = fileB >>> 1
+  val fileD: Bitboard = fileC >>> 1
+  val fileE: Bitboard = fileD >>> 1
+  val fileF: Bitboard = fileE >>> 1
+  val fileG: Bitboard = fileF >>> 1
+  val fileH: Bitboard = fileG >>> 1
 
   val rank1: Bitboard = 0xffL
   val rank2: Bitboard = rank1 << 8
