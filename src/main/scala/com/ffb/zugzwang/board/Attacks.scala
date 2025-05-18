@@ -82,7 +82,7 @@ end BishopAttacks
 
 object RookAttacks:
   private val HorizontalMasks = Array.tabulate(64) { sq =>
-    Bitboard(0xff << (sq & 56L)) ^ (1L << sq)
+    (Bitboard(0xff) << (sq & 56L)) ^ (1L << sq)
   }
   private val VerticalMasks = Array.tabulate(64) { sq =>
     Bitboard((0x0101010101010101L << (sq & 7L)) ^ (1L << sq))
@@ -144,10 +144,12 @@ object Attacks:
       case Piece(Color.White, PieceType.Pawn) => PawnAttacks.white(from.value)
       case Piece(Color.Black, PieceType.Pawn) => PawnAttacks.black(from.value)
       case Piece(_, PieceType.Knight)         => KnightAttacks.table(from.value)
-      case p@Piece(_, PieceType.Bishop)         => BishopAttacks(from, p.color, occupied)
-      case p@Piece(_, PieceType.Rook)           => RookAttacks(from, p.color, occupied)
-      case p@Piece(_, PieceType.Queen)          => QueenAttacks(from, p.color, occupied)
-      case Piece(_, PieceType.King)           => KingAttacks.table(from.value)
+      case p @ Piece(_, PieceType.Bishop) =>
+        BishopAttacks(from, p.color, occupied)
+      case p @ Piece(_, PieceType.Rook) => RookAttacks(from, p.color, occupied)
+      case p @ Piece(_, PieceType.Queen) =>
+        QueenAttacks(from, p.color, occupied)
+      case Piece(_, PieceType.King) => KingAttacks.table(from.value)
     }
 
 end Attacks
