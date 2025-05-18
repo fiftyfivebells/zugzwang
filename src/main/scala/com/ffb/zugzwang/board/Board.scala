@@ -4,6 +4,7 @@ import scala.collection.immutable.ArraySeq
 import com.ffb.zugzwang.chess.{Color, Piece, PieceType, Square}
 import scala.collection.mutable
 import com.ffb.zugzwang.move.Move
+import com.ffb.zugzwang.move.MoveType
 
 enum PieceCategory:
   case WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK
@@ -81,10 +82,16 @@ final case class Board private (
 
   def occupied: Bitboard = pieces.foldLeft(Bitboard.empty)(_ | _)
 
-  def piecesByColor(c: Color): Bitboard =
+  def byColor(c: Color): Bitboard =
     PieceCategory.byColor(c).foldLeft(Bitboard.empty) { (bb, pc) =>
       bb | pieces(pc.ordinal)
     }
+
+  def byColorAndType(c: Color, pt: PieceType): Bitboard =
+    val piece = Piece(c, pt)
+    val pc = PieceCategory.of(piece)
+
+    pieces(pc.ordinal)
 
   def clearBoard: Board = Board.empty
 
@@ -123,8 +130,18 @@ final case class Board private (
       // I'm just going to mark it as false
       case None => false
 
-  def isAttacked(sq: Square, c: Color): Boolean = ???
+  def isAttacked(sq: Square, c: Color): Boolean =
+    val enemy = c.enemy
 
+    PieceCategory.byColor(c).foldLeft(false) { (isAttacked, pc) =>
+      val piece = Piece.from(pc)
+      val attackMask = Attacks.attacks(piece, sq, this.occupied)
+
+      isAttacked || (attackMask & byColorAndType(
+        enemy,
+        piece.pieceType
+      )).nonEmpty
+    }
 
   def isAttackedByPawn(sq: Square, c: Color): Boolean = ???
 
@@ -172,17 +189,66 @@ object Board:
         }
     }
 
-  def applyMove(board: Board, move: Move): Board =
-    (board.pieceAt(move.from), move.promotion) match
-      // this should never happen, but if the piece at the from square is None, just
-      // return the original board unaltered
-      case (None, _) => board
+  def applyMove(board: Board, move: Move): Board = move.moveType match {
+    case MoveType.CastleKingside | MoveType.CastleQueenside =>
+      applyCastleMove(board, move)
 
-      case (Some(moving), None) =>
-        board.removePieceFrom(move.from).putPieceAt(moving, move.to)
+    case MoveType.EnPassant =>
+      val piece = board.pieceAt(move.from).get
+      val epSquare = piece.color match {
+        case Color.White => Square(move.to.value - 8)
+        case Color.Black => Square(move.to.value + 8)
+      }
 
-      case (Some(pawn), Some(promotion)) =>
-        val promoPiece = Piece(pawn.color, promotion)
-        board.removePieceFrom(move.from).putPieceAt(promoPiece, move.to)
+      board.removePieceFrom(move.from).removePieceFrom(epSquare).putPieceAt(piece, move.to)
+
+    case _ =>
+      (board.pieceAt(move.from), move.promotion) match
+        // this should never happen, but if the piece at the from square is None, just
+        // return the original board unaltered
+        case (None, _) => board
+
+        case (Some(moving), None) =>
+          board
+            .removePieceFrom(move.to)
+            .removePieceFrom(move.from)
+            .putPieceAt(moving, move.to)
+
+        case (Some(pawn), Some(promotion)) =>
+          val promoPiece = Piece(pawn.color, promotion)
+          board
+            .removePieceFrom(move.to)
+            .removePieceFrom(move.from)
+            .putPieceAt(promoPiece, move.to)
+  }
+
+  private def applyCastleMove(board: Board, move: Move): Board =
+    board.pieceAt(move.from) match {
+      // as above, this should never happen, but if we try to apply a castle and there's
+      // no king at the from square, just return the board and we'll catch the issue later
+      case None => board
+      case Some(king) =>
+        val rook = Piece(king.color, PieceType.Rook)
+
+        val (kingTo, rookFrom, rookTo) = move.moveType match {
+          case MoveType.CastleKingside =>
+            if king.color == Color.White then (Square.G1, Square.H1, Square.F1)
+            else (Square.G8, Square.H8, Square.F8)
+
+          case MoveType.CastleQueenside =>
+            if king.color == Color.White then (Square.C1, Square.A1, Square.D1)
+            else (Square.C8, Square.A8, Square.D8)
+
+          // this is another just in case; this really shouldn't ever happen, I just
+          // didn't want warnings about non-exhaustive matches
+          case _ => (Square.A1, Square.A1, Square.A1)
+        }
+
+        board
+          .removePieceFrom(move.from)
+          .removePieceFrom(rookFrom)
+          .putPieceAt(king, kingTo)
+          .putPieceAt(rook, rookTo)
+    }
 
 end Board
