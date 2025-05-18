@@ -95,4 +95,34 @@ object GameState:
       fullMoveClock = 1
     )
 
+  def from(fen: String): GameState =
+    val Array(
+      boardFen,
+      side,
+      rights,
+      ep,
+      halfMove,
+      fullMove
+    ) = fen.split("\\s+")
+
+    val board = Board.from(boardFen)
+    val activeSide = if side == "w" then Color.White else Color.Black
+    val castleRights = CastleRights.from(rights)
+    val enPassant = Square.fromAlgebraic(ep).toOption
+
+    // TODO: with well-validated fen strings, it should never be possible for these values to
+    // fail to convert to ints. eventually, i want to add a fen parsing object that has a built
+    // in fen validation, but in the meantime, i'll use this to prevent a catastrophe
+    val halfMoveClock = halfMove.toIntOption.getOrElse(-1)
+    val fullMoveClock = fullMove.toIntOption.getOrElse(-1)
+
+    GameState(
+      board,
+      activeSide,
+      castleRights,
+      enPassant,
+      halfMoveClock,
+      fullMoveClock
+    )
+
 end GameState
