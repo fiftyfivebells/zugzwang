@@ -16,6 +16,11 @@ object Square:
       case Color.Black => rank.value == 0
     }
 
+    def startingPawnRank(c: Color): Boolean = c match {
+      case Color.White => rank.value == 1
+      case Color.Black => rank.value == 6
+    }
+
   end extension
 
   def apply(x: Int): Square = x
