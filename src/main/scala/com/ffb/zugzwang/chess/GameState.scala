@@ -1,34 +1,72 @@
 package com.ffb.zugzwang.chess
 
 import com.ffb.zugzwang.board.Board
+import scala.collection.mutable
 
-final case class CastleRights(
-    kingsideWhite: Boolean,
-    queensideWhite: Boolean,
-    kingsideBlack: Boolean,
-    queensideBlack: Boolean
-)
+enum CastleSide:
+  case Kingside, Queenside
+
+opaque type CastleRights = Int
 
 object CastleRights:
-  val initial: CastleRights =
-    CastleRights(
-      kingsideWhite = true,
-      queensideWhite = true,
-      kingsideBlack = true,
-      queensideBlack = true
-    )
 
-  def updateRights(
-      c: Color,
-      rights: CastleRights,
-      kingside: Boolean = true,
-      queenside: Boolean = true
-  ): CastleRights = c match {
-    case Color.White =>
-      rights.copy(kingsideWhite = kingside, queensideWhite = queenside)
-    case Color.Black =>
-      rights.copy(kingsideBlack = kingside, queensideBlack = queenside)
-  }
+  val whiteKingside = 1 << 0 // 0b0001
+  val whiteQueenside = 1 << 1 // 0b0010
+  val blackKingside = 1 << 2 // 0b0100
+  val blackQueenside = 1 << 3 // 0b1000
+
+  private def apply(flags: Int): CastleRights = flags
+
+  val initial: CastleRights = from("KQkq")
+
+  def from(fen: String): CastleRights =
+    var rights: Int = 0
+
+    if fen.contains("K") then rights |= whiteKingside
+    if fen.contains("Q") then rights |= whiteQueenside
+    if fen.contains("k") then rights |= blackKingside
+    if fen.contains("q") then rights |= blackQueenside
+
+    CastleRights(rights)
+
+  extension (cr: CastleRights)
+    def has(color: Color, side: CastleSide): Boolean =
+      (cr & mask(color, side)) != 0
+
+    def add(color: Color, side: CastleSide): CastleRights =
+      CastleRights(cr | mask(color, side))
+
+    def remove(color: Color, side: CastleSide): CastleRights =
+      CastleRights(cr & ~mask(color, side))
+
+    def removeAll(color: Color): CastleRights =
+      val colorMask =
+        mask(color, CastleSide.Kingside) | mask(color, CastleSide.Queenside)
+
+      CastleRights(cr & ~colorMask)
+
+    def isEmpty: Boolean = cr == 0
+
+    def toFen: String =
+      val sb = new mutable.StringBuilder
+
+      if cr.hasFlag(whiteKingside) then sb.append("K")
+      if cr.hasFlag(whiteQueenside) then sb.append("Q")
+      if cr.hasFlag(blackKingside) then sb.append("k")
+      if cr.hasFlag(blackQueenside) then sb.append("q")
+
+      sb.toString
+
+    private def hasFlag(flag: Int): Boolean = (cr & flag) != 0
+
+    private def mask(color: Color, side: CastleSide): Int =
+      (color, side) match
+        case (Color.White, CastleSide.Kingside)  => whiteKingside
+        case (Color.White, CastleSide.Queenside) => whiteQueenside
+        case (Color.Black, CastleSide.Kingside)  => blackKingside
+        case (Color.Black, CastleSide.Queenside) => blackQueenside
+
+  end extension
 
 end CastleRights
 
@@ -40,12 +78,11 @@ final case class GameState(
     halfMoveClock: Int,
     fullMoveClock: Int
 ):
-  def hasCastleRights: Boolean = activeSide match {
-    case Color.White =>
-      castleRights.kingsideWhite || castleRights.queensideWhite
-    case Color.Black =>
-      castleRights.kingsideBlack || castleRights.queensideBlack
-  }
+  def hasCastleRights: Boolean =
+    castleRights.has(activeSide, CastleSide.Kingside) || castleRights.has(
+      activeSide,
+      CastleSide.Queenside
+    )
 
 object GameState:
   val initial: GameState =
