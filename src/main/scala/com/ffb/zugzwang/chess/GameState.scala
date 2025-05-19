@@ -125,4 +125,13 @@ object GameState:
       fullMoveClock
     )
 
+  def sameAs(original: GameState, other: GameState): Boolean =
+    original.activeSide == other.activeSide &&
+    original.castleRights == other.castleRights &&
+    original.enPassant == other.enPassant &&
+    original.halfMoveClock == other.halfMoveClock &&
+    original.fullMoveClock == other.fullMoveClock &&
+    original.board.squares == other.board.squares &&
+    original.board.pieces.corresponds(other.board.pieces)(_ == _)
+
 end GameState
