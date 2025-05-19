@@ -62,7 +62,12 @@ object Rules:
 
     val newHalfMove =
       (state.board.pieceAt(move.from), state.board.pieceAt(move.to)) match {
-        case (Some(piece), Some(_)) if piece.pieceType == PieceType.Pawn => 0
+        // if a pawn moves or the move is a capture, set half move to zero
+        case (Some(piece), _)
+            if piece.pieceType == PieceType.Pawn || Move.isCapture(move) =>
+          0
+
+        // in all other cases, add 1
         case _ => state.halfMoveClock + 1
       }
     val newFullMove =
