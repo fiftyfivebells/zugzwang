@@ -143,8 +143,6 @@ final case class Board private (
       )).nonEmpty
     }
 
-  def isAttackedByPawn(sq: Square, c: Color): Boolean = ???
-
   private def pieceToCategory(p: Piece): PieceCategory = p match
     case Piece(Color.White, PieceType.Pawn)   => PieceCategory.WP
     case Piece(Color.White, PieceType.Knight) => PieceCategory.WN
@@ -200,7 +198,10 @@ object Board:
         case Color.Black => Square(move.to.value + 8)
       }
 
-      board.removePieceFrom(move.from).removePieceFrom(epSquare).putPieceAt(piece, move.to)
+      board
+        .removePieceFrom(move.from)
+        .removePieceFrom(epSquare)
+        .putPieceAt(piece, move.to)
 
     case _ =>
       (board.pieceAt(move.from), move.promotion) match
