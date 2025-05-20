@@ -93,6 +93,11 @@ final case class Board private (
 
     pieces(pc.ordinal)
 
+  def allPieces: List[Piece] =
+    squares.collect { case Some(piece) =>
+      piece
+    }.toList
+
   def clearBoard: Board = Board.empty
 
   def pieceAt(sq: Square): Option[Piece] = squares(sq.value)
