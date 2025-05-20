@@ -33,6 +33,9 @@ object Move:
     val promotionValue = promotion.map(_.ordinal).getOrElse(0)
     from.value | (to.value << toShift) | (promotionValue << promotionPieceShift) | (moveType.ordinal << moveTypeShift)
 
+  def unapply(move: Move): Option[(Square, Square, Option[PieceType], MoveType)] =
+    Some((move.from, move.to, move.promotion, move.moveType))
+
   extension (move: Move)
     inline def from: Square = Square(move & squareMask)
 
