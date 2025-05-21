@@ -93,10 +93,7 @@ final case class Board private (
 
     pieces(pc.ordinal)
 
-  def allPieces: List[Piece] =
-    squares.collect { case Some(piece) =>
-      piece
-    }.toList
+  def allPieces: List[Piece] = squares.flatMap(identity).toList
 
   def clearBoard: Board = Board.empty
 
