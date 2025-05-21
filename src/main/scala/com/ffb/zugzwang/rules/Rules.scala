@@ -96,11 +96,50 @@ object Rules:
   def isStaleMate(state: GameState): Boolean =
     legalMoves(state).isEmpty && !isSideInCheck(state, state.activeSide)
 
+  // TODO: this is pretty ugly. it looks like it works for now, but it could perhaps
+  // use some cleaning up in the future
+  def isInsufficientMaterial(state: GameState): Boolean =
+    val pieces = state.board.allPieces
+    val grouped = pieces.groupMapReduce(_.pieceType)(_ => 1)(_ + _)
+
+    val total = grouped.values.sum
+
+    val bothKings = grouped.getOrElse(PieceType.King, 0) == 2
+
+    // only two pieces and they're both kings
+    if total == 2 && bothKings then true
+
+    // 3 pieces: two are kings, and the other is a bishop or knight
+    else if total == 3 && bothKings &&
+      (
+        grouped.get(PieceType.Knight).contains(1) ||
+          grouped.get(PieceType.Bishop).contains(1)
+      )
+    then true
+
+    // 4 pieces: KB vs kb, bishops on same colored squares
+    else if total == 4 && bothKings && grouped.get(PieceType.Bishop).contains(2)
+    then
+      // helper to determine the color of a square: 0 is light, 1 is dark
+      def squareColor(sq: Square): Int = (sq.file.value + sq.rank.value) % 2
+
+      val bishopsByColor = state.board.squares.zipWithIndex.collect {
+        case (Some(piece), i) if piece.pieceType == PieceType.Bishop =>
+          (piece.color, squareColor(Square(i)))
+      }
+
+      val whites = bishopsByColor.collect { case (Color.White, c) => c }
+      val blacks = bishopsByColor.collect { case (Color.Black, c) => c }
+
+      whites.size == 1 && blacks.size == 1 && whites.head == blacks.head
+
+    else false
+
 // TODO: there's more logic to implement here:
 //       1. 50 move rule
 //       2. insufficient matererial
   def isDraw(state: GameState): Boolean =
-    isStaleMate(state)
+    isStaleMate(state) || isInsufficientMaterial(state)
 
   private def updateCastleRights(
       board: Board,
