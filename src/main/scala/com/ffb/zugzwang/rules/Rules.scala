@@ -139,7 +139,7 @@ object Rules:
 //       1. 50 move rule
 //       2. insufficient matererial
   def isDraw(state: GameState): Boolean =
-    isStaleMate(state) || isInsufficientMaterial(state)
+    isStaleMate(state) || isInsufficientMaterial(state) || state.halfMoveClock == 100
 
   private def updateCastleRights(
       board: Board,
