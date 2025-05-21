@@ -3,8 +3,7 @@ package com.ffb.zugzwang.board
 import scala.collection.immutable.ArraySeq
 import com.ffb.zugzwang.chess.{Color, Piece, PieceType, Square}
 import scala.collection.mutable
-import com.ffb.zugzwang.move.Move
-import com.ffb.zugzwang.move.MoveType
+import com.ffb.zugzwang.move.{Attacks, Move, MoveType}
 
 enum PieceCategory:
   case WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK
