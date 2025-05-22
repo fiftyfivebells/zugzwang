@@ -8,7 +8,7 @@ import com.ffb.zugzwang.chess.{
   PieceType,
   Square
 }
-import com.ffb.zugzwang.board.{Attacks, Board, Bitboard, PieceCategory}
+import com.ffb.zugzwang.board.{Board, Bitboard, PieceCategory}
 import com.ffb.zugzwang.rules.Rules
 import com.ffb.zugzwang.chess.CastleRights
 

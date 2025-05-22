@@ -4,8 +4,8 @@ import com.ffb.zugzwang.chess.{Color, Piece, PieceType, Square}
 import com.ffb.zugzwang.board.Bitboard
 
 trait SlidingAttackGen:
-  def bishopAttacks(square: Square, color: Color, occupied: Bitboard): Bitboard
-  def rookAttacks(square: Square, color: Color, occupied: Bitboard): Bitboard
+  def bishopAttacks(square: Square, occupied: Bitboard): Bitboard
+  def rookAttacks(square: Square, occupied: Bitboard): Bitboard
 
 object PawnAttacks:
   val white: IArray[Bitboard] = IArray.tabulate(64) { sq =>

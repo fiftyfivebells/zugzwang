@@ -6,7 +6,6 @@ import com.ffb.zugzwang.board.Bitboard
 object HQSlidingAttacks extends SlidingAttackGen:
   private def slidingMoves(
       sq: Square,
-      c: Color,
       occ: Bitboard,
       mask: Bitboard
   ): Bitboard =
@@ -54,8 +53,8 @@ object HQSlidingAttacks extends SlidingAttackGen:
     val diagonalMask = diagonalMasks(square.value)
     val antiDiagonalMask = antiDiagonalMasks(square.value)
 
-    val diagonal = slidingMoves(square, color, occupied, diagonalMask)
-    val antiDiagonal = slidingMoves(square, color, occupied, antiDiagonalMask)
+    val diagonal = slidingMoves(square, occupied, diagonalMask)
+    val antiDiagonal = slidingMoves(square, occupied, antiDiagonalMask)
 
     diagonal | antiDiagonal
 
@@ -63,7 +62,7 @@ object HQSlidingAttacks extends SlidingAttackGen:
     val rankMask = HorizontalMasks(square.value)
     val fileMask = VerticalMasks(square.value)
 
-    val rank = slidingMoves(square, color, occupied, rankMask)
-    val file = slidingMoves(square, color, occupied, fileMask)
+    val rank = slidingMoves(square, occupied, rankMask)
+    val file = slidingMoves(square, occupied, fileMask)
 
     rank | file
