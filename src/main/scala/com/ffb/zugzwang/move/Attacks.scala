@@ -70,6 +70,7 @@ end KingAttacks
 object Attacks:
 
   private val sliders = HQSlidingAttacks
+  //private val sliders = MagicSlidingAttacks
 
   inline def attacks(piece: Piece, from: Square, occupied: Bitboard): Bitboard =
     piece match {
@@ -77,12 +78,12 @@ object Attacks:
       case Piece(Color.Black, PieceType.Pawn) => PawnAttacks.black(from.value)
       case Piece(_, PieceType.Knight)         => KnightAttacks.table(from.value)
       case p @ Piece(_, PieceType.Bishop) =>
-        sliders.bishopAttacks(from, p.color, occupied)
+        sliders.bishopAttacks(from, occupied)
       case p @ Piece(_, PieceType.Rook) =>
-        sliders.rookAttacks(from, p.color, occupied)
+        sliders.rookAttacks(from, occupied)
       case p @ Piece(_, PieceType.Queen) =>
-        sliders.bishopAttacks(from, p.color, occupied) |
-          sliders.rookAttacks(from, p.color, occupied)
+        sliders.bishopAttacks(from, occupied) |
+          sliders.rookAttacks(from, occupied)
       case Piece(_, PieceType.King) => KingAttacks.table(from.value)
     }
 

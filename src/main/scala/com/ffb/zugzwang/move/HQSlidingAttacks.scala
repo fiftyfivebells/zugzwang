@@ -47,7 +47,6 @@ object HQSlidingAttacks extends SlidingAttackGen:
 
   def bishopAttacks(
       square: Square,
-      color: Color,
       occupied: Bitboard
   ): Bitboard =
     val diagonalMask = diagonalMasks(square.value)
@@ -58,7 +57,7 @@ object HQSlidingAttacks extends SlidingAttackGen:
 
     diagonal | antiDiagonal
 
-  def rookAttacks(square: Square, color: Color, occupied: Bitboard): Bitboard =
+  def rookAttacks(square: Square, occupied: Bitboard): Bitboard =
     val rankMask = HorizontalMasks(square.value)
     val fileMask = VerticalMasks(square.value)
 
