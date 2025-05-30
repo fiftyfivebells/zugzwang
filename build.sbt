@@ -1,6 +1,7 @@
 ThisBuild / scalaVersion := "3.3.1"
 
 lazy val root = (project in file("."))
+    .enablePlugins(JmhPlugin)
   .settings(
     name := "zugzwang",
     version := "0.1.0",
