@@ -4,10 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import com.ffb.zugzwang.chess.{Color, GameState, Square}
 import com.ffb.zugzwang.rules.Rules
-import com.ffb.zugzwang.board.RookAttacks
-import com.ffb.zugzwang.board.Bitboard
-import com.ffb.zugzwang.board.BishopAttacks
-import com.ffb.zugzwang.board.Board
+import com.ffb.zugzwang.board.{Bitboard, Board}
 
 class PerftSpec extends AnyFlatSpec with Matchers:
   "perft" should "return correct number of moves for different depths from initial position" in {
