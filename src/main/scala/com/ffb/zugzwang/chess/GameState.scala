@@ -95,6 +95,8 @@ object GameState:
       fullMoveClock = 1
     )
 
+  val initialFEN: String = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
   def from(fen: String): GameState =
     val Array(
       boardFen,
