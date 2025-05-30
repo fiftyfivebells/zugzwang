@@ -36,6 +36,11 @@ object Bitboard:
   val f8g8mask: Bitboard = 0x600000000000000L
   val b8c8d8Mask: Bitboard = 0x7000000000000000L
 
+  private val fileMasks =
+    Array(fileH, fileG, fileF, fileE, fileD, fileC, fileB, fileA)
+  private val rankMasks =
+    Array(rank1, rank2, rank3, rank4, rank5, rank6, rank7, rank8)
+
   def apply(n: Long): Bitboard = n
 
   def from(sq: Square): Bitboard = 1L << sq.value
@@ -43,27 +48,9 @@ object Bitboard:
   def from(sqs: Square*): Bitboard =
     sqs.foldLeft(0L: Bitboard)((bb, sq) => bb | (1 << sq.value))
 
-  def fileMaskFor(sq: Square): Bitboard = sq.file.value match {
-    case 0 => fileH
-    case 1 => fileG
-    case 2 => fileF
-    case 3 => fileE
-    case 4 => fileD
-    case 5 => fileC
-    case 6 => fileB
-    case 7 => fileA
-  }
+  inline def fileMaskFor(sq: Square): Bitboard = fileMasks(sq.value)
 
-  def ranKMaskFor(sq: Square): Bitboard = sq.rank.value match {
-    case 0 => rank1
-    case 1 => rank2
-    case 2 => rank3
-    case 3 => rank4
-    case 4 => rank5
-    case 5 => rank6
-    case 6 => rank7
-    case 7 => rank8
-  }
+  inline def ranKMaskFor(sq: Square): Bitboard = rankMasks(sq.value)
 
   extension (bb: Bitboard)
 
