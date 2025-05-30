@@ -103,14 +103,14 @@ object Bitboard:
 
     inline def clearBitAt(sq: Square): Bitboard = bb & ~(1L << sq.value)
 
-    def leastSignificantBit: Option[Square] =
+    inline def leastSignificantBit: Option[Square] =
       Square.from(java.lang.Long.numberOfTrailingZeros(bb))
 
-    def removeLsb: Bitboard = bb & (bb - 1L)
+    inline def removeLsb: Bitboard = bb & (bb - 1L)
 
-    def popCount: Bitboard = java.lang.Long.bitCount(bb)
+    inline def popCount: Bitboard = java.lang.Long.bitCount(bb)
 
-    def reverse: Bitboard = java.lang.Long.reverse(bb.value)
+    inline def reverse: Bitboard = java.lang.Long.reverse(bb.value)
 
     def toString(): String =
       val sb = new StringBuilder
