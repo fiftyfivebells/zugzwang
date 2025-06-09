@@ -1,17 +1,21 @@
 package com.ffb.zugzwang
 
 import com.ffb.zugzwang.chess.GameState
+import com.ffb.zugzwang.move.{Move, Perft}
+import com.ffb.zugzwang.notation.{FENParser, FENParserError}
 import com.ffb.zugzwang.rules.Rules
-import com.ffb.zugzwang.notation.FENParser
-import com.ffb.zugzwang.move.Perft
-import com.ffb.zugzwang.move.Move
 
 object Zugzwang:
-  def legalMoves(fen: String): Seq[Move] =
-    FENParser.from(fen) match {
-      case Right(state) => Rules.legalMoves(state)
-      case _            => Nil
-    }
+  def initial: GameState = GameState.initial
+
+  def gamestateFrom(fen: String): Either[FENParserError, GameState] =
+    FENParser.from(fen)
+
+  def applyMove(fen: String, move: Move): Either[FENParserError, GameState] =
+    FENParser.from(fen).map(Rules.applyMove(_, move))
+
+  def legalMoves(fen: String): Either[FENParserError, Seq[Move]] =
+    FENParser.from(fen).map(Rules.legalMoves(_))
 
   def perft(fen: String, depth: Int = 3): Long =
     val state = GameState.from(fen)
