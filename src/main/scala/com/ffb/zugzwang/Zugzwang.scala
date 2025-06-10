@@ -17,6 +17,9 @@ object Zugzwang:
   def legalMoves(fen: String): Either[FENParserError, Seq[Move]] =
     FENParser.from(fen).map(Rules.legalMoves(_))
 
+  def legalMoves(state: GameState): Seq[Move] =
+    Rules.legalMoves(state)
+
   def perft(fen: String, depth: Int = 3): Long =
     val state = GameState.from(fen)
 

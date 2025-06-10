@@ -8,4 +8,9 @@ enum Color:
     case Black => White
   }
 
+  def toFen: String = this match {
+    case White => "w"
+    case Black => "b"
+  }
+
 end Color
