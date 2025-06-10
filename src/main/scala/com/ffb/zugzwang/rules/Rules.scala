@@ -80,7 +80,8 @@ object Rules:
       castleRights = newCastleRights,
       enPassant = epSquare,
       halfMoveClock = newHalfMove,
-      fullMoveClock = newFullMove
+      fullMoveClock = newFullMove,
+      history = state.toFen :: state.history
     )
 
   def isValidMove(state: GameState, move: Move): Boolean =

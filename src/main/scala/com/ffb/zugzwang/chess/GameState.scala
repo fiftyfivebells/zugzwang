@@ -76,13 +76,20 @@ final case class GameState(
     castleRights: CastleRights,
     enPassant: Option[Square],
     halfMoveClock: Int,
-    fullMoveClock: Int
+    fullMoveClock: Int,
+    history: List[String] // list of previous positions as fen strings
 ):
   def hasCastleRights: Boolean =
     castleRights.has(activeSide, CastleSide.Kingside) || castleRights.has(
       activeSide,
       CastleSide.Queenside
     )
+
+  def toFen: String =
+    val boardFen = board.toFen
+    val epSquare = enPassant.map(Square.toAlgebraic(_)).getOrElse("-")
+
+    s"$boardFen ${activeSide.toFen} ${castleRights.toFen} ${epSquare} $halfMoveClock $fullMoveClock"
 
 object GameState:
   val initial: GameState =
@@ -92,7 +99,8 @@ object GameState:
       castleRights = CastleRights.initial,
       enPassant = None,
       halfMoveClock = 0,
-      fullMoveClock = 1
+      fullMoveClock = 1,
+      history = Nil
     )
 
   val initialFEN: String = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
@@ -124,16 +132,18 @@ object GameState:
       castleRights,
       enPassant,
       halfMoveClock,
-      fullMoveClock
+      fullMoveClock,
+      Nil
     )
 
   def sameAs(original: GameState, other: GameState): Boolean =
     original.activeSide == other.activeSide &&
-    original.castleRights == other.castleRights &&
-    original.enPassant == other.enPassant &&
-    original.halfMoveClock == other.halfMoveClock &&
-    original.fullMoveClock == other.fullMoveClock &&
-    original.board.squares == other.board.squares &&
-    original.board.pieces.corresponds(other.board.pieces)(_ == _)
+      original.castleRights == other.castleRights &&
+      original.enPassant == other.enPassant &&
+      original.halfMoveClock == other.halfMoveClock &&
+      original.fullMoveClock == other.fullMoveClock &&
+      original.board.squares == other.board.squares &&
+      original.board.pieces.corresponds(other.board.pieces)(_ == _) &&
+      original.history == other.history
 
 end GameState
