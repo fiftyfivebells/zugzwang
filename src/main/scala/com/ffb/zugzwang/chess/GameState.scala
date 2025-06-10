@@ -2,6 +2,7 @@ package com.ffb.zugzwang.chess
 
 import com.ffb.zugzwang.board.Board
 import scala.collection.mutable
+import com.ffb.zugzwang.rules.Rules
 
 enum CastleSide:
   case Kingside, Queenside
@@ -84,6 +85,18 @@ final case class GameState(
       activeSide,
       CastleSide.Queenside
     )
+
+  def isCheck: Boolean =
+    Rules.isSideInCheck(this, activeSide)
+
+  def isCheckmate: Boolean =
+    Rules.isCheckmate(this)
+
+  def isDraw: Boolean =
+    Rules.isDraw(this)
+
+  def isStalemate: Boolean =
+    Rules.isStaleMate(this)
 
   def toFen: String =
     val boardFen = board.toFen
