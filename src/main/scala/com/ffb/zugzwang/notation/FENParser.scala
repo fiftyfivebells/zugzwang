@@ -32,7 +32,8 @@ object FENParser:
           castleRights = castleRights,
           enPassant = enPassant,
           halfMoveClock = halfMove,
-          fullMoveClock = fullMove
+          fullMoveClock = fullMove,
+          history = Nil
         )
       case _ => Left(FENParserError.MalformedInput(fen))
     }
