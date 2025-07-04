@@ -25,6 +25,16 @@ object PieceType:
     case King   => 1000
   }
 
+  def fromString(s: String): Option[PieceType] = s match {
+    case "p" => Some(Pawn)
+    case "n" => Some(Knight)
+    case "b" => Some(Bishop)
+    case "r" => Some(Rook)
+    case "q" => Some(Queen)
+    case "k" => Some(King)
+    case _   => None
+  }
+
 case class Piece(color: Color, pieceType: PieceType):
   override def toString: String = color match
     case Color.White => pieceType.name.toUpperCase
