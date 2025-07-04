@@ -104,7 +104,7 @@ object FENParser:
 
 end FENParser
 
-enum FENParserError(val errorMessage: String):
+enum FENParserError(val errorMessage: String) extends Throwable:
   case MalformedInput(value: String)
       extends FENParserError(s"Received malformed FEN string: $value")
   case BoardMissingRanks(value: String)
