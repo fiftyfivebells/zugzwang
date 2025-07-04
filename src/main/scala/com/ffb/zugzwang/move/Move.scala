@@ -12,6 +12,8 @@ enum MoveType:
     Promotion,
     CapturePromotion
 
+  override def toString: String = productPrefix.toLowerCase
+
 opaque type Move = Int
 
 object Move:
