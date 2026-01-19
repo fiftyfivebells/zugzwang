@@ -8,7 +8,7 @@ import com.ffb.zugzwang.chess.{
   PieceType,
   Square
 }
-import com.ffb.zugzwang.board.{Board, Bitboard, PieceCategory}
+import com.ffb.zugzwang.board.{Board, Bitboard}
 import com.ffb.zugzwang.rules.Rules
 import com.ffb.zugzwang.chess.CastleRights
 
@@ -26,17 +26,16 @@ object MoveGenerator:
 
     // this is the bulk of the moves. This should cover all of the attacks for every piece,
     // and then quiet moves for all pieces except for pawns
-    PieceCategory.byColor(state.activeSide) foreach { pc =>
+    Piece.byColor(state.activeSide) foreach { piece =>
       // handle pawns separately
-      val pieces = state.board.pieces(pc.ordinal)
-      val piece = Piece.from(pc)
+      val pieces = state.board.pieces(piece)
 
       pieces.squares.toList foreach { from =>
         val rawAttacks = Attacks.attacks(piece, from, state.board.occupied)
         val attackMask = rawAttacks & targets
         val quietMask = rawAttacks & ~state.board.occupied
 
-        if pc == PieceCategory.WP || pc == PieceCategory.BP then
+        if piece == Piece.WhitePawn || piece == Piece.BlackPawn then
           val pawnAttacks = rawAttacks & (attackMask | (state.enPassant match {
             case Some(sq) => 1L << sq.value
             case None     => 0L

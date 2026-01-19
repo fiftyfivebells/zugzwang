@@ -73,18 +73,18 @@ object Attacks:
   //private val sliders = MagicSlidingAttacks
 
   inline def attacks(piece: Piece, from: Square, occupied: Bitboard): Bitboard =
-    piece match {
-      case Piece(Color.White, PieceType.Pawn) => PawnAttacks.white(from.value)
-      case Piece(Color.Black, PieceType.Pawn) => PawnAttacks.black(from.value)
-      case Piece(_, PieceType.Knight)         => KnightAttacks.table(from.value)
-      case p @ Piece(_, PieceType.Bishop) =>
+    (piece.color, piece.pieceType) match {
+      case (Color.White, PieceType.Pawn) => PawnAttacks.white(from.value)
+      case (Color.Black, PieceType.Pawn) => PawnAttacks.black(from.value)
+      case (_, PieceType.Knight) => KnightAttacks.table(from.value)
+      case p @ (_, PieceType.Bishop) =>
         sliders.bishopAttacks(from, occupied)
-      case p @ Piece(_, PieceType.Rook) =>
+      case p @ (_, PieceType.Rook) =>
         sliders.rookAttacks(from, occupied)
-      case p @ Piece(_, PieceType.Queen) =>
+      case p @ (_, PieceType.Queen) =>
         sliders.bishopAttacks(from, occupied) |
           sliders.rookAttacks(from, occupied)
-      case Piece(_, PieceType.King) => KingAttacks.table(from.value)
+      case (_, PieceType.King) => KingAttacks.table(from.value)
     }
 
 end Attacks

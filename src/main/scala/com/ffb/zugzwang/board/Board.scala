@@ -5,47 +5,6 @@ import com.ffb.zugzwang.chess.{Color, Piece, PieceType, Square}
 import scala.collection.mutable
 import com.ffb.zugzwang.move.{Attacks, Move, MoveType}
 
-enum PieceCategory:
-  case WP, WN, WB, WR, WQ, WK, BP, BN, BB, BR, BQ, BK
-
-object PieceCategory:
-  def of(piece: Piece): PieceCategory = piece match {
-    case Piece(Color.White, PieceType.Pawn)   => WP
-    case Piece(Color.White, PieceType.Knight) => WN
-    case Piece(Color.White, PieceType.Bishop) => WB
-    case Piece(Color.White, PieceType.Rook)   => WR
-    case Piece(Color.White, PieceType.Queen)  => WQ
-    case Piece(Color.White, PieceType.King)   => WK
-    case Piece(Color.Black, PieceType.Pawn)   => BP
-    case Piece(Color.Black, PieceType.Knight) => BN
-    case Piece(Color.Black, PieceType.Bishop) => BB
-    case Piece(Color.Black, PieceType.Rook)   => BR
-    case Piece(Color.Black, PieceType.Queen)  => BQ
-    case Piece(Color.Black, PieceType.King)   => BK
-  }
-
-  def byColor(c: Color): List[PieceCategory] = c match {
-    case Color.White =>
-      List(
-        PieceCategory.WP,
-        PieceCategory.WN,
-        PieceCategory.WB,
-        PieceCategory.WR,
-        PieceCategory.WQ,
-        PieceCategory.WK
-      )
-    case Color.Black =>
-      List(
-        PieceCategory.BP,
-        PieceCategory.BN,
-        PieceCategory.BB,
-        PieceCategory.BR,
-        PieceCategory.BQ,
-        PieceCategory.BK
-      )
-  }
-end PieceCategory
-
 final case class Board private (
     pieces: IArray[Bitboard],
     squares: ArraySeq[Option[Piece]]
@@ -82,15 +41,13 @@ final case class Board private (
   def occupied: Bitboard = pieces.foldLeft(Bitboard.empty)(_ | _)
 
   def byColor(c: Color): Bitboard =
-    PieceCategory.byColor(c).foldLeft(Bitboard.empty) { (bb, pc) =>
-      bb | pieces(pc.ordinal)
+    Piece.byColor(c).foldLeft(Bitboard.empty) { (bb, pc) =>
+      bb | pieces(pc)
     }
 
   def byColorAndType(c: Color, pt: PieceType): Bitboard =
-    val piece = Piece(c, pt)
-    val pc = PieceCategory.of(piece)
-
-    pieces(pc.ordinal)
+    val piece = Piece.from(c, pt)
+    pieces(piece)
 
   def allPieces: List[Piece] = squares.flatMap(identity).toList
 
@@ -99,11 +56,10 @@ final case class Board private (
   def pieceAt(sq: Square): Option[Piece] = squares(sq.value)
 
   def putPieceAt(p: Piece, sq: Square): Board =
-    val pieceIndex = PieceCategory.of(p).ordinal
-    val newBitboard = pieces(pieceIndex).setBitAt(sq)
+    val newBitboard = pieces(p).setBitAt(sq)
 
     Board(
-      pieces.updated(pieceIndex, newBitboard),
+      pieces.updated(p, newBitboard),
       squares.updated(sq.value, Some(p))
     )
 
@@ -111,18 +67,17 @@ final case class Board private (
     squares(sq.value) match {
       case None => this
       case Some(piece) =>
-        val pieceIndex = PieceCategory.of(piece).ordinal
-        val newBitboard = pieces(pieceIndex).clearBitAt(sq)
+        val newBitboard = pieces(piece).clearBitAt(sq)
         val newSquares = squares.updated(sq.value, None)
 
-        Board(pieces.updated(pieceIndex, newBitboard), newSquares)
+        Board(pieces.updated(piece, newBitboard), newSquares)
     }
 
   def isKingAttacked(c: Color): Boolean =
     val kingIndex =
-      if c == Color.White then PieceCategory.WK else PieceCategory.BK
+      if c == Color.White then Piece.WhiteKing else Piece.BlackKing
 
-    val kingSquare = pieces(kingIndex.ordinal).leastSignificantBit
+    val kingSquare = pieces(kingIndex).leastSignificantBit
 
     kingSquare match
       case Some(square) => isAttacked(square, c)
@@ -134,8 +89,7 @@ final case class Board private (
   def isAttacked(sq: Square, c: Color): Boolean =
     val enemy = c.enemy
 
-    PieceCategory.byColor(c).foldLeft(false) { (isAttacked, pc) =>
-      val piece = Piece.from(pc)
+    Piece.byColor(c).foldLeft(false) { (isAttacked, piece) =>
       val attackMask = Attacks.attacks(piece, sq, this.occupied)
 
       isAttacked || (attackMask & byColorAndType(
@@ -143,22 +97,6 @@ final case class Board private (
         piece.pieceType
       )).nonEmpty
     }
-
-  private def pieceToCategory(p: Piece): PieceCategory = p match
-    case Piece(Color.White, PieceType.Pawn)   => PieceCategory.WP
-    case Piece(Color.White, PieceType.Knight) => PieceCategory.WN
-    case Piece(Color.White, PieceType.Bishop) => PieceCategory.WB
-    case Piece(Color.White, PieceType.Rook)   => PieceCategory.WR
-    case Piece(Color.White, PieceType.Queen)  => PieceCategory.WQ
-    case Piece(Color.White, PieceType.King)   => PieceCategory.WK
-    case Piece(Color.Black, PieceType.Pawn)   => PieceCategory.BP
-    case Piece(Color.Black, PieceType.Knight) => PieceCategory.BN
-    case Piece(Color.Black, PieceType.Bishop) => PieceCategory.BB
-    case Piece(Color.Black, PieceType.Rook)   => PieceCategory.BR
-    case Piece(Color.Black, PieceType.Queen)  => PieceCategory.BQ
-    case Piece(Color.Black, PieceType.King)   => PieceCategory.BK
-
-end Board
 
 object Board:
 
@@ -217,7 +155,7 @@ object Board:
             .putPieceAt(moving, move.to)
 
         case (Some(pawn), Some(promotion)) =>
-          val promoPiece = Piece(pawn.color, promotion)
+          val promoPiece = Piece.from(pawn.color, promotion)
           board
             .removePieceFrom(move.to)
             .removePieceFrom(move.from)
@@ -230,7 +168,7 @@ object Board:
       // no king at the from square, just return the board and we'll catch the issue later
       case None => board
       case Some(king) =>
-        val rook = Piece(king.color, PieceType.Rook)
+        val rook = Piece.from(king.color, PieceType.Rook)
 
         val (kingTo, rookFrom, rookTo) = move.moveType match {
           case MoveType.CastleKingside =>
