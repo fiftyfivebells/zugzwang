@@ -9,17 +9,17 @@ trait SlidingAttackGen:
 
 object PawnAttacks:
   val white: IArray[Bitboard] = IArray.tabulate(64) { sq =>
-    val board = 1L << sq
+    val board       = 1L << sq
     val rightAttack = ~Bitboard.fileA & (board << 7)
-    val leftAttack = ~Bitboard.fileH & (board << 9)
+    val leftAttack  = ~Bitboard.fileH & (board << 9)
 
     leftAttack | rightAttack
   }
 
   val black: IArray[Bitboard] = IArray.tabulate(64) { sq =>
-    val board = 1L << sq
+    val board       = 1L << sq
     val rightAttack = ~Bitboard.fileA & (board >>> 9)
-    val leftAttack = ~Bitboard.fileH & (board >>> 7)
+    val leftAttack  = ~Bitboard.fileH & (board >>> 7)
 
     leftAttack | rightAttack
   }
@@ -54,13 +54,13 @@ object KingAttacks:
   val table: IArray[Bitboard] = IArray.tabulate(64) { sq =>
     val startSquare = 1L << sq
 
-    val north = Bitboard(startSquare << 8)
+    val north     = Bitboard(startSquare << 8)
     val northEast = ~Bitboard.fileA & (startSquare << 7)
-    val east = ~Bitboard.fileA & (startSquare >>> 1)
+    val east      = ~Bitboard.fileA & (startSquare >>> 1)
     val southEast = ~Bitboard.fileA & (startSquare >>> 9)
-    val south = Bitboard(startSquare >>> 8)
+    val south     = Bitboard(startSquare >>> 8)
     val southWest = ~Bitboard.fileH & (startSquare >>> 7)
-    val west = ~Bitboard.fileH & (startSquare << 1)
+    val west      = ~Bitboard.fileH & (startSquare << 1)
     val northWest = ~Bitboard.fileH & (startSquare << 9)
 
     north | northEast | east | southEast | south | southWest | west | northWest
@@ -70,21 +70,18 @@ end KingAttacks
 object Attacks:
 
   private val sliders = HQSlidingAttacks
-  //private val sliders = MagicSlidingAttacks
+  // private val sliders = MagicSlidingAttacks
 
   inline def attacks(piece: Piece, from: Square, occupied: Bitboard): Bitboard =
-    (piece.color, piece.pieceType) match {
-      case (Color.White, PieceType.Pawn) => PawnAttacks.white(from.value)
-      case (Color.Black, PieceType.Pawn) => PawnAttacks.black(from.value)
-      case (_, PieceType.Knight) => KnightAttacks.table(from.value)
-      case p @ (_, PieceType.Bishop) =>
-        sliders.bishopAttacks(from, occupied)
-      case p @ (_, PieceType.Rook) =>
-        sliders.rookAttacks(from, occupied)
-      case p @ (_, PieceType.Queen) =>
+    piece match
+      case Piece.WhitePawn => PawnAttacks.white(from.value)
+      case Piece.BlackPawn => PawnAttacks.black(from.value)
+      case p if p.isKnight => KnightAttacks.table(from.value)
+      case p if p.isBishop => sliders.bishopAttacks(from, occupied)
+      case p if p.isRook   => sliders.rookAttacks(from, occupied)
+      case p if p.isQueen =>
         sliders.bishopAttacks(from, occupied) |
           sliders.rookAttacks(from, occupied)
-      case (_, PieceType.King) => KingAttacks.table(from.value)
-    }
+      case p if p.isKing => KingAttacks.table(from.value)
 
 end Attacks
