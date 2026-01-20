@@ -10,14 +10,33 @@ object PieceType:
   val Queen: PieceType  = 4
   val King: PieceType   = 5
 
-  private def value(pt: PieceType): Int = pt match
-    case NoType => 0
-    case Pawn   => 10
-    case Knight => 30
-    case Bishop => 35
-    case Rook   => 50
-    case Queen  => 90
-    case King   => 1000
+  extension (pt: PieceType)
+    def name: String = pt match
+      case NoType => ""
+      case Pawn   => "p"
+      case Knight => "n"
+      case Bishop => "b"
+      case Rook   => "r"
+      case Queen  => "q"
+      case King   => "k"
+
+    def value: Int = pt match
+      case NoType => 0
+      case Pawn   => 10
+      case Knight => 30
+      case Bishop => 35
+      case Rook   => 50
+      case Queen  => 90
+      case King   => 1000
+
+  def apply(piece: Int) = piece match
+    case -1 => NoType
+    case 0  => Pawn
+    case 1  => Knight
+    case 2  => Bishop
+    case 3  => Rook
+    case 4  => Queen
+    case 5  => King
 
   def fromString(s: String): PieceType = s.toLowerCase match
     case "p" => Pawn
@@ -80,4 +99,4 @@ object Piece:
 
     (color.ordinal * 6) + pieceType
 
-  def from(color: Color, pieceType: PieceType) = (color.ordinal * 6) + pieceType
+  def from(color: Color, pieceType: PieceType): Piece = (color.ordinal * 6) + pieceType
