@@ -30,7 +30,7 @@ object PerftRunner:
         val nodesOpt =
           mode match
             case "divide" => Some(Perft.divide(state, depth))
-            case "perft"  => Some(Perft.perft(state, depth))
+            case "perft"  => Some(Perft.perftBasic(state, depth))
             case other =>
               println(s"Unknown mode: $other. Use perft or divide.")
               None
