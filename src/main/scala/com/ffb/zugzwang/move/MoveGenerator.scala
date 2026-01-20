@@ -21,57 +21,69 @@ object MoveGenerator:
     // and then quiet moves for all pieces except for pawns
     Piece.byColor(state.activeSide) foreach { piece =>
       // handle pawns separately
-      val pieces = state.board.pieces(piece)
+      var pieces = state.board.pieces(piece)
 
-      pieces.squares.toList foreach { from =>
+      while pieces.nonEmpty do
+        val from = Square(pieces.trailingZeros)
+        pieces = pieces.removeLsb
+
         val rawAttacks = Attacks.attacks(piece, from, occupied)
-        val attackMask = rawAttacks & targets
-        val quietMask  = rawAttacks & ~occupied
+        var attackMask = rawAttacks & targets
+        var quietMask  = rawAttacks & ~occupied
 
         if piece == Piece.WhitePawn || piece == Piece.BlackPawn then
-          val pawnAttacks = rawAttacks & (attackMask | (state.enPassant match
+          var pawnAttacks = rawAttacks & (attackMask | (state.enPassant match
             case Some(sq) => 1L << sq.value
             case None     => 0L
           ))
           // first generate pawn attacks
-          pawnAttacks.squares.foreach { to =>
+          while pawnAttacks.nonEmpty do
+            val to = Square(pawnAttacks.trailingZeros)
+            pawnAttacks = pawnAttacks.removeLsb
+
             if state.enPassant.isDefined && to == state.enPassant.get then
               state.enPassant.foreach(sq => moves.add(Move(from, to, MoveType.EnPassant)))
             else if to.lastRank(state.activeSide) then addPromotions(from, to, isCapture = true, moves)
             else moves.add(Move(from, to, MoveType.Capture))
-          }
 
           // TODO: can i make this faster by breaking this out and doing all the pawns in one shot?
           // now handle pawn pushes
-          val singlePush =
+          var singlePush =
             ~occupied & (state.activeSide match
               case Color.White => (1L << from.value) << 8
               case Color.Black => (1L << from.value) >>> 8
             )
-          val doublePush =
+          var doublePush =
             ~occupied & (state.activeSide match
               case Color.White => singlePush << 8
               case Color.Black => singlePush >>> 8
             ) // (singlePush << direction)
 
-          singlePush.squares.foreach { to =>
+          while singlePush.nonEmpty do
+            val to = Square(singlePush.trailingZeros)
+            singlePush = singlePush.removeLsb
+
             if to.lastRank(state.activeSide) then addPromotions(from, to, isCapture = false, moves)
             else moves.add(Move(from, to, MoveType.Quiet))
-          }
 
           if from.startingPawnRank(state.activeSide) then
-            doublePush.squares.foreach { to =>
-              moves.add(Move(from, to, MoveType.DoublePush))
-            }
-        else
-          attackMask.squares.foreach { to =>
-            moves.add(Move(from, to, MoveType.Capture))
-          }
+            while doublePush.nonEmpty do
+              val to = Square(doublePush.trailingZeros)
+              doublePush = doublePush.removeLsb
 
-          quietMask.squares.foreach { to =>
+              moves.add(Move(from, to, MoveType.DoublePush))
+        else
+          while attackMask.nonEmpty do
+            val to = Square(attackMask.trailingZeros)
+            attackMask = attackMask.removeLsb
+
+            moves.add(Move(from, to, MoveType.Capture))
+
+          while quietMask.nonEmpty do
+            val to = Square(quietMask.trailingZeros)
+            quietMask = quietMask.removeLsb
+
             moves.add(Move(from, to, MoveType.Quiet))
-          }
-      }
     }
 
     // castles
