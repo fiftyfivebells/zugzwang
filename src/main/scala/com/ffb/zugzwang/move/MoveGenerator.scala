@@ -14,7 +14,9 @@ object MoveGenerator:
   def pseudoLegalMoves(state: GameState): List[Move] =
     val moves = MoveList(256)
 
-    val targets = state.board.byColor(state.activeSide.enemy)
+    val occupied     = state.board.occupied
+    val activePieces = state.board.byColor(state.activeSide)
+    val targets      = state.board.byColor(state.activeSide.enemy)
     // this is the bulk of the moves. This should cover all of the attacks for every piece,
     // and then quiet moves for all pieces except for pawns
     Piece.byColor(state.activeSide) foreach { piece =>
@@ -22,9 +24,9 @@ object MoveGenerator:
       val pieces = state.board.pieces(piece)
 
       pieces.squares.toList foreach { from =>
-        val rawAttacks = Attacks.attacks(piece, from, state.board.occupied)
+        val rawAttacks = Attacks.attacks(piece, from, occupied)
         val attackMask = rawAttacks & targets
-        val quietMask  = rawAttacks & ~state.board.occupied
+        val quietMask  = rawAttacks & ~occupied
 
         if piece == Piece.WhitePawn || piece == Piece.BlackPawn then
           val pawnAttacks = rawAttacks & (attackMask | (state.enPassant match
@@ -42,12 +44,12 @@ object MoveGenerator:
           // TODO: can i make this faster by breaking this out and doing all the pawns in one shot?
           // now handle pawn pushes
           val singlePush =
-            ~state.board.occupied & (state.activeSide match
+            ~occupied & (state.activeSide match
               case Color.White => (1L << from.value) << 8
               case Color.Black => (1L << from.value) >>> 8
             )
           val doublePush =
-            ~state.board.occupied & (state.activeSide match
+            ~occupied & (state.activeSide match
               case Color.White => singlePush << 8
               case Color.Black => singlePush >>> 8
             ) // (singlePush << direction)
@@ -75,7 +77,7 @@ object MoveGenerator:
     // castles
     if state.hasCastleRights then
       castleMoves(
-        state.board.occupied,
+        occupied,
         state.activeSide,
         state.castleRights,
         state.board,
