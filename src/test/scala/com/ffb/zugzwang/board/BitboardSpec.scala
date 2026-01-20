@@ -27,7 +27,7 @@ class BitboardSpec extends AnyFlatSpec with Matchers:
     val squares = List(Square.from(0), Square.from(7), Square.from(63)).flatten
 
     squares foreach { sq =>
-      val b = Bitboard.empty
+      val b      = Bitboard.empty
       val setBit = b.setBitAt(sq)
 
       setBit.isEmpty shouldBe false
@@ -45,11 +45,9 @@ class BitboardSpec extends AnyFlatSpec with Matchers:
   "Bitboard.|" should "combine two bitboards" in {
     Square.from(0) flatMap { sq1 =>
       Square.from(1) map { sq2 =>
-        {
-          val or = Bitboard.from(sq1) | Bitboard.from(sq2)
-          or.popCount shouldEqual 2
-          or.value shouldEqual 3L
-        }
+        val or = Bitboard.from(sq1) | Bitboard.from(sq2)
+        or.popCount shouldEqual 2
+        or.value shouldEqual 3L
       }
     }
   }
@@ -57,14 +55,12 @@ class BitboardSpec extends AnyFlatSpec with Matchers:
   "Bitboard.clearLsb" should "remove only the least significant bit" in {
     Square.from(0) flatMap { sq1 =>
       Square.from(1) map { sq2 =>
-        {
-          val bb = Bitboard.from(sq1, sq2)
+        val bb = Bitboard.from(sq1, sq2)
 
-          bb.leastSignificantBit shouldEqual Some(0)
-          val cleared = bb.removeLsb
+        bb.leastSignificantBit shouldEqual Some(0)
+        val cleared = bb.removeLsb
 
-          cleared.value shouldEqual 2L
-        }
+        cleared.value shouldEqual 2L
       }
     }
   }

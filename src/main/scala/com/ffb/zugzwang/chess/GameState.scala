@@ -1,8 +1,9 @@
 package com.ffb.zugzwang.chess
 
 import com.ffb.zugzwang.board.Board
-import scala.collection.mutable
 import com.ffb.zugzwang.rules.Rules
+
+import scala.collection.mutable
 
 enum CastleSide:
   case Kingside, Queenside
@@ -11,9 +12,9 @@ opaque type CastleRights = Int
 
 object CastleRights:
 
-  val whiteKingside = 1 << 0 // 0b0001
+  val whiteKingside  = 1 << 0 // 0b0001
   val whiteQueenside = 1 << 1 // 0b0010
-  val blackKingside = 1 << 2 // 0b0100
+  val blackKingside  = 1 << 2 // 0b0100
   val blackQueenside = 1 << 3 // 0b1000
 
   private def apply(flags: Int): CastleRights = flags
@@ -72,13 +73,13 @@ object CastleRights:
 end CastleRights
 
 final case class GameState(
-    board: Board,
-    activeSide: Color,
-    castleRights: CastleRights,
-    enPassant: Option[Square],
-    halfMoveClock: Int,
-    fullMoveClock: Int,
-    history: List[String] // list of previous positions as fen strings
+  board: Board,
+  activeSide: Color,
+  castleRights: CastleRights,
+  enPassant: Option[Square],
+  halfMoveClock: Int,
+  fullMoveClock: Int,
+  history: List[String] // list of previous positions as fen strings
 ):
   def hasCastleRights: Boolean =
     castleRights.has(activeSide, CastleSide.Kingside) || castleRights.has(
@@ -128,10 +129,10 @@ object GameState:
       fullMove
     ) = fen.split("\\s+")
 
-    val board = Board.from(boardFen)
-    val activeSide = if side == "w" then Color.White else Color.Black
+    val board        = Board.from(boardFen)
+    val activeSide   = if side == "w" then Color.White else Color.Black
     val castleRights = CastleRights.from(rights)
-    val enPassant = Square.fromAlgebraic(ep).toOption
+    val enPassant    = Square.fromAlgebraic(ep).toOption
 
     // TODO: with well-validated fen strings, it should never be possible for these values to
     // fail to convert to ints. eventually, i want to add a fen parsing object that has a built

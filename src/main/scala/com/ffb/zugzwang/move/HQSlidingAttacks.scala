@@ -1,13 +1,13 @@
 package com.ffb.zugzwang.move
 
-import com.ffb.zugzwang.chess.{Color, Square}
 import com.ffb.zugzwang.board.Bitboard
+import com.ffb.zugzwang.chess.Square
 
 object HQSlidingAttacks extends SlidingAttackGen:
   private def slidingMoves(
-      sq: Square,
-      occ: Bitboard,
-      mask: Bitboard
+    sq: Square,
+    occ: Bitboard,
+    mask: Bitboard
   ): Bitboard =
     val startSquare = 1L << sq.value
 
@@ -22,8 +22,8 @@ object HQSlidingAttacks extends SlidingAttackGen:
   // https://www.chessprogramming.org/On_an_empty_Board#By_Calculation_3
   private val diagonalMasks = Array.tabulate(64) { sq =>
     val diagonal = 56L - 8L * (sq & 7L) - (sq & 56L)
-    val north = -diagonal & (diagonal >>> 31L)
-    val south = diagonal & (-diagonal >>> 31L)
+    val north    = -diagonal & (diagonal >>> 31L)
+    val south    = diagonal & (-diagonal >>> 31L)
 
     ((Bitboard.diagonal >>> south) << north) ^ (1L << sq)
   }
@@ -32,8 +32,8 @@ object HQSlidingAttacks extends SlidingAttackGen:
   // (positive and megative) from that square. The formula for calculating this comes from the link above.
   private val antiDiagonalMasks = Array.tabulate(64) { sq =>
     val antiDiagonal = 8L * (sq & 7L) - (sq & 56L)
-    val north = -antiDiagonal & (antiDiagonal >>> 31L)
-    val south = antiDiagonal & (-antiDiagonal >>> 31L)
+    val north        = -antiDiagonal & (antiDiagonal >>> 31L)
+    val south        = antiDiagonal & (-antiDiagonal >>> 31L)
 
     ((Bitboard.antiDiagonal >>> south) << north) ^ (1L << sq)
   }
@@ -46,13 +46,13 @@ object HQSlidingAttacks extends SlidingAttackGen:
   }
 
   def bishopAttacks(
-      square: Square,
-      occupied: Bitboard
+    square: Square,
+    occupied: Bitboard
   ): Bitboard =
-    val diagonalMask = diagonalMasks(square.value)
+    val diagonalMask     = diagonalMasks(square.value)
     val antiDiagonalMask = antiDiagonalMasks(square.value)
 
-    val diagonal = slidingMoves(square, occupied, diagonalMask)
+    val diagonal     = slidingMoves(square, occupied, diagonalMask)
     val antiDiagonal = slidingMoves(square, occupied, antiDiagonalMask)
 
     diagonal | antiDiagonal

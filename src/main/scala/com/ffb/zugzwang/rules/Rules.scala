@@ -1,16 +1,8 @@
 package com.ffb.zugzwang.rules
 
-import com.ffb.zugzwang.chess.{
-  CastleRights,
-  CastleSide,
-  Color,
-  GameState,
-  Piece,
-  PieceType,
-  Square
-}
-import com.ffb.zugzwang.move.{Move, MoveGenerator, MoveType}
 import com.ffb.zugzwang.board.Board
+import com.ffb.zugzwang.chess.{CastleRights, CastleSide, Color, GameState, Piece, PieceType, Square}
+import com.ffb.zugzwang.move.{Move, MoveGenerator, MoveType}
 
 object Rules:
 
@@ -23,26 +15,23 @@ object Rules:
   def applyMove(state: GameState, move: Move): GameState =
     val newBoard = Board.applyMove(state.board, move)
 
-    val epSquare = state.board.pieceAt(move.from) match {
+    val epSquare = state.board.pieceAt(move.from) match
       case Some(piece) if piece.pieceType == PieceType.Pawn =>
         if move.moveType == MoveType.DoublePush then
-          val epSq = state.activeSide match {
+          val epSq = state.activeSide match
             case Color.White => Square(move.to.value - 8)
             case Color.Black => Square(move.to.value + 8)
-          }
 
           Some(epSq)
         else None
 
       case _ => None
-    }
 
-    val movedPiece = state.board.pieceAt(move.from)
+    val movedPiece    = state.board.pieceAt(move.from)
     val capturedPiece = state.board.pieceAt(move.to)
 
-    val newCastleRights = (movedPiece, capturedPiece) match {
-      case (Some(piece), _)
-          if piece.pieceType == PieceType.King || piece.pieceType == PieceType.Rook =>
+    val newCastleRights = (movedPiece, capturedPiece) match
+      case (Some(piece), _) if piece.pieceType == PieceType.King || piece.pieceType == PieceType.Rook =>
         updateCastleRights(
           state.board,
           state.castleRights,
@@ -58,18 +47,15 @@ object Rules:
         )
 
       case _ => state.castleRights
-    }
 
     val newHalfMove =
-      (state.board.pieceAt(move.from), state.board.pieceAt(move.to)) match {
+      (state.board.pieceAt(move.from), state.board.pieceAt(move.to)) match
         // if a pawn moves or the move is a capture, set half move to zero
-        case (Some(piece), _)
-            if piece.pieceType == PieceType.Pawn || Move.isCapture(move) =>
+        case (Some(piece), _) if piece.pieceType == PieceType.Pawn || Move.isCapture(move) =>
           0
 
         // in all other cases, add 1
         case _ => state.halfMoveClock + 1
-      }
     val newFullMove =
       if state.activeSide == Color.Black then state.fullMoveClock + 1
       else state.fullMoveClock
@@ -100,7 +86,7 @@ object Rules:
   // TODO: this is pretty ugly. it looks like it works for now, but it could perhaps
   // use some cleaning up in the future
   def isInsufficientMaterial(state: GameState): Boolean =
-    val pieces = state.board.allPieces
+    val pieces  = state.board.allPieces
     val grouped = pieces.groupMapReduce(_.pieceType)(_ => 1)(_ + _)
 
     val total = grouped.values.sum
@@ -133,7 +119,6 @@ object Rules:
       val blacks = bishopsByColor.collect { case (Color.Black, c) => c }
 
       whites.size == 1 && blacks.size == 1 && whites.head == blacks.head
-
     else false
 
 // TODO: there's more logic to implement here:
@@ -143,15 +128,15 @@ object Rules:
     isStaleMate(state) || isInsufficientMaterial(state) || state.halfMoveClock == 100
 
   private def updateCastleRights(
-      board: Board,
-      rights: CastleRights,
-      side: Color,
-      move: Move
+    board: Board,
+    rights: CastleRights,
+    side: Color,
+    move: Move
   ): CastleRights =
-    val moved = board.pieceAt(move.from)
+    val moved    = board.pieceAt(move.from)
     val captured = board.pieceAt(move.to)
 
-    (moved, captured) match {
+    (moved, captured) match
       case (Some(piece), _) if piece.pieceType == PieceType.King =>
         rights.removeAll(side)
 
@@ -163,16 +148,15 @@ object Rules:
         updateRookRights(side, move.to, rights)
 
       case _ => rights
-    }
 
   private def rookSquares(color: Color): (Square, Square) =
     if color == Color.White then (Square.H1, Square.A1)
     else (Square.H8, Square.A8)
 
   private def updateRookRights(
-      color: Color,
-      sq: Square,
-      rights: CastleRights
+    color: Color,
+    sq: Square,
+    rights: CastleRights
   ): CastleRights =
     val (kingsideRook, queensideRook) = rookSquares(color)
 

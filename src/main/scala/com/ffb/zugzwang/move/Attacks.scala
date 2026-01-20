@@ -1,7 +1,7 @@
 package com.ffb.zugzwang.move
 
-import com.ffb.zugzwang.chess.{Color, Piece, PieceType, Square}
 import com.ffb.zugzwang.board.Bitboard
+import com.ffb.zugzwang.chess.{Piece, Square}
 
 trait SlidingAttackGen:
   def bishopAttacks(square: Square, occupied: Bitboard): Bitboard

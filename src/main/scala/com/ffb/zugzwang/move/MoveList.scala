@@ -5,7 +5,7 @@ package com.ffb.zugzwang.move
 // "functional" and maintaining immutability
 final case class MoveList(initialCapacity: Int = 256):
   private var moves: Array[Move] = new Array[Move](initialCapacity)
-  private var count = 0
+  private var count              = 0
 
   def add(move: Move): Unit =
     if count >= moves.size then grow
@@ -39,7 +39,7 @@ final case class MoveList(initialCapacity: Int = 256):
   // it swaps it with the move on the right and checks again. This should
   // be O(n) time, since it just walks the list from boths ends
   def sortCapturesFirst: Unit =
-    var left = 0
+    var left  = 0
     var right = count - 1
 
     while left < right do

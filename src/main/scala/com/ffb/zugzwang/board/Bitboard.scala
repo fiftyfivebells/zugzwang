@@ -1,6 +1,7 @@
 package com.ffb.zugzwang.board
 
-import com.ffb.zugzwang.chess.{Rank, Square}
+import com.ffb.zugzwang.chess.Square
+
 import scala.annotation.targetName
 import scala.collection.Iterator
 
@@ -8,9 +9,9 @@ opaque type Bitboard = Long
 
 object Bitboard:
   val empty: Bitboard = 0L
-  val full: Bitboard = 0xffffffffffffffffL
+  val full: Bitboard  = 0xffffffffffffffffL
 
-  val diagonal: Bitboard = 0x0102040810204080L
+  val diagonal: Bitboard     = 0x0102040810204080L
   val antiDiagonal: Bitboard = 0x8040201008040201L
 
   val fileA: Bitboard = 0x8080808080808080L
@@ -31,9 +32,9 @@ object Bitboard:
   val rank7: Bitboard = rank6 << 8
   val rank8: Bitboard = rank7 << 8
 
-  val f1g1Mask: Bitboard = 6L
+  val f1g1Mask: Bitboard   = 6L
   val b1c1d1Mask: Bitboard = 0x70L
-  val f8g8mask: Bitboard = 0x600000000000000L
+  val f8g8mask: Bitboard   = 0x600000000000000L
   val b8c8d8Mask: Bitboard = 0x7000000000000000L
 
   private val fileMasks =
@@ -54,14 +55,14 @@ object Bitboard:
 
   extension (bb: Bitboard)
 
-    inline def value: Long = bb
+    inline def value: Long  = bb
     inline def toLong: Long = bb
 
     inline def unary_~ : Bitboard = ~bb
 
     def squares: Iterator[Square] =
       new Iterator:
-        private var bits = bb
+        private var bits     = bb
         def hasNext: Boolean = bits != 0L
         def next: Square =
           val sq = java.lang.Long.numberOfTrailingZeros(bits)
@@ -69,34 +70,34 @@ object Bitboard:
           Square(sq)
 
     @targetName("and")
-    inline def &(other: Long): Bitboard = bb & other
+    inline def &(other: Long): Bitboard     = bb & other
     inline def &(other: Bitboard): Bitboard = bb & other
 
     @targetName("or")
-    inline def |(other: Long): Bitboard = bb | other
+    inline def |(other: Long): Bitboard     = bb | other
     inline def |(other: Bitboard): Bitboard = bb | other
 
     @targetName("xor")
-    inline def ^(other: Long): Bitboard = bb ^ other
+    inline def ^(other: Long): Bitboard     = bb ^ other
     inline def ^(other: Bitboard): Bitboard = bb ^ other
 
     @targetName("leftShift")
-    inline def <<(other: Long): Bitboard = bb << other
+    inline def <<(other: Long): Bitboard     = bb << other
     inline def <<(other: Bitboard): Bitboard = bb << other
 
     @targetName("rightShift")
-    inline def >>>(other: Long): Bitboard = bb >>> other
+    inline def >>>(other: Long): Bitboard     = bb >>> other
     inline def >>>(other: Bitboard): Bitboard = bb >>> other
 
     @targetName("minus")
-    inline def -(other: Long): Bitboard = bb - other
+    inline def -(other: Long): Bitboard     = bb - other
     inline def -(other: Bitboard): Bitboard = bb - other
 
     @targetName("times")
-    inline def *(other: Long): Bitboard = bb * other
+    inline def *(other: Long): Bitboard     = bb * other
     inline def *(other: Bitboard): Bitboard = bb * other
 
-    inline def isEmpty: Boolean = bb == empty
+    inline def isEmpty: Boolean  = bb == empty
     inline def nonEmpty: Boolean = bb != empty
 
     inline def setBitAt(sq: Square): Bitboard = bb | (1L << sq.value)
@@ -117,7 +118,7 @@ object Bitboard:
       for rank <- 7 to 0 by -1 do
         for file <- 7 to 0 by -1 do
           val square = rank * 8 + file
-          val bit = 1L << square
+          val bit    = 1L << square
           if (bb & bit) != 0 then sb.append("1 ")
           else sb.append(". ")
         sb.append("\n")
@@ -129,7 +130,7 @@ object Bitboard:
         sb.append(s"${rank + 1} ")
         for file <- 7 to 0 by -1 do
           val square = rank * 8 + file
-          val bit = 1L << square
+          val bit    = 1L << square
           sb.append(if (bb & bit) != 0 then "1 " else ". ")
         sb.append("\n")
       sb.append("  a b c d e f g h\n")

@@ -1,16 +1,8 @@
 package com.ffb.zugzwang.move
 
-import com.ffb.zugzwang.chess.{
-  CastleSide,
-  Color,
-  GameState,
-  Piece,
-  PieceType,
-  Square
-}
-import com.ffb.zugzwang.board.{Board, Bitboard}
+import com.ffb.zugzwang.board.{Bitboard, Board}
+import com.ffb.zugzwang.chess.{CastleRights, CastleSide, Color, GameState, Piece, PieceType, Square}
 import com.ffb.zugzwang.rules.Rules
-import com.ffb.zugzwang.chess.CastleRights
 
 object MoveGenerator:
   def legalMoves(state: GameState): List[Move] =
@@ -33,40 +25,36 @@ object MoveGenerator:
       pieces.squares.toList foreach { from =>
         val rawAttacks = Attacks.attacks(piece, from, state.board.occupied)
         val attackMask = rawAttacks & targets
-        val quietMask = rawAttacks & ~state.board.occupied
+        val quietMask  = rawAttacks & ~state.board.occupied
 
         if piece == Piece.WhitePawn || piece == Piece.BlackPawn then
-          val pawnAttacks = rawAttacks & (attackMask | (state.enPassant match {
+          val pawnAttacks = rawAttacks & (attackMask | (state.enPassant match
             case Some(sq) => 1L << sq.value
             case None     => 0L
-          }))
+          ))
           // first generate pawn attacks
           pawnAttacks.squares.foreach { to =>
             if state.enPassant.isDefined && to == state.enPassant.get then
-              state.enPassant.foreach(sq =>
-                moves.add(Move(from, to, None, MoveType.EnPassant))
-              )
-            else if to.lastRank(state.activeSide) then
-              addPromotions(from, to, isCapture = true, moves)
+              state.enPassant.foreach(sq => moves.add(Move(from, to, None, MoveType.EnPassant)))
+            else if to.lastRank(state.activeSide) then addPromotions(from, to, isCapture = true, moves)
             else moves.add(Move(from, to, None, MoveType.Capture))
           }
 
           // TODO: can i make this faster by breaking this out and doing all the pawns in one shot?
           // now handle pawn pushes
           val singlePush =
-            ~state.board.occupied & (state.activeSide match {
+            ~state.board.occupied & (state.activeSide match
               case Color.White => (1L << from.value) << 8
               case Color.Black => (1L << from.value) >>> 8
-            })
+            )
           val doublePush =
-            ~state.board.occupied & (state.activeSide match {
+            ~state.board.occupied & (state.activeSide match
               case Color.White => singlePush << 8
               case Color.Black => singlePush >>> 8
-            }) // (singlePush << direction)
+            ) // (singlePush << direction)
 
           singlePush.squares.foreach { to =>
-            if to.lastRank(state.activeSide) then
-              addPromotions(from, to, isCapture = false, moves)
+            if to.lastRank(state.activeSide) then addPromotions(from, to, isCapture = false, moves)
             else moves.add(Move(from, to, None, MoveType.Quiet))
           }
 
@@ -98,11 +86,11 @@ object MoveGenerator:
     moves.toList
 
   private def castleMoves(
-      occupied: Bitboard,
-      activeSide: Color,
-      castleRights: CastleRights,
-      board: Board,
-      moves: MoveList
+    occupied: Bitboard,
+    activeSide: Color,
+    castleRights: CastleRights,
+    board: Board,
+    moves: MoveList
   ): Unit =
     if castleRights.has(activeSide, CastleSide.Kingside)
     then kingsideCastles(occupied, activeSide, board, moves)
@@ -110,14 +98,13 @@ object MoveGenerator:
     then queensideCastles(occupied, activeSide, board, moves)
 
   private def kingsideCastles(
-      occupied: Bitboard,
-      activeSide: Color,
-      board: Board,
-      moves: MoveList
+    occupied: Bitboard,
+    activeSide: Color,
+    board: Board,
+    moves: MoveList
   ): Unit =
     val (squares, mask) =
-      if activeSide == Color.White then
-        (List(Square.F1, Square.G1), Bitboard.f1g1Mask)
+      if activeSide == Color.White then (List(Square.F1, Square.G1), Bitboard.f1g1Mask)
       else (List(Square.F8, Square.G8), Bitboard.f8g8mask)
 
     val (from, to) =
@@ -130,14 +117,13 @@ object MoveGenerator:
     then moves.add(Move(from, to, None, MoveType.CastleKingside))
 
   private def queensideCastles(
-      occupied: Bitboard,
-      activeSide: Color,
-      board: Board,
-      moves: MoveList
+    occupied: Bitboard,
+    activeSide: Color,
+    board: Board,
+    moves: MoveList
   ): Unit =
     val (squares, mask) =
-      if activeSide == Color.White then
-        (List(Square.C1, Square.D1), Bitboard.b1c1d1Mask)
+      if activeSide == Color.White then (List(Square.C1, Square.D1), Bitboard.b1c1d1Mask)
       else (List(Square.C8, Square.D8), Bitboard.b8c8d8Mask)
 
     val (from, to) =
@@ -150,10 +136,10 @@ object MoveGenerator:
     then moves.add(Move(from, to, None, MoveType.CastleQueenside))
 
   private def addPromotions(
-      from: Square,
-      to: Square,
-      isCapture: Boolean,
-      moves: MoveList
+    from: Square,
+    to: Square,
+    isCapture: Boolean,
+    moves: MoveList
   ): Unit =
     val moveType =
       if isCapture then MoveType.CapturePromotion else MoveType.Promotion

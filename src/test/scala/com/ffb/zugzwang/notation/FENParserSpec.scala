@@ -12,7 +12,7 @@ class FENParserSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail if fewer than 6 fields are provided" in {
-    val fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w"
+    val fen    = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w"
     val parsed = FENParser.from(fen)
 
     parsed.isLeft shouldBe true
@@ -20,7 +20,7 @@ class FENParserSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail if board has incorrect number of ranks" in {
-    val fen = "8/8/8/8/8/8/8 w KQkq - 0 1"
+    val fen    = "8/8/8/8/8/8/8 w KQkq - 0 1"
     val parsed = FENParser.from(fen)
 
     val boardStr = fen.split(" ")(0)
@@ -30,7 +30,7 @@ class FENParserSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail if a rank sums to more than 8 squares" in {
-    val fen = "9/8/8/8/8/8/8/8 w KQkq - 0 1"
+    val fen    = "9/8/8/8/8/8/8/8 w KQkq - 0 1"
     val parsed = FENParser.from(fen)
 
     val boardStr = fen.split(" ")(0)
@@ -40,7 +40,7 @@ class FENParserSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail if a rank contains invalid characters" in {
-    val fen = "1t6/8/8/8/8/8/8/8 w KQkq - 0 1"
+    val fen    = "1t6/8/8/8/8/8/8/8 w KQkq - 0 1"
     val parsed = FENParser.from(fen)
 
     val boardStr = fen.split(" ")(0)
@@ -50,7 +50,7 @@ class FENParserSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail if active color is invalid" in {
-    val fen = "8/8/8/8/8/8/8/8 x KQkq - 0 1"
+    val fen    = "8/8/8/8/8/8/8/8 x KQkq - 0 1"
     val parsed = FENParser.from(fen)
 
     val sideStr = fen.split(" ")(1)
@@ -60,7 +60,7 @@ class FENParserSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail if castling rights have too many characters" in {
-    val fen = "8/8/8/8/8/8/8/8 w KQkqKQkq - 0 1"
+    val fen    = "8/8/8/8/8/8/8/8 w KQkqKQkq - 0 1"
     val parsed = FENParser.from(fen)
 
     val crStr = fen.split(" ")(2)
@@ -70,7 +70,7 @@ class FENParserSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail if castling rights have invalid char" in {
-    val fen = "8/8/8/8/8/8/8/8 w KXkz - 0 1"
+    val fen    = "8/8/8/8/8/8/8/8 w KXkz - 0 1"
     val parsed = FENParser.from(fen)
 
     val crStr = fen.split(" ")(2)
@@ -80,7 +80,7 @@ class FENParserSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail if en passant square is invalid" in {
-    val fen = "8/8/8/8/8/8/8/8 w - z9 0 1"
+    val fen    = "8/8/8/8/8/8/8/8 w - z9 0 1"
     val parsed = FENParser.from(fen)
 
     val epStr = fen.split(" ")(3)
@@ -95,7 +95,7 @@ class FENParserSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail if halfmove clock is not a valid integer" in {
-    val fen = "8/8/8/8/8/8/8/8 w - - x 1"
+    val fen    = "8/8/8/8/8/8/8/8 w - - x 1"
     val parsed = FENParser.from(fen)
 
     val hmStr = fen.split(" ")(4)
@@ -107,7 +107,7 @@ class FENParserSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail if fullmove number is not a valid integer" in {
-    val fen = "8/8/8/8/8/8/8/8 w - - 0 x"
+    val fen    = "8/8/8/8/8/8/8/8 w - - 0 x"
     val parsed = FENParser.from(fen)
 
     val fmStr = fen.split(" ")(5)

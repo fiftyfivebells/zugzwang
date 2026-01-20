@@ -9,7 +9,7 @@ class BoardSpec extends AnyFlatSpec with Matchers:
   ".toFen" should "convert a board into a string representing the fen of the position" in {
     val initial = Board.initial
 
-    val fen = initial.toFen
+    val fen             = initial.toFen
     val initialBoardFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
 
     fen shouldBe initialBoardFen
@@ -19,9 +19,9 @@ class BoardSpec extends AnyFlatSpec with Matchers:
     val initialBoardFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
 
     val board = Board.from(initialBoardFen)
-    val a1 = Square.from(7, 0).right.get
-    val e1 = Square.from(4, 0).right.get
-    val e4 = Square.from(4, 3).right.get
+    val a1    = Square.from(7, 0).right.get
+    val e1    = Square.from(4, 0).right.get
+    val e4    = Square.from(4, 3).right.get
 
     board.pieceAt(e1) shouldBe Some(Piece(Color.White, PieceType.King))
     board.pieceAt(a1) shouldBe Some(Piece(Color.White, PieceType.Rook))
@@ -32,14 +32,14 @@ class BoardSpec extends AnyFlatSpec with Matchers:
     val board = Board.empty
 
     Square.fromAlgebraic("a1") map { sq =>
-      val pawn = Piece(Color.White, PieceType.Pawn)
+      val pawn    = Piece(Color.White, PieceType.Pawn)
       val updated = board.putPieceAt(pawn, sq)
       updated == Board.empty shouldBe false
       updated.pieceAt(sq) shouldBe Some(pawn)
     }
 
     Square.fromAlgebraic("e4") map { sq =>
-      val king = Piece(Color.Black, PieceType.King)
+      val king    = Piece(Color.Black, PieceType.King)
       val updated = board.putPieceAt(king, sq)
       updated == Board.empty shouldBe false
       updated.pieceAt(sq) shouldBe Some(king)
