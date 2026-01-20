@@ -137,7 +137,7 @@ object MagicSlidingAttacks extends SlidingAttackGen:
 
   // Call this once when your engine starts up
   def initialize(): Unit =
-  initializeMagicBitboards()
+    initializeMagicBitboards()
   // if (!validateMagicTables()) {
   //   throw new RuntimeException("Magic table validation failed!")
   // }

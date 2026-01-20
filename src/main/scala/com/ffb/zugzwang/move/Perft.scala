@@ -1,15 +1,16 @@
 package com.ffb.zugzwang.move
 
 import com.ffb.zugzwang.chess.GameState
-import scala.annotation.tailrec
 import com.ffb.zugzwang.rules.Rules
-import scala.collection.parallel.CollectionConverters._
+
+import scala.annotation.tailrec
+import scala.collection.parallel.CollectionConverters.*
 
 object Perft:
 
   def perftSequential(state: GameState, depth: Int): Long =
     @tailrec
-    def loop(stack: List[(GameState, Int)], acc: Long): Long = stack match {
+    def loop(stack: List[(GameState, Int)], acc: Long): Long = stack match
       case Nil => acc
       case (s, d) :: rest =>
         if d == 0 then loop(rest, acc + 1)
@@ -18,7 +19,6 @@ object Perft:
             (Rules.applyMove(s, move), d - 1)
           }
           loop(nextStates ++ rest, acc)
-    }
 
     loop(List((state, depth)), 0)
 
@@ -50,9 +50,7 @@ object Perft:
     else
       MoveGenerator
         .legalMoves(state)
-        .map(move =>
-          perftTrace(Rules.applyMove(state, move), depth - 1, move :: trace)
-        )
+        .map(move => perftTrace(Rules.applyMove(state, move), depth - 1, move :: trace))
         .sum
 
   def divide(state: GameState, depth: Int): Long =
@@ -61,7 +59,7 @@ object Perft:
 
     for move <- moves do
       val nextState = Rules.applyMove(state, move)
-      val nodes = perftBasic(nextState, depth - 1)
+      val nodes     = perftBasic(nextState, depth - 1)
       println(s"${move.toUci}: $nodes")
       total += nodes
 
