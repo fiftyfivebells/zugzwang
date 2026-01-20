@@ -105,6 +105,24 @@ final case class GameState(
 
     s"$boardFen ${activeSide.toFen} ${castleRights.toFen} ${epSquare} $halfMoveClock $fullMoveClock"
 
+  def prettyPrint: String =
+    val sb = new StringBuilder
+
+    sb.append("=== GameState ===\n")
+    sb.append(s"Side to move : $activeSide\n")
+    sb.append(s"Castling    : ${castleRights.toFen match
+        case "" => "-"
+        case s  => s
+      }\n")
+    sb.append(s"En Passant  : ${enPassant.map(Square.toAlgebraic).getOrElse("-")}\n")
+    sb.append(s"Halfmove    : $halfMoveClock\n")
+    sb.append(s"Fullmove    : $fullMoveClock\n")
+    sb.append("\nBoard:\n")
+    sb.append(board.toFen) // assuming this already exists
+    sb.append("\n")
+
+    sb.toString
+
 object GameState:
   val initial: GameState =
     GameState(
