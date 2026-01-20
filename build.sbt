@@ -3,7 +3,7 @@ inThisBuild(
     organization      := "com.ffb",
     scalaVersion      := "3.7.2",
     semanticdbEnabled := true,
-    salacOptions ++= Seq("-deprecation", "-Wunused:imports")
+    scalacOptions ++= Seq("-deprecation", "-Wunused:imports")
   )
 )
 
