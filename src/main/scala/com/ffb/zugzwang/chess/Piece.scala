@@ -2,13 +2,13 @@ package com.ffb.zugzwang.chess
 
 opaque type PieceType <: Int = Int
 object PieceType:
-  val NoType: PieceType = -1
   val Pawn: PieceType   = 0
   val Knight: PieceType = 1
   val Bishop: PieceType = 2
   val Rook: PieceType   = 3
   val Queen: PieceType  = 4
   val King: PieceType   = 5
+  val NoType: PieceType = 6
 
   extension (pt: PieceType)
     def name: String = pt match
@@ -30,13 +30,13 @@ object PieceType:
       case King   => 1000
 
   def apply(piece: Int) = piece match
-    case -1 => NoType
-    case 0  => Pawn
-    case 1  => Knight
-    case 2  => Bishop
-    case 3  => Rook
-    case 4  => Queen
-    case 5  => King
+    case 0 => Pawn
+    case 1 => Knight
+    case 2 => Bishop
+    case 3 => Rook
+    case 4 => Queen
+    case 5 => King
+    case 6 => NoType
 
   def fromString(s: String): PieceType = s.toLowerCase match
     case "p" => Pawn
@@ -61,7 +61,7 @@ object Piece:
   val BlackRook: Piece   = 9
   val BlackQueen: Piece  = 10
   val BlackKing: Piece   = 11
-  val NoPiece: Piece     = -1
+  val NoPiece: Piece     = 12
 
   private val whitePieces: Array[Piece] =
     Array(WhitePawn, WhiteKnight, WhiteBishop, WhiteRook, WhiteQueen, WhiteKing)
@@ -73,19 +73,40 @@ object Piece:
     if c == Color.White then whitePieces else blackPieces
 
   extension (p: Piece)
-    inline def color: Color =
-      if p < 6 && p > -1 then Color.White else Color.Black
 
     inline def pieceType: PieceType = p % 6
-    inline def isWhite: Boolean     = p < 6
-    inline def isBlack: Boolean     = p > 5 && p < 12
+    inline def isWhite: Boolean     = p >= 0 && p < 6
+    inline def isBlack: Boolean     = p >= 6 && p < 12
 
-    inline def isPawn: Boolean   = (p % 6) == PieceType.Pawn
-    inline def isKnight: Boolean = (p % 6) == PieceType.Knight
-    inline def isBishop: Boolean = (p % 6) == PieceType.Bishop
-    inline def isRook: Boolean   = (p % 6) == PieceType.Rook
-    inline def isQueen: Boolean  = (p % 6) == PieceType.Queen
-    inline def isKing: Boolean   = (p % 6) == PieceType.King
+    inline def color: Color =
+      if isWhite then Color.White
+      else if isBlack then Color.Black
+      else throw new Exception(s"Called .color on NoPiece ($p)")
+
+    inline def isPawn: Boolean    = (p % 6) == PieceType.Pawn
+    inline def isKnight: Boolean  = (p % 6) == PieceType.Knight
+    inline def isBishop: Boolean  = (p % 6) == PieceType.Bishop
+    inline def isRook: Boolean    = (p % 6) == PieceType.Rook
+    inline def isQueen: Boolean   = (p % 6) == PieceType.Queen
+    inline def isKing: Boolean    = (p % 6) == PieceType.King
+    inline def isNoPiece: Boolean = p == 12
+
+    inline def toUciChar: Char =
+      if p.isNoPiece then '.'
+      else
+        val base = p.pieceType match
+          case PieceType.Pawn   => 'p'
+          case PieceType.Knight => 'n'
+          case PieceType.Bishop => 'b'
+          case PieceType.Rook   => 'r'
+          case PieceType.Queen  => 'q'
+          case PieceType.King   => 'k'
+          case _                => ' '
+
+        if p.isWhite then base.toUpper else base
+
+    inline def toStringRep: String =
+      toUciChar.toString
 
   def from(c: Char): Piece =
     val color = if c.isUpper then Color.White else Color.Black
