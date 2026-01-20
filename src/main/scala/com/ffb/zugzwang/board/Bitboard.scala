@@ -104,6 +104,9 @@ object Bitboard:
 
     inline def clearBitAt(sq: Square): Bitboard = bb & ~(1L << sq.value)
 
+    inline def trailingZeros: Int =
+      java.lang.Long.numberOfTrailingZeros(bb)
+
     inline def leastSignificantBit: Option[Square] =
       Square.from(java.lang.Long.numberOfTrailingZeros(bb))
 
