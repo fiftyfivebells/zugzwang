@@ -15,7 +15,6 @@ object MoveGenerator:
     val moves = MoveList(256)
 
     val targets = state.board.byColor(state.activeSide.enemy)
-
     // this is the bulk of the moves. This should cover all of the attacks for every piece,
     // and then quiet moves for all pieces except for pawns
     Piece.byColor(state.activeSide) foreach { piece =>
@@ -35,9 +34,9 @@ object MoveGenerator:
           // first generate pawn attacks
           pawnAttacks.squares.foreach { to =>
             if state.enPassant.isDefined && to == state.enPassant.get then
-              state.enPassant.foreach(sq => moves.add(Move(from, to, None, MoveType.EnPassant)))
+              state.enPassant.foreach(sq => moves.add(Move(from, to, MoveType.EnPassant)))
             else if to.lastRank(state.activeSide) then addPromotions(from, to, isCapture = true, moves)
-            else moves.add(Move(from, to, None, MoveType.Capture))
+            else moves.add(Move(from, to, MoveType.Capture))
           }
 
           // TODO: can i make this faster by breaking this out and doing all the pawns in one shot?
@@ -55,20 +54,20 @@ object MoveGenerator:
 
           singlePush.squares.foreach { to =>
             if to.lastRank(state.activeSide) then addPromotions(from, to, isCapture = false, moves)
-            else moves.add(Move(from, to, None, MoveType.Quiet))
+            else moves.add(Move(from, to, MoveType.Quiet))
           }
 
           if from.startingPawnRank(state.activeSide) then
             doublePush.squares.foreach { to =>
-              moves.add(Move(from, to, None, MoveType.DoublePush))
+              moves.add(Move(from, to, MoveType.DoublePush))
             }
         else
           attackMask.squares.foreach { to =>
-            moves.add(Move(from, to, None, MoveType.Capture))
+            moves.add(Move(from, to, MoveType.Capture))
           }
 
           quietMask.squares.foreach { to =>
-            moves.add(Move(from, to, None, MoveType.Quiet))
+            moves.add(Move(from, to, MoveType.Quiet))
           }
       }
     }
@@ -114,7 +113,7 @@ object MoveGenerator:
     if squares.forall(
         !board.isAttacked(_, activeSide)
       ) && (occupied & mask).isEmpty && !board.isKingAttacked(activeSide)
-    then moves.add(Move(from, to, None, MoveType.CastleKingside))
+    then moves.add(Move(from, to, MoveType.CastleKingside))
 
   private def queensideCastles(
     occupied: Bitboard,
@@ -133,7 +132,7 @@ object MoveGenerator:
     if squares.forall(
         !board.isAttacked(_, activeSide)
       ) && (occupied & mask).isEmpty && !board.isKingAttacked(activeSide)
-    then moves.add(Move(from, to, None, MoveType.CastleQueenside))
+    then moves.add(Move(from, to, MoveType.CastleQueenside))
 
   private def addPromotions(
     from: Square,
@@ -147,4 +146,4 @@ object MoveGenerator:
     val promotions =
       List(PieceType.Knight, PieceType.Bishop, PieceType.Rook, PieceType.Queen)
 
-    promotions foreach { pt => moves.add(Move(from, to, Some(pt), moveType)) }
+    promotions foreach { pt => moves.add(Move(from, to, pt, moveType)) }

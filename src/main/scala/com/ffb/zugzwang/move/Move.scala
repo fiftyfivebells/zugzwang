@@ -15,7 +15,6 @@ enum MoveType:
   override def toString: String = productPrefix.toLowerCase
 
 opaque type Move = Int
-
 object Move:
   private val squareMask = 63
   private val toShift    = 6
@@ -29,13 +28,19 @@ object Move:
   def apply(
     from: Square,
     to: Square,
-    promotion: Option[PieceType],
     moveType: MoveType
   ): Move =
-    val promotionValue = promotion.map(_.value).getOrElse(0)
-    from.value | (to.value << toShift) | (promotionValue << promotionPieceShift) | (moveType.ordinal << moveTypeShift)
+    apply(from, to, PieceType.NoType, moveType)
 
-  def unapply(move: Move): Option[(Square, Square, Option[PieceType], MoveType)] =
+  def apply(
+    from: Square,
+    to: Square,
+    promotion: PieceType,
+    moveType: MoveType
+  ): Move =
+    from.value | (to.value << toShift) | (promotion << promotionPieceShift) | (moveType.ordinal << moveTypeShift)
+
+  def unapply(move: Move): Option[(Square, Square, PieceType, MoveType)] =
     Some((move.from, move.to, move.promotion, move.moveType))
 
   extension (move: Move)
@@ -43,9 +48,9 @@ object Move:
 
     inline def to: Square = Square((move >>> toShift) & squareMask)
 
-    def promotion: Option[PieceType] =
+    inline def promotion: PieceType =
       val piece = (move >>> promotionPieceShift) & pieceTypeMask
-      if piece == 0 then None else Some(PieceType(piece))
+      if piece == 0 then PieceType.NoType else PieceType(piece)
 
     inline def moveType: MoveType =
       MoveType.fromOrdinal((move >>> moveTypeShift) & moveTypeMask)
@@ -60,8 +65,4 @@ object Move:
 
     def toUci: String =
       val (f, t) = (Square.toAlgebraic(from), Square.toAlgebraic(to))
-      promotion match
-        case None    => s"$f$t"
-        case Some(p) => s"$f$t${p.name}"
-
-end Move
+      s"$f$t${move.promotion.name}"

@@ -1,5 +1,4 @@
 package com.ffb.zugzwang.board
-
 import com.ffb.zugzwang.chess.{Color, Piece, PieceType, Square}
 import com.ffb.zugzwang.move.{Attacks, Move, MoveType}
 
@@ -8,7 +7,7 @@ import scala.collection.mutable
 
 final case class Board private (
   pieces: IArray[Bitboard],
-  squares: ArraySeq[Option[Piece]]
+  squares: ArraySeq[Piece]
 ):
 
   // TODO: this is not the most "functional" implementation, so maybe I'll revisit this
@@ -22,13 +21,13 @@ final case class Board private (
 
       for i <- startingSquare to startingSquare - 7 by -1 do
         squares(i) match
-          case None => emptySquares += 1
-          case Some(p) =>
+          case Piece.NoPiece => emptySquares += 1
+          case piece =>
             if emptySquares > 0 then
               fenString.append(emptySquares.toString)
               emptySquares = 0
 
-            fenString.append(p.toString)
+            fenString.append(piece.toStringRep)
 
       if emptySquares > 0 then fenString.append(emptySquares.toString)
 
@@ -47,26 +46,27 @@ final case class Board private (
     val piece = Piece.from(c, pt)
     pieces(piece)
 
-  def allPieces: List[Piece] = squares.flatMap(identity).toList
+  def allPieces: List[Piece] = squares.toList
 
   def clearBoard: Board = Board.empty
 
-  def pieceAt(sq: Square): Option[Piece] = squares(sq.value)
+  def pieceAt(sq: Square): Piece = squares(sq.value)
 
   def putPieceAt(p: Piece, sq: Square): Board =
-    val newBitboard = pieces(p).setBitAt(sq)
-
-    Board(
-      pieces.updated(p, newBitboard),
-      squares.updated(sq.value, Some(p))
-    )
+    if !p.isNoPiece then
+      val newBitboard = pieces(p).setBitAt(sq)
+      Board(
+        pieces.updated(p, newBitboard),
+        squares.updated(sq.value, p)
+      )
+    else this
 
   def removePieceFrom(sq: Square): Board =
     squares(sq.value) match
-      case None => this
-      case Some(piece) =>
+      case Piece.NoPiece => this
+      case piece =>
         val newBitboard = pieces(piece).clearBitAt(sq)
-        val newSquares  = squares.updated(sq.value, None)
+        val newSquares  = squares.updated(sq.value, Piece.NoPiece)
 
         Board(pieces.updated(piece, newBitboard), newSquares)
 
@@ -98,7 +98,7 @@ final case class Board private (
 object Board:
 
   def empty: Board =
-    Board(IArray.fill(12)(Bitboard.empty), ArraySeq.fill(64)(None))
+    Board(IArray.fill(12)(Bitboard.empty), ArraySeq.fill(64)(Piece.NoPiece))
 
   def initial: Board =
     Board.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
@@ -127,7 +127,7 @@ object Board:
       applyCastleMove(board, move)
 
     case MoveType.EnPassant =>
-      val piece = board.pieceAt(move.from).get
+      val piece = board.pieceAt(move.from)
       val epSquare = piece.color match
         case Color.White => Square(move.to.value - 8)
         case Color.Black => Square(move.to.value + 8)
@@ -138,41 +138,38 @@ object Board:
         .putPieceAt(piece, move.to)
 
     case _ =>
-      (board.pieceAt(move.from), move.promotion) match
-        // this should never happen, but if the piece at the from square is None, just
-        // return the original board unaltered
-        case (None, _) => board
+      val fromPiece = board.pieceAt(move.from)
+      val promoType = move.promotion
 
-        case (Some(moving), None) =>
-          board
-            .removePieceFrom(move.to)
-            .removePieceFrom(move.from)
-            .putPieceAt(moving, move.to)
-
-        case (Some(pawn), Some(promotion)) =>
-          val color             = pawn.color
-          val pt                = pawn.pieceType
-          val promoPiece: Piece = Piece.from(color, pt)
-          board
-            .removePieceFrom(move.to)
-            .removePieceFrom(move.from)
-            .putPieceAt(promoPiece, move.to)
+      if fromPiece == Piece.NoPiece then board
+      else if promoType != PieceType.NoType && fromPiece.isPawn then
+        val color      = fromPiece.color
+        val promoPiece = Piece.from(color, promoType)
+        board
+          .removePieceFrom(move.to)
+          .removePieceFrom(move.from)
+          .putPieceAt(promoPiece, move.to)
+      else
+        board
+          .removePieceFrom(move.to)
+          .removePieceFrom(move.from)
+          .putPieceAt(fromPiece, move.to)
 
   private def applyCastleMove(board: Board, move: Move): Board =
     board.pieceAt(move.from) match
       // as above, this should never happen, but if we try to apply a castle and there's
       // no king at the from square, just return the board and we'll catch the issue later
-      case None => board
-      case Some(king) =>
-        val rook = Piece.from(king.color, PieceType.Rook)
+      case Piece.NoPiece => board
+      case piece if piece.isKing =>
+        val rook = Piece.from(piece.color, PieceType.Rook)
 
         val (kingTo, rookFrom, rookTo) = move.moveType match
           case MoveType.CastleKingside =>
-            if king.color == Color.White then (Square.G1, Square.H1, Square.F1)
+            if piece.color == Color.White then (Square.G1, Square.H1, Square.F1)
             else (Square.G8, Square.H8, Square.F8)
 
           case MoveType.CastleQueenside =>
-            if king.color == Color.White then (Square.C1, Square.A1, Square.D1)
+            if piece.color == Color.White then (Square.C1, Square.A1, Square.D1)
             else (Square.C8, Square.A8, Square.D8)
 
           // this is another just in case; this really shouldn't ever happen, I just
@@ -182,7 +179,5 @@ object Board:
         board
           .removePieceFrom(move.from)
           .removePieceFrom(rookFrom)
-          .putPieceAt(king, kingTo)
+          .putPieceAt(piece, kingTo)
           .putPieceAt(rook, rookTo)
-
-end Board

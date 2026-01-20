@@ -15,47 +15,42 @@ object Rules:
   def applyMove(state: GameState, move: Move): GameState =
     val newBoard = Board.applyMove(state.board, move)
 
-    val epSquare = state.board.pieceAt(move.from) match
-      case Some(piece) if piece.pieceType == PieceType.Pawn =>
-        if move.moveType == MoveType.DoublePush then
-          val epSq = state.activeSide match
-            case Color.White => Square(move.to.value - 8)
-            case Color.Black => Square(move.to.value + 8)
-
-          Some(epSq)
-        else None
-
-      case _ => None
+    val epSquare =
+      val fromPiece = state.board.pieceAt(move.from)
+      if fromPiece.isPawn && move.moveType == MoveType.DoublePush then
+        val epSq = state.activeSide match
+          case Color.White => Square(move.to.value - 8)
+          case Color.Black => Square(move.to.value + 8)
+        Some(epSq)
+      else None
 
     val movedPiece    = state.board.pieceAt(move.from)
     val capturedPiece = state.board.pieceAt(move.to)
 
-    val newCastleRights = (movedPiece, capturedPiece) match
-      case (Some(piece), _) if piece.pieceType == PieceType.King || piece.pieceType == PieceType.Rook =>
+    val newCastleRights =
+      if movedPiece.isKing || movedPiece.isRook then
         updateCastleRights(
           state.board,
           state.castleRights,
           state.activeSide,
           move
         )
-      case (_, Some(piece)) if piece.pieceType == PieceType.Rook =>
+      else if capturedPiece.isRook then
         updateCastleRights(
           state.board,
           state.castleRights,
           state.activeSide.enemy,
           move
         )
-
-      case _ => state.castleRights
+      else state.castleRights
 
     val newHalfMove =
-      (state.board.pieceAt(move.from), state.board.pieceAt(move.to)) match
-        // if a pawn moves or the move is a capture, set half move to zero
-        case (Some(piece), _) if piece.pieceType == PieceType.Pawn || Move.isCapture(move) =>
-          0
+      val fromPiece = state.board.pieceAt(move.from)
+      val toPiece   = state.board.pieceAt(move.to)
 
-        // in all other cases, add 1
-        case _ => state.halfMoveClock + 1
+      if fromPiece.isPawn || Move.isCapture(move) then 0
+      else state.halfMoveClock + 1
+
     val newFullMove =
       if state.activeSide == Color.Black then state.fullMoveClock + 1
       else state.fullMoveClock
@@ -110,8 +105,9 @@ object Rules:
       // helper to determine the color of a square: 0 is light, 1 is dark
       def squareColor(sq: Square): Int = (sq.file.value + sq.rank.value) % 2
 
+      // TODO: figure out how to avoid the tuple here
       val bishopsByColor = state.board.squares.zipWithIndex.collect {
-        case (Some(piece), i) if piece.pieceType == PieceType.Bishop =>
+        case (piece, i) if piece.isBishop =>
           (piece.color, squareColor(Square(i)))
       }
 
@@ -136,18 +132,10 @@ object Rules:
     val moved    = board.pieceAt(move.from)
     val captured = board.pieceAt(move.to)
 
-    (moved, captured) match
-      case (Some(piece), _) if piece.pieceType == PieceType.King =>
-        rights.removeAll(side)
-
-      case (Some(piece), _) if piece.pieceType == PieceType.Rook =>
-        updateRookRights(side, move.from, rights)
-
-      // looks similar, but this is updating the captured rook's player's rights
-      case (_, Some(piece)) if piece.pieceType == PieceType.Rook =>
-        updateRookRights(side, move.to, rights)
-
-      case _ => rights
+    if moved.isKing then rights.removeAll(side)
+    else if moved.isRook then updateRookRights(side, move.from, rights)
+    else if captured.isRook then updateRookRights(side, move.to, rights)
+    else rights
 
   private def rookSquares(color: Color): (Square, Square) =
     if color == Color.White then (Square.H1, Square.A1)
@@ -163,5 +151,3 @@ object Rules:
     if sq == kingsideRook then rights.remove(color, CastleSide.Kingside)
     else if sq == queensideRook then rights.remove(color, CastleSide.Queenside)
     else rights
-
-end Rules
