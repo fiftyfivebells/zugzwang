@@ -61,8 +61,7 @@ object Rules:
       castleRights = newCastleRights,
       enPassant = epSquare,
       halfMoveClock = newHalfMove,
-      fullMoveClock = newFullMove,
-      history = state.toFen :: state.history
+      fullMoveClock = newFullMove
     )
 
   def isValidMove(state: GameState, move: Move): Boolean =

@@ -30,8 +30,7 @@ object FENParser:
           castleRights = castleRights,
           enPassant = enPassant,
           halfMoveClock = halfMove,
-          fullMoveClock = fullMove,
-          history = Nil
+          fullMoveClock = fullMove
         )
       case _ => Left(FENParserError.MalformedInput(fen))
 
@@ -89,8 +88,6 @@ object FENParser:
     countType: String
   ): Either[FENParserError, Int] =
     Try(moveCountStr.toInt).toEither.left.map(_ => FENParserError.BadMoveCount(countType, moveCountStr))
-
-end FENParser
 
 enum FENParserError(val errorMessage: String) extends Throwable:
   case MalformedInput(value: String)       extends FENParserError(s"Received malformed FEN string: $value")

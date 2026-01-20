@@ -78,8 +78,7 @@ final case class GameState(
   castleRights: CastleRights,
   enPassant: Option[Square],
   halfMoveClock: Int,
-  fullMoveClock: Int,
-  history: List[String] // list of previous positions as fen strings
+  fullMoveClock: Int
 ):
   def hasCastleRights: Boolean =
     castleRights.has(activeSide, CastleSide.Kingside) || castleRights.has(
@@ -131,8 +130,7 @@ object GameState:
       castleRights = CastleRights.initial,
       enPassant = None,
       halfMoveClock = 0,
-      fullMoveClock = 1,
-      history = Nil
+      fullMoveClock = 1
     )
 
   val initialFEN: String = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
@@ -164,8 +162,7 @@ object GameState:
       castleRights,
       enPassant,
       halfMoveClock,
-      fullMoveClock,
-      Nil
+      fullMoveClock
     )
 
   def sameAs(original: GameState, other: GameState): Boolean =
@@ -175,7 +172,4 @@ object GameState:
       original.halfMoveClock == other.halfMoveClock &&
       original.fullMoveClock == other.fullMoveClock &&
       original.board.squares == other.board.squares &&
-      original.board.pieces.corresponds(other.board.pieces)(_ == _) &&
-      original.history == other.history
-
-end GameState
+      original.board.pieces.corresponds(other.board.pieces)(_ == _)
