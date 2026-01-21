@@ -1,4 +1,6 @@
 package com.ffb.zugzwang.tools
+
+import com.ffb.zugzwang.chess.MutablePosition
 import com.ffb.zugzwang.move.Perft
 import com.ffb.zugzwang.notation.FENParser
 
@@ -26,11 +28,12 @@ object PerftRunner:
         println(s"Invalid FEN: $err")
 
       case Right(state) =>
+        val pos   = MutablePosition.from(state)
         val start = System.nanoTime()
         val nodesOpt =
           mode match
-            case "divide" => Some(Perft.divide(state, depth))
-            case "perft"  => Some(Perft.perftBasic(state, depth))
+            case "divide" => Some(Perft.divideMutable(pos, depth))
+            case "perft"  => Some(Perft.perftMutable(pos, depth))
             case other =>
               println(s"Unknown mode: $other. Use perft or divide.")
               None

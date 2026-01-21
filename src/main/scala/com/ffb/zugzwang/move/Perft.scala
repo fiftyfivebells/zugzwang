@@ -1,6 +1,6 @@
 package com.ffb.zugzwang.move
 
-import com.ffb.zugzwang.chess.GameState
+import com.ffb.zugzwang.chess.{Color, GameState, MutablePosition, PositionState}
 import com.ffb.zugzwang.rules.Rules
 
 import scala.annotation.tailrec
@@ -43,6 +43,48 @@ object Perft:
         .map(move => perftBasic(Rules.applyMove(state, move), depth - 1))
         .sum
 
+  def perftMutable(position: MutablePosition, depth: Int): Long =
+    if depth == 0 then 1
+    else
+      // Scratch per ply so recursion doesn't overwrite buffers.
+      val moveLists = Array.fill(depth + 1)(MoveList(256))
+      val undos     = Array.fill(depth + 1)(new PositionState)
+
+      def rec(d: Int): Long =
+        if d == 0 then 1L
+        else
+          val ml = moveLists(d)
+          ml.clear
+          val arr = MoveGenerator.pseudoLegalMoves(position).toArray
+
+          val n = arr.size
+
+          var i     = 0
+          var nodes = 0L
+
+          while i < n do
+            val m = arr(i)
+            val u = undos(d)
+
+            // Side to move BEFORE make is the mover.
+            val mover: Color = position.activeSide
+
+            position.applyMove(m, u)
+
+            // After makeMove, sideToMove has flipped.
+            // The mover's king must not be attacked by the new side to move (the opponent).
+            val king    = position.kingSq(mover.ordinal)
+            val illegal = position.isSquareAttacked(king, position.activeSide)
+
+            if !illegal then nodes += rec(d - 1)
+
+            position.unapplyMove(m, u)
+            i += 1
+
+          nodes
+
+      rec(depth)
+
   def perftTrace(state: GameState, depth: Int, trace: List[Move] = Nil): Long =
     if depth == 0 then
       println("TRACE: " + trace.reverse.map(_.toUci).mkString(" "))
@@ -65,3 +107,73 @@ object Perft:
 
     println(s"Total Nodes: $total")
     total
+
+  def divideMutable(position: MutablePosition, depth: Int): Long =
+    if depth == 0 then
+      println("Total Nodes: 1")
+      return 1L
+
+    // We need move lists and undo objects for the recursion
+    // MoveLists are indexed by depth to avoid overwriting at different plys
+    val moveLists = Array.fill(depth + 1)(MoveList(256))
+    val undos     = Array.fill(depth + 1)(new PositionState)
+
+    var totalNodes = 0L
+
+    // 1. Get moves for the ROOT position
+    val rootMoves = MoveGenerator.pseudoLegalMoves(position).toArray
+    val mover     = position.activeSide
+
+    for move <- rootMoves do
+      val u = undos(depth)
+
+      // 2. Apply the move
+      position.applyMove(move, u)
+
+      // 3. Verify legality (King not left in check)
+      val king    = position.kingSq(mover.ordinal)
+      val illegal = position.isSquareAttacked(king, position.activeSide)
+
+      if !illegal then
+        // 4. Run the recursive perft for the remaining depth
+        val nodes = recMutable(position, depth - 1, moveLists, undos)
+        println(s"${move.toUci}: $nodes")
+        totalNodes += nodes
+
+      // 5. Always unapply
+      position.unapplyMove(move, u)
+
+    println(s"Total Nodes: $totalNodes")
+    totalNodes
+
+  // Helper function for the recursive part
+  private def recMutable(
+    position: MutablePosition,
+    d: Int,
+    moveLists: Array[MoveList],
+    undos: Array[PositionState]
+  ): Long =
+    if d == 0 then 1L
+    else
+      val ml = moveLists(d)
+      ml.clear
+
+      // Generate pseudo-legal moves for this depth
+      val moves = MoveGenerator.pseudoLegalMoves(position).toArray
+      val mover = position.activeSide
+      var nodes = 0L
+      var i     = 0
+
+      while i < moves.length do
+        val m = moves(i)
+        val u = undos(d)
+
+        position.applyMove(m, u)
+
+        val king = position.kingSq(mover.ordinal)
+        if !position.isSquareAttacked(king, position.activeSide) then nodes += recMutable(position, d - 1, moveLists, undos)
+
+        position.unapplyMove(m, u)
+        i += 1
+
+      nodes
