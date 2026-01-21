@@ -37,13 +37,13 @@ object KnightAttacks:
     val northNorthEast = ~Bitboard.fileA & (startSquare << 15)
 
     val eastEastNorth = NotFileAOrB & (startSquare << 6)
-    val eastEastSouth = NotFileAOrB & (startSquare >> 10)
+    val eastEastSouth = NotFileAOrB & (startSquare >>> 10)
 
     val westWestNorth = NotFileHOrG & (startSquare << 10)
-    val westWestSouth = NotFileHOrG & (startSquare >> 6)
+    val westWestSouth = NotFileHOrG & (startSquare >>> 6)
 
-    val southSouthEast = ~Bitboard.fileA & (startSquare >> 17)
-    val southSouthWest = ~Bitboard.fileH & (startSquare >> 15)
+    val southSouthEast = ~Bitboard.fileA & (startSquare >>> 17)
+    val southSouthWest = ~Bitboard.fileH & (startSquare >>> 15)
 
     northNorthWest | northNorthEast | eastEastNorth | eastEastSouth | westWestNorth | westWestSouth | southSouthEast | southSouthWest
   }
