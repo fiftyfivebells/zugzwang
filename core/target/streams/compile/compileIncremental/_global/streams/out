@@ -1,0 +1,28 @@
+[0m[[0m[0mdebug[0m] [0m[0m[zinc] IncrementalCompile -----------[0m
+[0m[[0m[0mdebug[0m] [0m[0mIncrementalCompile.incrementalCompile[0m
+[0m[[0m[0mdebug[0m] [0m[0mprevious = Stamps for: 0 products, 0 sources, 0 libraries[0m
+[0m[[0m[0mdebug[0m] [0m[0mcurrent source = Set(${BASE}/core/src/main/scala/com/ffb/zugzwang/move/Move.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/GameState.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/rules/Rules.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/Perft.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/File.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/Rank.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/HQSlidingAttacks.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/MoveGenerator.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/notation/FENParser.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/Piece.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/Attacks.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/board/Bitboard.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/Square.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/MagicSlidingAttacks.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/MutablePosition.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/MoveList.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/PositionState.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/tools/MagicNumberGenerator.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/Color.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/tools/PerftRunner.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/board/Board.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/Zugzwang.scala)[0m
+[0m[[0m[0mdebug[0m] [0m[0m> initialChanges = InitialChanges(Changes(added = Set(${BASE}/core/src/main/scala/com/ffb/zugzwang/board/Board.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/Perft.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/rules/Rules.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/MagicSlidingAttacks.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/MoveList.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/PositionState.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/MutablePosition.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/Zugzwang.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/notation/FENParser.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/board/Bitboard.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/File.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/tools/MagicNumberGenerator.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/Rank.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/Piece.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/Color.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/tools/PerftRunner.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/Square.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/MoveGenerator.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/chess/GameState.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/Attacks.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/Move.scala, ${BASE}/core/src/main/scala/com/ffb/zugzwang/move/HQSlidingAttacks.scala), removed = Set(), changed = Set(), unmodified = ...),Set(),Set(),API Changes: Set())[0m
+[0m[[0m[0mdebug[0m] [0m[0mFull compilation, no sources in previous analysis.[0m
+[0m[[0m[0mdebug[0m] [0m[0mall 22 sources are invalidated[0m
+[0m[[0m[0mdebug[0m] [0m[0mInitial set of included nodes: [0m
+[0m[[0m[0mdebug[0m] [0m[0mRecompiling all sources: number of invalidated sources > 50.0 percent of all sources[0m
+[0m[[0m[0mdebug[0m] [0m[0mcompilation cycle 1[0m
+[0m[[0m[0minfo[0m] [0m[0mcompiling 22 Scala sources to /home/stephenbell/Projects/zugzwang/core/target/scala-3.3.1/classes ...[0m
+[0m[[0m[0mdebug[0m] [0m[0mReturning already retrieved and compiled bridge: /home/stephenbell/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala3-sbt-bridge/3.3.1/scala3-sbt-bridge-3.3.1.jar.[0m
+[0m[[0m[0mdebug[0m] [0m[0m[zinc] Running cached compiler c941a5 for Scala Compiler version 3.3.1[0m
+[0m[[0m[0mdebug[0m] [0m[0m[zinc] The Scala compiler is invoked with:[0m
+[0m[[0m[0mdebug[0m] [0m[0m	-deprecation[0m
+[0m[[0m[0mdebug[0m] [0m[0m	-Wunused:imports[0m
+[0m[[0m[0mdebug[0m] [0m[0m	-optimize[0m
+[0m[[0m[0mdebug[0m] [0m[0m	-inline-threshold[0m
+[0m[[0m[0mdebug[0m] [0m[0m	32[0m
+[0m[[0m[0mdebug[0m] [0m[0m	-Xsemanticdb[0m
+[0m[[0m[0mdebug[0m] [0m[0m	-semanticdb-target[0m
+[0m[[0m[0mdebug[0m] [0m[0m	/home/stephenbell/Projects/zugzwang/core/target/scala-3.3.1/meta[0m
+[0m[[0m[0mdebug[0m] [0m[0m	-bootclasspath[0m
+[0m[[0m[0mdebug[0m] [0m[0m	/home/stephenbell/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala3-library_3/3.3.1/scala3-library_3-3.3.1.jar:/home/stephenbell/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.10/scala-library-2.13.10.jar[0m
+[0m[[0m[0mdebug[0m] [0m[0m	-classpath[0m
+[0m[[0m[0mdebug[0m] [0m[0m	/home/stephenbell/Projects/zugzwang/core/target/scala-3.3.1/classes[0m
+[0m[[0m[0mdebug[0m] [0m[0mCompilation failed[0m
+[0m[[0m[31merror[0m] [0m[0m(core / Compile / [31mcompileIncremental[0m) Compilation failed[0m
