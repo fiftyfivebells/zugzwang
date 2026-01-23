@@ -1,7 +1,7 @@
 package com.ffb.zugzwang
 
 import com.ffb.zugzwang.chess.GameState
-import com.ffb.zugzwang.move.{Move, Perft}
+import com.ffb.zugzwang.move.Move
 import com.ffb.zugzwang.notation.{FENParser, FENParserError}
 import com.ffb.zugzwang.rules.Rules
 
@@ -19,11 +19,6 @@ object Zugzwang:
 
   def legalMoves(state: GameState): Seq[Move] =
     Rules.legalMoves(state)
-
-  def perft(fen: String, depth: Int = 3): Long =
-    val state = GameState.from(fen)
-
-    Perft.perft(state, depth)
 
 end Zugzwang
 
