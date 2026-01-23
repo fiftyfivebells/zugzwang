@@ -1,9 +1,9 @@
 inThisBuild(
   List(
     organization      := "com.ffb",
-    scalaVersion      := "3.3.1",
+    scalaVersion      := "3.7.2",
     semanticdbEnabled := true,
-    scalacOptions ++= Seq("-deprecation", "-Wunused:imports", "-optimize", "-inline-threshold", "32")
+    scalacOptions ++= Seq("-deprecation", "-Wunused:imports")
   )
 )
 
