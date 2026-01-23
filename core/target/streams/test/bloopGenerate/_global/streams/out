@@ -1,0 +1,4 @@
+[debug] [core-test] Classpath dependencies List()
+[debug] [core-test] Dependencies from configurations List(core)
+[debug] Bloop wrote the configuration of project 'core-test' to '/home/stephenbell/Projects/zugzwang/.bloop/core-test.json'
+[success] Generated .bloop/core-test.json
