@@ -55,7 +55,7 @@ object Perft:
         else
           val ml = moveLists(d)
           ml.clear
-          val arr = MoveGenerator.pseudoLegalMoves(position).toArray
+          val arr = MoveGenerator.pseudoLegalMovesMutable(position).toArray
 
           val n = arr.size
 
@@ -121,7 +121,7 @@ object Perft:
     var totalNodes = 0L
 
     // 1. Get moves for the ROOT position
-    val rootMoves = MoveGenerator.pseudoLegalMoves(position).toArray
+    val rootMoves = MoveGenerator.pseudoLegalMovesMutable(position).toArray
     val mover     = position.activeSide
 
     for move <- rootMoves do
@@ -143,7 +143,7 @@ object Perft:
       // 5. Always unapply
       position.unapplyMove(move, u)
 
-    println(s"Total Nodes: $totalNodes")
+    println(s"\nTotal Nodes: $totalNodes")
     totalNodes
 
   // Helper function for the recursive part
@@ -159,7 +159,7 @@ object Perft:
       ml.clear
 
       // Generate pseudo-legal moves for this depth
-      val moves = MoveGenerator.pseudoLegalMoves(position).toArray
+      val moves = MoveGenerator.pseudoLegalMovesMutable(position).toArray
       val mover = position.activeSide
       var nodes = 0L
       var i     = 0
