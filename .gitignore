@@ -1,7 +1,7 @@
 # === sbt and Scala ===
-/target/
-/project/target/
-/project/project/
+**/target/
+**/project/target/
+**/project/project/
 
 # Coursier cache (if used outside of global location)
 .coursier
@@ -17,10 +17,10 @@ out/
 *.iws
 
 # === Metals + Emacs ===
-.metals/
-.bloop/
-.bsp/
-.scala-build/
+**/.metals/
+**/.bloop/
+**/.bsp/
+**/.scala-build/
 
 # Emacs temporary files
 *~

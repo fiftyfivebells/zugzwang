@@ -1,4 +1,0 @@
-[debug] [engine-test] Classpath dependencies List(core)
-[debug] [engine-test] Dependencies from configurations List(engine)
-[debug] Bloop wrote the configuration of project 'engine-test' to '/home/stephenbell/Projects/zugzwang/.bloop/engine-test.json'
-[success] Generated .bloop/engine-test.json
