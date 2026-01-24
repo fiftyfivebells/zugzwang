@@ -22,12 +22,12 @@ object PieceType:
 
     def value: Int = pt match
       case NoType => 0
-      case Pawn   => 10
-      case Knight => 30
-      case Bishop => 35
-      case Rook   => 50
-      case Queen  => 90
-      case King   => 1000
+      case Pawn   => 100
+      case Knight => 320
+      case Bishop => 330
+      case Rook   => 500
+      case Queen  => 900
+      case King   => 20000
 
   def apply(piece: Int) = piece match
     case 0 => Pawn
