@@ -35,6 +35,10 @@ object UciMain:
         case "position" :: rest =>
           handlePosition(rest)
 
+        case "print" :: _ =>
+          println(s"\n${state.prettyPrint}")
+          state
+
         case "go" :: rest =>
           val newState = handleGo(state, rest)
           newState
@@ -60,7 +64,7 @@ object UciMain:
           case Right(state) =>
             state
           case Left(err) =>
-            println("Error parsing FEN: $err")
+            println("Error parsing FEN: ${err}")
             GameState.initial
 
         (state, afterFen)
@@ -69,7 +73,7 @@ object UciMain:
         (GameState.initial, tokens)
 
     remaining match
-      case "moves" :: moveList => applyUciMoves(baseState, remaining)
+      case "moves" :: moveList => applyUciMoves(baseState, moveList)
       case _                   => baseState
 
   private def applyUciMoves(startState: GameState, moves: List[String]): GameState =
