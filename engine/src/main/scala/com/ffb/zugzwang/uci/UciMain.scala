@@ -1,9 +1,10 @@
 package com.ffb.zugzwang.uci
 
-import com.ffb.zugzwang.chess.GameState
+import com.ffb.zugzwang.chess.{GameState, MutablePosition}
 import com.ffb.zugzwang.move.MoveGenerator
 import com.ffb.zugzwang.notation.FENParser
 import com.ffb.zugzwang.rules.Rules
+import com.ffb.zugzwang.search.Search
 import com.ffb.zugzwang.tools.PerftRunner
 
 import scala.annotation.tailrec
@@ -94,5 +95,15 @@ object UciMain:
         state
 
       case _ =>
-        println("not yet implemented")
+        val depth          = findKeywordByValue(tokens, "depth").map(_.toInt).getOrElse(5)
+        val searchPosition = MutablePosition.from(state)
+        val bestMove       = Search.findBestMove(searchPosition, depth)
+
+        println(s"bestmove ${bestMove.toUci}")
+
         state
+
+  private def findKeywordByValue(tokens: List[String], key: String): Option[String] =
+    tokens.dropWhile(_ != key) match
+      case `key` :: value :: _ => Some(value)
+      case _                   => None
