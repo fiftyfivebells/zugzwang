@@ -25,6 +25,8 @@ object Move:
   private val moveTypeMask  = 7
   private val moveTypeShift = 15
 
+  val None: Move = 0
+
   def apply(
     from: Square,
     to: Square,
