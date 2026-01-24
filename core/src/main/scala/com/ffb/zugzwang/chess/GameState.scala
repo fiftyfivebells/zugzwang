@@ -117,7 +117,7 @@ final case class GameState(
     sb.append(s"Halfmove    : $halfMoveClock\n")
     sb.append(s"Fullmove    : $fullMoveClock\n")
     sb.append("\nBoard:\n")
-    sb.append(board.toFen) // assuming this already exists
+    sb.append(board.prettyPrint)
     sb.append("\n")
 
     sb.toString

@@ -35,6 +35,21 @@ final case class Board private (
 
     fenString.dropRight(1).toString
 
+  def prettyPrint: String =
+    val sb = new StringBuilder()
+
+    // Ranks from 8 down to 1
+    for rank <- 7 to 0 by -1 do
+      sb.append(s"${rank + 1}")
+      for file <- 7 to 0 by -1 do // Your current indexing is 63-i, mirroring this
+        val squareIndex = rank * 8 + file
+        val piece       = squares(squareIndex)
+        val char        = if piece.isNoPiece then " ." else s" ${piece.toStringRep}"
+        sb.append(s" $char")
+      sb.append("\n")
+    sb.append("   a  b  c  d  e  f  g  h\n")
+    sb.toString
+
   def occupied: Bitboard = pieces.foldLeft(Bitboard.empty)(_ | _)
 
   def byColor(c: Color): Bitboard =
