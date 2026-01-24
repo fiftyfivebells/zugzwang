@@ -224,7 +224,7 @@ object MoveGenerator:
       else (Square.E8, Square.G8)
 
     if squares.forall(!position.isSquareAttacked(_, activeSide.enemy))
-      && (occupied & mask).isEmpty && !position.isKingAttacked
+      && (occupied & mask).isEmpty && !position.isKingAttacked(activeSide.enemy)
     then moves.add(Move(from, to, MoveType.CastleKingside))
 
   private def kingsideCastles(
@@ -260,7 +260,9 @@ object MoveGenerator:
       if activeSide == Color.White then (Square.E1, Square.C1)
       else (Square.E8, Square.C8)
 
-    if squares.forall(!position.isSquareAttacked(_, activeSide.enemy)) && (occupied & mask).isEmpty && !position.isKingAttacked
+    if squares.forall(!position.isSquareAttacked(_, activeSide.enemy)) && (occupied & mask).isEmpty && !position.isKingAttacked(
+        activeSide.enemy
+      )
     then moves.add(Move(from, to, MoveType.CastleQueenside))
 
   private def queensideCastles(
