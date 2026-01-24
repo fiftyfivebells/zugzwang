@@ -12,6 +12,11 @@ final class MutablePosition(
   var halfMoveClock: Int,
   var fullMoveClock: Int
 ):
+  // internal history stack
+  private val maxDepth = 256
+  private val history  = Array.fill(maxDepth)(new PositionUndoState)
+  private var ply      = 0
+
   // cached info so we don't need to recompute all the time
   var occupied: Bitboard       = Bitboard.empty
   var byColor: Array[Bitboard] = Array(Bitboard.empty, Bitboard.empty)
@@ -113,7 +118,9 @@ final class MutablePosition(
       if to == rookHome(color, CastleSide.Kingside) then castleRights = castleRights.remove(color, CastleSide.Kingside)
       else if to == rookHome(color, CastleSide.Queenside) then castleRights = castleRights.remove(color, CastleSide.Queenside)
 
-  def applyMove(move: Move, state: PositionState): Unit =
+  def applyMove(move: Move): Unit =
+    val state = history(ply)
+
     state.prevCastleRights = castleRights
     state.prevEnPassant = enPassantSq
     state.prevHalfMove = halfMoveClock
@@ -195,8 +202,12 @@ final class MutablePosition(
     if activeSide == Color.Black then fullMoveClock else fullMoveClock += 1
 
     activeSide = activeSide.enemy
+    ply += 1
 
-  def unapplyMove(move: Move, state: PositionState): Unit =
+  def unapplyMove(move: Move): Unit =
+    ply -= 1
+    val state = history(ply)
+
     activeSide = activeSide.enemy
 
     castleRights = state.prevCastleRights
@@ -239,9 +250,9 @@ final class MutablePosition(
 
   private val sliders = HQSlidingAttacks
 
-  def isKingAttacked: Boolean =
+  def isKingAttacked(byColor: Color): Boolean =
     val sq = kingSq(activeSide.ordinal)
-    isSquareAttacked(sq, activeSide.enemy)
+    isSquareAttacked(sq, byColor)
 
   def isSquareAttacked(sq: Square, byColor: Color): Boolean =
 

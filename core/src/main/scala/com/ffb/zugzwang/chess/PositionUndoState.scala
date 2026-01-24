@@ -1,6 +1,6 @@
 package com.ffb.zugzwang.chess
 
-final class PositionState:
+final class PositionUndoState:
   var captured: Piece        = Piece.NoPiece
   var capturedSquare: Square = Square.H1
   var movedPiece: Piece      = Piece.NoPiece
