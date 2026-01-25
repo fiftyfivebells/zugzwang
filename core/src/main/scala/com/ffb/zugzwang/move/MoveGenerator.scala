@@ -98,6 +98,47 @@ object MoveGenerator:
 
     moves.toList
 
+  def pseudoLegalCapturesMutable(position: MutablePosition): List[Move] =
+    val moves = MoveList(256)
+
+    val occupied = position.occupied
+    val targets  = position.byColor(position.activeSide.enemy.ordinal)
+
+    Piece.byColor(position.activeSide) foreach { piece =>
+      var pieces = position.pieces(piece)
+
+      while pieces.nonEmpty do
+        val from = Square(pieces.trailingZeros)
+        pieces = pieces.removeLsb
+
+        val rawAttacks = Attacks.attacks(piece, from, occupied)
+        var attackMask = rawAttacks & targets
+
+        if piece.isPawn then
+          val epMask = position.enPassantSq match
+            case Some(sq) => 1L << sq.value
+            case None     => 0L
+
+          var pawnAttacks = attackMask | (rawAttacks & epMask)
+
+          while pawnAttacks.nonEmpty do
+            val to = Square(pawnAttacks.trailingZeros)
+            pawnAttacks = pawnAttacks.removeLsb
+
+            if position.enPassantSq.contains(to) then moves.add(Move(from, to, MoveType.EnPassant))
+            else if to.lastRank(position.activeSide) then
+              // these are only capture promotions
+              addPromotions(from, to, isCapture = true, moves)
+            else moves.add(Move(from, to, MoveType.Capture))
+        else
+          while attackMask.nonEmpty do
+            val to = Square(attackMask.trailingZeros)
+            attackMask = attackMask.removeLsb
+            moves.add(Move(from, to, MoveType.Capture))
+    }
+
+    moves.toList
+
   def pseudoLegalMoves(state: GameState): List[Move] =
     val moves = MoveList(256)
 
