@@ -14,11 +14,12 @@ object Search:
 
     val moves = MoveGenerator.pseudoLegalMovesMutable(position)
 
-    // TODO: sort moves here
+    // TODO: should probably just return MoveList so I don't have to cast to IndexedSeq
+    val sortedMoves = MoveSorter.sortMoves(moves.toIndexedSeq, position)
 
     var i = 0
-    while i < moves.size do
-      val move = moves(i)
+    while i < sortedMoves.size do
+      val move = sortedMoves(i)
 
       position.applyMove(move)
 
@@ -36,9 +37,8 @@ object Search:
     bestMove
 
   def findBestMove(position: MutablePosition, depth: Int): Move =
-    val moves = MoveGenerator.pseudoLegalMovesMutable(position)
-
-    // TODO: sort moves here
+    val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
+    val sortedMoves = MoveSorter.sortMoves(moves.toIndexedSeq, position)
 
     @tailrec
     def loop(moves: List[Move], bestMove: Move, alpha: Int, beta: Int): Move =
@@ -60,11 +60,11 @@ object Search:
 
             loop(rest, newBestMove, newAlpha, beta)
 
-    loop(moves, Move.None, -Evaluation.Infinity, Evaluation.Infinity)
+    loop(sortedMoves.toList, Move.None, -Evaluation.Infinity, Evaluation.Infinity)
 
   // TODO: look into maybe making this a tail recursive function
   private def negamax(position: MutablePosition, depth: Int, alpha: Int, beta: Int): Int =
-    if depth == 0 then return Evaluation.evaluate(position)
+    if depth == 0 then return quiesce(position, alpha, beta)
 
     val moves = MoveGenerator.pseudoLegalMovesMutable(position)
 
@@ -99,3 +99,32 @@ object Search:
       else return 0
 
     bestScore
+
+  private def quiesce(position: MutablePosition, alpha: Int, beta: Int): Int =
+    val standPat = Evaluation.evaluate(position)
+
+    if standPat >= beta then beta
+    else
+      var currentAlpha = Math.max(alpha, standPat)
+
+      val moves       = MoveGenerator.pseudoLegalCapturesMutable(position)
+      val sortedMoves = MoveSorter.sortMoves(moves.toIndexedSeq, position)
+
+      var i = 0
+      while i < sortedMoves.size do
+        val move = sortedMoves(i)
+
+        position.applyMove(move)
+
+        if !position.isKingAttacked(position.activeSide.enemy) then
+          val score = -quiesce(position, -beta, -currentAlpha)
+
+          position.unapplyMove(move)
+
+          if score >= beta then return beta
+          if score > currentAlpha then currentAlpha = score
+        else position.unapplyMove(move)
+
+        i += 1
+
+      currentAlpha
