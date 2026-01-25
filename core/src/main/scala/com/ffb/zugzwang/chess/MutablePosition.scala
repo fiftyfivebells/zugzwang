@@ -46,6 +46,8 @@ final class MutablePosition(
 
       sq += 1
 
+  def pieceAt(sq: Square): Piece = squares(sq.value)
+
   private def putPieceAt(piece: Piece, sq: Square): Unit =
     val sqIndex = sq.value
     squares(sqIndex) = piece
