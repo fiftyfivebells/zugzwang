@@ -252,9 +252,9 @@ final class MutablePosition(
 
   private val sliders = HQSlidingAttacks
 
-  def isKingAttacked(byColor: Color): Boolean =
-    val sq = kingSq(activeSide.ordinal)
-    isSquareAttacked(sq, byColor)
+  def isSideInCheck(side: Color): Boolean =
+    val sq = kingSq(side.ordinal)
+    isSquareAttacked(sq, side.enemy)
 
   def isSquareAttacked(sq: Square, byColor: Color): Boolean =
 
