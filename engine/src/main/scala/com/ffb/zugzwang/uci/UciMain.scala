@@ -1,10 +1,10 @@
 package com.ffb.zugzwang.uci
 
-import com.ffb.zugzwang.chess.{GameState, MutablePosition}
+import com.ffb.zugzwang.chess.{Color, GameState, MutablePosition}
 import com.ffb.zugzwang.move.MoveGenerator
 import com.ffb.zugzwang.notation.FENParser
 import com.ffb.zugzwang.rules.Rules
-import com.ffb.zugzwang.search.Search
+import com.ffb.zugzwang.search.{Search, SearchLimits}
 import com.ffb.zugzwang.tools.PerftRunner
 
 import scala.annotation.tailrec
@@ -95,13 +95,52 @@ object UciMain:
         state
 
       case _ =>
-        val depth          = findKeywordByValue(tokens, "depth").map(_.toInt).getOrElse(5)
+        val limits         = parseTime(tokens, state.activeSide)
         val searchPosition = MutablePosition.from(state)
-        val bestMove       = Search.findBestMove(searchPosition, depth)
+        val bestMove       = Search.search(searchPosition, limits)
 
         println(s"bestmove ${bestMove.toUci}")
-
         state
+
+  private def parseTime(params: List[String], side: Color): SearchLimits =
+    // if movetime is there, it's a fixed time, so just return that
+    findKeywordByValue(params, "movetime").map(_.toLong) match
+      case Some(time) =>
+        return SearchLimits(endTime = System.currentTimeMillis() + time)
+      case None => // if movetime isn't there, just keep on rolling
+    val wTime = findKeywordByValue(params, "wtime").map(_.toLong)
+    val bTime = findKeywordByValue(params, "btime").map(_.toLong)
+
+    val (timeOpt, incOpt) =
+      side match
+        case Color.White => (wTime, findKeywordByValue(params, "winc").map(_.toLong))
+        case Color.Black => (bTime, findKeywordByValue(params, "binc").map(_.toLong))
+
+    val myInc = incOpt.getOrElse(0L)
+
+    timeOpt match
+      case Some(time) =>
+        val now = System.currentTimeMillis()
+
+        val movesToGo = findKeywordByValue(params, "movestogo").map(_.toInt)
+
+        val timeToSpend = movesToGo match
+          case Some(moves) =>
+            (time / moves) + myInc
+
+          case None =>
+            (time / 20) + (myInc / 2)
+
+        val hardLimit = time - 50
+        val safeTime  = Math.min(timeToSpend, hardLimit)
+
+        val finalAllocation = Math.max(10, safeTime)
+
+        SearchLimits(endTime = now + finalAllocation)
+
+      case None =>
+        val depth = findKeywordByValue(params, "depth").map(_.toInt).getOrElse(6)
+        SearchLimits(depth = depth)
 
   private def findKeywordByValue(tokens: List[String], key: String): Option[String] =
     tokens.dropWhile(_ != key) match

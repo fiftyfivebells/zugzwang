@@ -1,6 +1,6 @@
 package com.ffb.zugzwang.evaluation
 
-import com.ffb.zugzwang.chess.{Color, MutablePosition}
+import com.ffb.zugzwang.chess.{Color, MutablePosition, Square}
 
 object Evaluation:
   val Checkmate: Int = 30000
@@ -15,7 +15,8 @@ object Evaluation:
       val piece = pieces(i)
 
       if !piece.isNoPiece then
-        val value = piece.pieceType.value
+        val pstValue = PieceSquareTables.value(piece.pieceType, Square(i), piece.color)
+        val value    = piece.pieceType.value + pstValue
         if piece.color == Color.White then score += value else score -= value
 
       i += 1
