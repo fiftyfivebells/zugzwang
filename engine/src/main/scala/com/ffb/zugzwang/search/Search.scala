@@ -94,7 +94,7 @@ object Search:
       i += 1
 
     if legalMoves == 0 then
-      if position.isSideInCheck(position.activeSide.enemy) then SearchResult(Move.None, -Evaluation.Checkmate)
+      if position.isSideInCheck(position.activeSide) then SearchResult(Move.None, -Evaluation.Checkmate)
       else SearchResult(Move.None, 0) // stalemate
     else SearchResult(bestMove, alpha)
 
@@ -107,7 +107,7 @@ object Search:
       moves match
         case Nil =>
           if legalMoves == 0 then
-            if position.isSideInCheck(position.activeSide.enemy) then SearchResult(Move.None, -Evaluation.Checkmate)
+            if position.isSideInCheck(position.activeSide) then SearchResult(Move.None, -Evaluation.Checkmate)
             else SearchResult(Move.None, 0)
           else SearchResult(bestMove, alpha)
         case move :: rest =>
@@ -130,15 +130,16 @@ object Search:
   private def negamax(position: MutablePosition, depth: Int, alpha: Int, beta: Int, ctx: SearchContext): Int =
     if depth == 0 then return quiesce(position, alpha, beta, ctx)
 
-    val moves = MoveGenerator.pseudoLegalMovesMutable(position)
+    val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
+    val sortedMoves = MoveSorter.sortMoves(moves.toIndexedSeq, position)
 
     var bestScore       = -Evaluation.Infinity
     var currentAlpha    = alpha
     var legalMovesFound = 0
 
     var i = 0
-    while i < moves.size do
-      val move = moves(i)
+    while i < sortedMoves.size do
+      val move = sortedMoves(i)
 
       position.applyMove(move)
 
