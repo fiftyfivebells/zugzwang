@@ -24,6 +24,10 @@ lazy val engine = (project in file("engine"))
     scalafixOnCompile                               := true,
     libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4"
   )
+  .settings(
+    assembly / mainClass       := Some("com.ffb.zugzwang.uci.UciMain"),
+    assembly / assemblyJarName := "zugzwang.jar"
+  )
 
 lazy val root = (project in file("."))
   .aggregate(core, engine)
