@@ -74,7 +74,7 @@ object Search:
     val moves = MoveGenerator.pseudoLegalMovesMutable(position)
 
     // TODO: should probably just return MoveList so I don't have to cast to IndexedSeq
-    val sortedMoves = MoveSorter.sortMoves(moves.toIndexedSeq, position)
+    val sortedMoves = MoveSorter.sortMoves(moves, position)
 
     var i          = 0
     var legalMoves = 0
@@ -102,7 +102,7 @@ object Search:
 
   def findBestMove(position: MutablePosition, depth: Int, ctx: SearchContext): SearchResult =
     val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
-    val sortedMoves = MoveSorter.sortMoves(moves.toIndexedSeq, position)
+    val sortedMoves = MoveSorter.sortMoves(moves, position)
 
     @tailrec
     def loop(moves: List[Move], bestMove: Move, alpha: Int, beta: Int, legalMoves: Int, ply: Int): SearchResult =
@@ -135,7 +135,7 @@ object Search:
     if depth == 0 then return quiesce(position, alpha, beta, ctx, ply)
 
     val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
-    val sortedMoves = MoveSorter.sortMoves(moves.toIndexedSeq, position)
+    val sortedMoves = MoveSorter.sortMoves(moves, position)
 
     var bestScore       = -Evaluation.Infinity
     var currentAlpha    = alpha
@@ -209,7 +209,7 @@ object Search:
         var currentAlpha = Math.max(alpha, standPat)
 
         val moves       = MoveGenerator.pseudoLegalCapturesMutable(position)
-        val sortedMoves = MoveSorter.sortMoves(moves.toIndexedSeq, position)
+        val sortedMoves = MoveSorter.sortMoves(moves, position)
 
         var i = 0
         while i < sortedMoves.size && !shouldStop(ctx) do

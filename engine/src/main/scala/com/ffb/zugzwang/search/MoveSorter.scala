@@ -1,32 +1,100 @@
 package com.ffb.zugzwang.search
 
-import com.ffb.zugzwang.chess.{MutablePosition, Piece}
-import com.ffb.zugzwang.move.Move
+import com.ffb.zugzwang.chess.{MutablePosition, Piece, PieceType, Square}
+import com.ffb.zugzwang.evaluation.PieceSquareTables
+import com.ffb.zugzwang.move.{Move, MoveType}
 
 object MoveSorter:
+
+  private inline val CaptureBase     = 100000
+  private inline val PromotionBase   = 80000
+  private inline val CastleBonus     = 500
+  private inline val DoublePushBonus = 40
+
+  // breaks ties between quiet moves
+  private inline val PstDeltaWeight = 2
+  private inline val DevelopBonus   = 10
+
   def scoreMove(move: Move, position: MutablePosition): Int =
-    val captured: Piece = position.pieceAt(move.to)
+    val mover: Piece = position.pieceAt(move.from)
 
-    // captures
-    if !captured.isNoPiece then
-      val mover       = position.pieceAt(move.from)
-      val moverValue  = mover.pieceType.value
-      val victimValue = captured.pieceType.value
+    // prioritize promotions
+    if move.isPromotion then
+      val promoValue = move.promotion.value
+      val capExtra =
+        if move.moveType == MoveType.CapturePromotion then 10000 else 0
+      return PromotionBase + capExtra + promoValue
 
-      // MVV-LVA = most valuable victim/least valuable attacker
-      // examples:
-      // pawn takes queen => (900 * 10 - 100) = 8900 (greater priority)
-      // queen takes pawn => (100 * 10 - 900) = 900
-      10000 + (victimValue * 10) - moverValue
+    // then captures
+    if move.isCapture then
+      val victimValue =
+        if move.moveType == MoveType.EnPassant then PieceType.Pawn.value
+        else
+          val captured = position.pieceAt(move.to)
+          if captured.isNoPiece then 0 else captured.pieceType.value
 
-    // TODO: add another if/else block for killer moves
+      return CaptureBase + (victimValue * 10) - mover.pieceType.value
 
-    // promotions have high values
-    else if move.isPromotion then return 9000 + move.promotion.value
+    // castles
+    move.moveType match
+      case MoveType.CastleKingside | MoveType.CastleQueenside =>
+        return CastleBonus
+      case _ =>
 
-    // quiet moves are nothing special
-    else 0
+    // pawn double push
+    if move.moveType == MoveType.DoublePush then ()
 
-  def sortMoves(moves: IndexedSeq[Move], position: MutablePosition): IndexedSeq[Move] =
-    // TODO: replace sortBy with something more performant
-    moves.sortBy(m => -scoreMove(m, position))
+    // quiet moves
+    val beforePst = PieceSquareTables.value(mover.pieceType, move.from, mover.color)
+    val afterPst  = PieceSquareTables.value(mover.pieceType, move.to, mover.color)
+    var score     = (afterPst - beforePst) * PstDeltaWeight
+
+    // this should encourage pieces to move off their home squares (encourage development)
+    mover.pieceType match
+      case PieceType.Knight =>
+        val fromHome = move.from == Square.B1 || move.from == Square.G1 || move.from == Square.B8 || move.from == Square.G8
+        val toHome   = move.to == Square.B1 || move.to == Square.G1 || move.to == Square.B8 || move.to == Square.G8
+        if fromHome && !toHome then score += DevelopBonus
+        if !fromHome && toHome then score -= DevelopBonus
+
+      case PieceType.Bishop =>
+        val fromHome = move.from == Square.C1 || move.from == Square.F1 || move.from == Square.C8 || move.from == Square.F8
+        val toHome   = move.to == Square.C1 || move.to == Square.F1 || move.to == Square.C8 || move.to == Square.F8
+        if fromHome && !toHome then score += (DevelopBonus - 20)
+        if !fromHome && toHome then score -= (DevelopBonus - 20)
+
+      case _ =>
+
+    if move.moveType == MoveType.DoublePush then score += DoublePushBonus
+
+    score
+
+  def sortMoves(moves: List[Move], position: MutablePosition): Array[Move] =
+    val arr    = moves.toArray
+    val scores = new Array[Int](arr.length)
+
+    var i = 0
+    while i < arr.length do
+      scores(i) = scoreMove(arr(i), position)
+      i += 1
+
+    i = 0
+    while i < arr.length - 1 do
+      var bestIdx   = i
+      var bestScore = scores(i)
+
+      var j = i + 1
+      while j < arr.length do
+        val s = scores(j)
+        if s > bestScore then
+          bestScore = s
+          bestIdx = j
+        j += 1
+
+      if bestIdx != i then
+        val tmpM = arr(i); arr(i) = arr(bestIdx); arr(bestIdx) = tmpM
+        val tmpS = scores(i); scores(i) = scores(bestIdx); scores(bestIdx) = tmpS
+
+      i += 1
+
+    arr
