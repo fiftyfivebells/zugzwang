@@ -1,143 +1,99 @@
 package com.ffb.zugzwang.search
 
 import com.ffb.zugzwang.chess.MutablePosition
+import com.ffb.zugzwang.core.{Depth, Node, Ply, Score, SearchTime}
 import com.ffb.zugzwang.evaluation.Evaluation
 import com.ffb.zugzwang.move.{Move, MoveGenerator}
 
 import scala.annotation.tailrec
 
 final case class SearchLimits(
-  depth: Int = 100,
-  moveTime: Long = Long.MaxValue,
-  endTime: Long = Long.MaxValue
+  depth: Depth = Depth(100),
+  moveTime: SearchTime = SearchTime.maxTime,
+  endTime: SearchTime = SearchTime.maxTime
 )
 
 final case class SearchResult(
   move: Move,
-  score: Int
+  score: Score
 )
 
 final case class SearchContext(
-  val startTime: Long,
-  val endTime: Long,
-  val depthLimit: Int,
-  var nodes: Long = 0,
+  val startTime: SearchTime,
+  val endTime: SearchTime,
+  val depthLimit: Depth,
+  var nodes: Node = Node.zero,
   var stopped: Boolean = false
 )
 
 object Search:
   def search(position: MutablePosition, limits: SearchLimits): Move =
-    var bestMove: Move = Move.None
     val ctx = SearchContext(
-      startTime = System.currentTimeMillis(),
+      startTime = SearchTime.currentTime,
       endTime = limits.endTime,
       depthLimit = limits.depth
     )
 
-    var currentDepth = 1
+    @tailrec
+    def iterativeDeepening(currentDepth: Depth, bestMove: Move): Move =
+      val now           = SearchTime.currentTime
+      val outOfTime     = now >= limits.endTime
+      val depthExceeded = currentDepth > limits.depth
 
-    while currentDepth <= limits.depth && System.currentTimeMillis() < limits.endTime do
-      val bestAtDepth = findBestMoveIterative(position, currentDepth, ctx)
+      if outOfTime || depthExceeded then return bestMove
 
-      if System.currentTimeMillis() < limits.endTime then
-        val result = bestAtDepth
-        bestMove = result.move
-        val scoreStr  = formatScore(result.score)
-        val timeTaken = System.currentTimeMillis() - ctx.startTime
-        val nps       = if timeTaken > 0 then (ctx.nodes * 1000) / timeTaken else 0
+      val bestAtDepth = findBestMove(position, currentDepth, ctx)
 
-        println(s"info depth $currentDepth score $scoreStr nodes ${ctx.nodes} nps $nps time $timeTaken pv ${bestMove.toUci}")
+      if now >= limits.endTime then return bestMove
 
-      currentDepth += 1
+      val timeTaken = now - ctx.startTime
+      val nps       = ctx.nodes.perSecond(timeTaken.toLong)
+      val scoreStr  = bestAtDepth.score.format
+      println(
+        s"info depth $currentDepth score $scoreStr nodes ${ctx.nodes.toString} nps $nps time ${timeTaken.toString} pv ${bestAtDepth.move.toUci}"
+      )
 
-    bestMove
+      iterativeDeepening(currentDepth + 1, bestAtDepth.move)
 
-  private def formatScore(score: Int): String =
-    // With ply-based mate scores, mates are encoded as +/- (Checkmate - ply).
-    val MateThreshold = Evaluation.Checkmate - 1000
+    iterativeDeepening(Depth(1), Move.None)
 
-    if score > MateThreshold then
-      val pliesToMate = Evaluation.Checkmate - score
-      val movesToMate = (pliesToMate + 1) / 2
-      s"mate $movesToMate"
-    else if score < -MateThreshold then
-      val pliesToMate = Evaluation.Checkmate + score // score is negative here
-      val movesToMate = (pliesToMate + 1) / 2
-      s"mate -$movesToMate"
-    else s"cp $score"
-
-  def findBestMoveIterative(position: MutablePosition, depth: Int, ctx: SearchContext): SearchResult =
-    var bestMove: Move = Move.None
-    var alpha          = -Evaluation.Infinity
-    val beta           = Evaluation.Infinity
-
-    val moves = MoveGenerator.pseudoLegalMovesMutable(position)
-
-    // TODO: should probably just return MoveList so I don't have to cast to IndexedSeq
-    val sortedMoves = MoveSorter.sortMoves(moves, position)
-
-    var i          = 0
-    var legalMoves = 0
-    while i < sortedMoves.size do
-      val move = sortedMoves(i)
-
-      position.applyMove(move)
-
-      if !position.isSideInCheck(position.activeSide.enemy) then
-        ctx.nodes += 1
-        legalMoves += 1
-        val score = -negamax(position, depth - 1, -beta, -alpha, ctx, ply = 1)
-
-        if score > alpha then
-          alpha = score
-          bestMove = move
-
-      position.unapplyMove(move)
-      i += 1
-
-    if legalMoves == 0 then
-      if position.isSideInCheck(position.activeSide) then SearchResult(Move.None, -Evaluation.Checkmate)
-      else SearchResult(Move.None, 0) // stalemate
-    else SearchResult(bestMove, alpha)
-
-  def findBestMove(position: MutablePosition, depth: Int, ctx: SearchContext): SearchResult =
+  def findBestMove(position: MutablePosition, depth: Depth, ctx: SearchContext): SearchResult =
     val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
     val sortedMoves = MoveSorter.sortMoves(moves, position)
 
     @tailrec
-    def loop(moves: List[Move], bestMove: Move, alpha: Int, beta: Int, legalMoves: Int, ply: Int): SearchResult =
-      moves match
-        case Nil =>
-          if legalMoves == 0 then
-            if position.isSideInCheck(position.activeSide) then SearchResult(Move.None, -Evaluation.Checkmate)
-            else SearchResult(Move.None, 0)
-          else SearchResult(bestMove, alpha)
-        case move :: rest =>
-          position.applyMove(move)
-          if position.isSideInCheck(position.activeSide.enemy) then
-            position.unapplyMove(move)
+    def loop(i: Int, bestMove: Move, alpha: Score, beta: Score, legalMoves: Int, ply: Ply = Ply.base): SearchResult =
+      if i >= sortedMoves.size then
+        if legalMoves == 0 then
+          if position.isSideInCheck(position.activeSide) then SearchResult(Move.None, -Score.Checkmate)
+          else SearchResult(Move.None, Score.Stalemate)
+        else SearchResult(bestMove, alpha)
+      else
+        val move = sortedMoves(i)
+        position.applyMove(move)
+        if position.isSideInCheck(position.activeSide.enemy) then
+          position.unapplyMove(move)
+          loop(i + 1, bestMove, alpha, beta, legalMoves, ply)
+        else
+          ctx.nodes += 1
+          val score                   = -negamax(position, depth - 1, -beta, -alpha, ctx, ply + 1)
+          val (newAlpha, newBestMove) = if score > alpha then (score, move) else (alpha, bestMove)
+          position.unapplyMove(move)
 
-            loop(rest, bestMove, alpha, beta, legalMoves, ply + 1)
-          else
-            ctx.nodes += 1
-            val score                   = -negamax(position, depth - 1, -beta, -alpha, ctx, ply + 1)
-            val (newAlpha, newBestMove) = if score > alpha then (score, move) else (alpha, bestMove)
-            position.unapplyMove(move)
+          loop(i + 1, newBestMove, newAlpha, beta, legalMoves + 1, ply)
 
-            loop(rest, newBestMove, newAlpha, beta, legalMoves + 1, ply + 1)
-
-    loop(sortedMoves.toList, Move.None, -Evaluation.Infinity, Evaluation.Infinity, 0, 1)
+    loop(0, Move.None, -Score.Infinity, Score.Infinity, 0)
 
   // TODO: look into maybe making this a tail recursive function
-  private def negamax(position: MutablePosition, depth: Int, alpha: Int, beta: Int, ctx: SearchContext, ply: Int): Int =
+  private def negamax(position: MutablePosition, depth: Depth, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
     if shouldStop(ctx) then return Evaluation.evaluate(position)
 
-    if depth == 0 then return quiesce(position, alpha, beta, ctx, ply)
+    if depth.isZero then return quiesce(position, alpha, beta, ctx, ply)
 
     val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
     val sortedMoves = MoveSorter.sortMoves(moves, position)
 
-    var bestScore       = -Evaluation.Infinity
+    var bestScore       = -Score.Infinity
     var currentAlpha    = alpha
     var legalMovesFound = 0
 
@@ -165,11 +121,11 @@ object Search:
     if ctx.stopped then return currentAlpha
 
     if legalMovesFound == 0 then
-      if position.isSideInCheck(position.activeSide) then -Evaluation.Checkmate + (100 - depth)
-      else 0
+      if position.isSideInCheck(position.activeSide) then -Score.Checkmate + ply.value
+      else Score.Stalemate
     else bestScore
 
-  private def quiesce(position: MutablePosition, alpha: Int, beta: Int, ctx: SearchContext, ply: Int): Int =
+  private def quiesce(position: MutablePosition, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
     if shouldStop(ctx) then Evaluation.evaluate(position)
     else if position.isSideInCheck(position.activeSide) then
       val moves           = MoveGenerator.pseudoLegalMovesMutable(position)
@@ -199,14 +155,14 @@ object Search:
       if ctx.stopped then return currentAlpha
 
       // Checkmated (mate score is ply-based)
-      if legalMovesFound == 0 then -Evaluation.Checkmate + ply
+      if legalMovesFound == 0 then -Score.Checkmate + ply.value
       else currentAlpha
     else
       val standPat = Evaluation.evaluate(position)
 
       if standPat >= beta then beta
       else
-        var currentAlpha = Math.max(alpha, standPat)
+        var currentAlpha = Score.max(alpha, standPat)
 
         val moves       = MoveGenerator.pseudoLegalCapturesMutable(position)
         val sortedMoves = MoveSorter.sortMoves(moves, position)
@@ -233,7 +189,7 @@ object Search:
 
   private inline def shouldStop(ctx: SearchContext): Boolean =
     if ctx.stopped then true
-    else if (ctx.nodes & 2047L) == 0L && System.currentTimeMillis() >= ctx.endTime then
+    else if (ctx.nodes & 2047L).isZero && SearchTime.currentTime >= ctx.endTime then
       ctx.stopped = true
       true
     else false

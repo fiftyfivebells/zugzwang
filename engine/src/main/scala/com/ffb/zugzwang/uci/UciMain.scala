@@ -1,6 +1,7 @@
 package com.ffb.zugzwang.uci
 
 import com.ffb.zugzwang.chess.{Color, GameState, MutablePosition}
+import com.ffb.zugzwang.core.{Depth, SearchTime}
 import com.ffb.zugzwang.move.MoveGenerator
 import com.ffb.zugzwang.notation.FENParser
 import com.ffb.zugzwang.rules.Rules
@@ -65,7 +66,7 @@ object UciMain:
           case Right(state) =>
             state
           case Left(err) =>
-            println("Error parsing FEN: ${err}")
+            println(s"Error parsing FEN: ${err}")
             GameState.initial
 
         (state, afterFen)
@@ -106,7 +107,7 @@ object UciMain:
     // if movetime is there, it's a fixed time, so just return that
     findKeywordByValue(params, "movetime").map(_.toLong) match
       case Some(time) =>
-        return SearchLimits(endTime = System.currentTimeMillis() + time)
+        return SearchLimits(endTime = SearchTime.currentTime + time)
       case None => // if movetime isn't there, just keep on rolling
     val wTime = findKeywordByValue(params, "wtime").map(_.toLong)
     val bTime = findKeywordByValue(params, "btime").map(_.toLong)
@@ -120,7 +121,7 @@ object UciMain:
 
     timeOpt match
       case Some(time) =>
-        val now = System.currentTimeMillis()
+        val now = SearchTime.currentTime
 
         val movesToGo = findKeywordByValue(params, "movestogo").map(_.toInt)
 
@@ -140,7 +141,7 @@ object UciMain:
 
       case None =>
         val depth = findKeywordByValue(params, "depth").map(_.toInt).getOrElse(6)
-        SearchLimits(depth = depth)
+        SearchLimits(depth = Depth(depth))
 
   private def findKeywordByValue(tokens: List[String], key: String): Option[String] =
     tokens.dropWhile(_ != key) match

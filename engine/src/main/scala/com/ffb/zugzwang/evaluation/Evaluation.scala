@@ -1,24 +1,27 @@
 package com.ffb.zugzwang.evaluation
 
-import com.ffb.zugzwang.chess.{Color, MutablePosition, Square}
+import com.ffb.zugzwang.chess.{Color, MutablePosition, Piece, Square}
+import com.ffb.zugzwang.core.Score
+
+import scala.annotation.tailrec
 
 object Evaluation:
-  val Checkmate: Int = 30000
-  val Infinity: Int  = 32000
 
-  def evaluate(position: MutablePosition): Int =
-    var score = 0
+  def evaluate(position: MutablePosition): Score =
 
-    val pieces = position.squares
-    var i      = 0
-    while i < pieces.length do
-      val piece = pieces(i)
+    @tailrec
+    def loop(totalScore: Score, pieceIndex: Int, pieces: Array[Piece]): Score =
+      if pieceIndex >= pieces.size then totalScore
+      else
+        val piece = pieces(pieceIndex)
 
-      if !piece.isNoPiece then
-        val pstValue = PieceSquareTables.value(piece.pieceType, Square(i), piece.color)
-        val value    = piece.pieceType.value + pstValue
-        if piece.color == Color.White then score += value else score -= value
+        if !piece.isNoPiece then
+          val pstValue = PieceSquareTables.value(piece.pieceType, Square(pieceIndex), piece.color)
+          val value    = piece.pieceType.value + pstValue
+          val newScore = if piece.color == Color.White then totalScore + value else totalScore - value
 
-      i += 1
+          loop(newScore, pieceIndex + 1, pieces)
+        else loop(totalScore, pieceIndex + 1, pieces)
 
+    val score = loop(Score(0), 0, position.squares)
     if position.activeSide == Color.White then score else -score
