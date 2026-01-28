@@ -43,10 +43,10 @@ object Search:
       if outOfTime || depthExceeded then return bestMove
 
       val bestAtDepth = findBestMove(position, currentDepth, ctx)
+      val newNow      = SearchTime.currentTime
+      if newNow >= limits.endTime then return bestMove
 
-      if now >= limits.endTime then return bestMove
-
-      val timeTaken = now - ctx.startTime
+      val timeTaken = newNow - ctx.startTime
       val nps       = ctx.nodes.perSecond(timeTaken.toLong)
       val scoreStr  = bestAtDepth.score.format
       println(

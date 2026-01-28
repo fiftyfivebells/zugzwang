@@ -7,7 +7,7 @@ object SearchTime:
   val maxTime: SearchTime = Long.MaxValue
   val minTime: SearchTime = Long.MinValue
 
-  inline def currentTime: SearchTime = System.currentTimeMillis
+  inline def currentTime: SearchTime = System.nanoTime() / 1000000 // time in ms
 
   extension (st: SearchTime)
     inline def toLong: Long = st
