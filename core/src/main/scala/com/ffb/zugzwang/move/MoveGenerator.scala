@@ -11,6 +11,15 @@ object MoveGenerator:
       !Rules.isSideInCheck(newState, state.activeSide)
     }
 
+  def legalMovesMutable(position: MutablePosition): List[Move] =
+    pseudoLegalMovesMutable(position) filter { move =>
+      position.applyMove(move)
+      val isLegal = !position.isSideInCheck(position.activeSide.enemy)
+      position.unapplyMove(move)
+
+      isLegal
+    }
+
   def pseudoLegalMovesMutable(position: MutablePosition): List[Move] =
     val moves = MoveList(256)
 
