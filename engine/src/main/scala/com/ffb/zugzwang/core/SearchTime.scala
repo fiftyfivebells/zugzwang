@@ -9,8 +9,13 @@ object SearchTime:
 
   inline def currentTime: SearchTime = System.nanoTime() / 1000000 // time in ms
 
+  def apply(in: Long): SearchTime = in
+
   extension (st: SearchTime)
     inline def toLong: Long = st
+
+    inline def isMax: Boolean = st == maxTime
+    inline def isMin: Boolean = st == minTime
 
     @targetName("greaterThanEqual")
     inline def >=(other: Long): Boolean       = st >= other

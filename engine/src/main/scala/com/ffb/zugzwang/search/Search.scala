@@ -1,7 +1,7 @@
 package com.ffb.zugzwang.search
 
 import com.ffb.zugzwang.chess.MutablePosition
-import com.ffb.zugzwang.core.{Depth, Node, Ply, Score, SearchTime}
+import com.ffb.zugzwang.core.{Depth, Node, Ply, Score, SearchTime, TimeControl}
 import com.ffb.zugzwang.evaluation.Evaluation
 import com.ffb.zugzwang.move.{Move, MoveGenerator}
 
@@ -28,25 +28,33 @@ final case class SearchContext(
 
 object Search:
   def search(position: MutablePosition, limits: SearchLimits): Move =
+    val now    = SearchTime.currentTime
+    val window = TimeControl.computeTimeWindow(limits.moveTime)
+
+    val legalMoves = MoveGenerator.legalMovesMutable(position)
+    if legalMoves.isEmpty then return Move.None // no legal moves
+    val defaultMove = MoveSorter.sortMoves(legalMoves, position).head
+
     val ctx = SearchContext(
-      startTime = SearchTime.currentTime,
-      endTime = limits.endTime,
+      startTime = now,
+      endTime = window.hardDeadline,
       depthLimit = limits.depth
     )
 
     @tailrec
     def iterativeDeepening(currentDepth: Depth, bestMove: Move): Move =
       val now           = SearchTime.currentTime
-      val outOfTime     = now >= limits.endTime
+      val outOfTime     = now >= window.softDeadline
       val depthExceeded = currentDepth > limits.depth
 
       if outOfTime || depthExceeded then return bestMove
 
       val bestAtDepth = findBestMove(position, currentDepth, ctx)
-      val newNow      = SearchTime.currentTime
-      if newNow >= limits.endTime then return bestMove
 
-      val timeTaken = newNow - ctx.startTime
+      val after = SearchTime.currentTime
+      if after >= window.hardDeadline then return bestMove
+
+      val timeTaken = after - ctx.startTime
       val nps       = ctx.nodes.perSecond(timeTaken.toLong)
       val scoreStr  = bestAtDepth.score.format
       println(
@@ -55,7 +63,8 @@ object Search:
 
       iterativeDeepening(currentDepth + 1, bestAtDepth.move)
 
-    iterativeDeepening(Depth(1), Move.None)
+    if TimeControl.shouldSearch(limits.moveTime) then iterativeDeepening(Depth(1), defaultMove)
+    else defaultMove
 
   def findBestMove(position: MutablePosition, depth: Depth, ctx: SearchContext): SearchResult =
     val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
