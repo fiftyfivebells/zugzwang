@@ -10,7 +10,8 @@ enum MoveType:
     CastleQueenside,
     EnPassant,
     Promotion,
-    CapturePromotion
+    CapturePromotion,
+    NoMove
 
   override def toString: String = productPrefix.toLowerCase
 
@@ -22,10 +23,10 @@ object Move:
   private val pieceTypeMask       = 7
   private val promotionPieceShift = 12
 
-  private val moveTypeMask  = 7
+  private val moveTypeMask  = 15
   private val moveTypeShift = 15
 
-  val None: Move = 0
+  val None: Move = Move.apply(from = Square.H1, to = Square.H1, moveType = MoveType.NoMove)
 
   def apply(
     from: Square,
@@ -65,6 +66,10 @@ object Move:
       val mt = moveType
       mt == MoveType.Promotion || mt == MoveType.CapturePromotion
 
+    inline def isNoMove: Boolean = moveType == MoveType.NoMove
+
     def toUci: String =
-      val (f, t) = (Square.toAlgebraic(from), Square.toAlgebraic(to))
-      s"$f$t${move.promotion.name}"
+      if move.isNoMove then "0000"
+      else
+        val (f, t) = (Square.toAlgebraic(from), Square.toAlgebraic(to))
+        s"$f$t${move.promotion.name}"
