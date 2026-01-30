@@ -137,6 +137,9 @@ object Board:
           case None         => bb
     }
 
+  def from(pieces: IArray[Bitboard], squares: ArraySeq[Piece]): Board =
+    Board(pieces, squares)
+
   def applyMove(board: Board, move: Move): Board = move.moveType match
     case MoveType.CastleKingside | MoveType.CastleQueenside =>
       applyCastleMove(board, move)

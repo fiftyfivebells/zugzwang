@@ -3,6 +3,7 @@ package com.ffb.zugzwang.chess
 import com.ffb.zugzwang.board.Board
 import com.ffb.zugzwang.rules.Rules
 
+import scala.collection.immutable.ArraySeq
 import scala.collection.mutable
 
 enum CastleSide:
@@ -163,6 +164,16 @@ object GameState:
       enPassant,
       halfMoveClock,
       fullMoveClock
+    )
+
+  def from(position: MutablePosition): GameState =
+    GameState(
+      board = Board.from(IArray.from(position.pieces), ArraySeq.unsafeWrapArray(position.squares)),
+      position.activeSide,
+      position.castleRights,
+      position.enPassantSq,
+      position.halfMoveClock,
+      position.fullMoveClock
     )
 
   def sameAs(original: GameState, other: GameState): Boolean =
