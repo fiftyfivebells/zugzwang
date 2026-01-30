@@ -104,44 +104,40 @@ object UciMain:
         state
 
   private def parseTime(params: List[String], side: Color): SearchLimits =
-    // if movetime is there, it's a fixed time, so just return that
-    findKeywordByValue(params, "movetime").map(_.toLong) match
+    def millisFrom(key: String): Option[Long] =
+      findKeywordByValue(params, key).map(_.toLong)
+
+    millisFrom("movetime") match
       case Some(time) =>
-        return SearchLimits(endTime = SearchTime.currentTime + time)
-      case None => // if movetime isn't there, just keep on rolling
-    val wTime = findKeywordByValue(params, "wtime").map(_.toLong)
-    val bTime = findKeywordByValue(params, "btime").map(_.toLong)
-
-    val (timeOpt, incOpt) =
-      side match
-        case Color.White => (wTime, findKeywordByValue(params, "winc").map(_.toLong))
-        case Color.Black => (bTime, findKeywordByValue(params, "binc").map(_.toLong))
-
-    val myInc = incOpt.getOrElse(0L)
-
-    timeOpt match
-      case Some(time) =>
-        val now = SearchTime.currentTime
-
-        val movesToGo = findKeywordByValue(params, "movestogo").map(_.toInt)
-
-        val timeToSpend = movesToGo match
-          case Some(moves) =>
-            (time / moves) + myInc
-
-          case None =>
-            (time / 20) + (myInc / 2)
-
-        val hardLimit = time - 50
-        val safeTime  = Math.min(timeToSpend, hardLimit)
-
-        val finalAllocation = Math.max(10, safeTime)
-
-        SearchLimits(endTime = now + finalAllocation)
+        // Fixed time search
+        SearchLimits(moveTime = SearchTime(time))
 
       case None =>
-        val depth = findKeywordByValue(params, "depth").map(_.toInt).getOrElse(6)
-        SearchLimits(depth = Depth(depth))
+        val wTime = millisFrom("wtime")
+        val bTime = millisFrom("btime")
+        val wInc  = millisFrom("winc").getOrElse(0L)
+        val bInc  = millisFrom("binc").getOrElse(0L)
+
+        val (timeOpt, inc) = side match
+          case Color.White => (wTime, wInc)
+          case Color.Black => (bTime, bInc)
+
+        timeOpt match
+          case Some(timeRemaining) =>
+            val movesToGo = findKeywordByValue(params, "movestogo").map(_.toInt)
+            val estMoves  = movesToGo.getOrElse(20)
+
+            val baseTime = timeRemaining / estMoves
+            val budget   = baseTime + (inc / 2)
+
+            val safeTime    = math.min(budget, timeRemaining - 50)
+            val finalBudget = math.max(10, safeTime)
+
+            SearchLimits(moveTime = SearchTime(finalBudget))
+
+          case None =>
+            val depth = findKeywordByValue(params, "depth").map(_.toInt).getOrElse(6)
+            SearchLimits(depth = Depth(depth))
 
   private def findKeywordByValue(tokens: List[String], key: String): Option[String] =
     tokens.dropWhile(_ != key) match
