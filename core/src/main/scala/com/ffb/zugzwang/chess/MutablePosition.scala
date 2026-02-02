@@ -133,11 +133,13 @@ final class MutablePosition(
     state.prevFullMove = fullMoveClock
 
     val oldCastleMask = castleRights.maskValue
+    val currentEp     = enPassantSq
 
-    if enPassantSq.nonEmpty then
-      val sq = enPassantSq.get
-      // TODO: look at the performance of Square.file
-      zobristHash ^= ZobristKeys.epFile(Square.file(sq).value)
+    zobristHash ^= ZobristKeys.castling(oldCastleMask)
+
+    currentEp match
+      case Some(sq) => zobristHash ^= ZobristKeys.epFile(Square.file(sq).value)
+      case None     => ()
 
     zobristHash ^= ZobristKeys.sideToMove
 
@@ -259,13 +261,11 @@ final class MutablePosition(
 
     // zobrist: add new state-dependent runes (castling + ep)
     val newCastleMask = castleRights.maskValue
-    if newCastleMask != oldCastleMask then
-      zobristHash ^= ZobristKeys.castling(oldCastleMask)
-      zobristHash ^= ZobristKeys.castling(newCastleMask)
+    zobristHash ^= ZobristKeys.castling(newCastleMask)
 
-    if enPassantSq.nonEmpty then
-      val sq = enPassantSq.get
-      zobristHash ^= ZobristKeys.epFile(Square.file(sq).value)
+    enPassantSq match
+      case Some(sq) => zobristHash ^= ZobristKeys.epFile(Square.file(sq).value)
+      case None     => ()
 
     // flip side to move in the position
     activeSide = activeSide.enemy
