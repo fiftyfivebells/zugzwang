@@ -17,22 +17,27 @@ object SearchTime:
     inline def isMax: Boolean = st == maxTime
     inline def isMin: Boolean = st == minTime
 
-    @targetName("greaterThanEqual")
-    inline def >=(other: Long): Boolean       = st >= other
+    @targetName("greaterThanEqualLong")
+    inline def >=(other: Long): Boolean = st >= other
+    @targetName("greaterThanEqualSearchTime")
     inline def >=(other: SearchTime): Boolean = st >= other
 
-    @targetName("greaterThan")
-    inline def >(other: Long): Boolean       = st > other
+    @targetName("greaterThanLong")
+    inline def >(other: Long): Boolean = st > other
+    @targetName("greaterThanSearchTime")
     inline def >(other: SearchTime): Boolean = st > other
 
-    @targetName("lessThanEqual")
-    inline def <=(other: Long): Boolean       = st <= other
+    @targetName("lessThanEqualLong")
+    inline def <=(other: Long): Boolean = st <= other
+    @targetName("lessThanEqualSearchTime")
     inline def <=(other: SearchTime): Boolean = st <= other
 
-    @targetName("minus")
-    inline def -(other: Long): SearchTime       = st - other
+    @targetName("minusLong")
+    inline def -(other: Long): SearchTime = st - other
+    @targetName("minusSearchTime")
     inline def -(other: SearchTime): SearchTime = st - other
 
-    @targetName("plus")
-    inline def +(other: Long): SearchTime       = st + other
+    @targetName("plusLong")
+    inline def +(other: Long): SearchTime = st + other
+    @targetName("plusSearchTime")
     inline def +(other: SearchTime): SearchTime = st + other

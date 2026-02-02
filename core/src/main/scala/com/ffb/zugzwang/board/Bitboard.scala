@@ -69,32 +69,39 @@ object Bitboard:
           bits = bits.removeLsb
           Square(sq)
 
-    @targetName("and")
-    inline def &(other: Long): Bitboard     = bb & other
+    @targetName("andLong")
+    inline def &(other: Long): Bitboard = bb & other
+    @targetName("andBitboard")
     inline def &(other: Bitboard): Bitboard = bb & other
 
-    @targetName("or")
-    inline def |(other: Long): Bitboard     = bb | other
+    @targetName("orLong")
+    inline def |(other: Long): Bitboard = bb | other
+    @targetName("orBitboard")
     inline def |(other: Bitboard): Bitboard = bb | other
 
-    @targetName("xor")
-    inline def ^(other: Long): Bitboard     = bb ^ other
+    @targetName("xorLong")
+    inline def ^(other: Long): Bitboard = bb ^ other
+    @targetName("xorBitboard")
     inline def ^(other: Bitboard): Bitboard = bb ^ other
 
-    @targetName("leftShift")
-    inline def <<(other: Long): Bitboard     = bb << other
+    @targetName("leftShiftLong")
+    inline def <<(other: Long): Bitboard = bb << other
+    @targetName("leftShitBitboard")
     inline def <<(other: Bitboard): Bitboard = bb << other
 
-    @targetName("rightShift")
-    inline def >>>(other: Long): Bitboard     = bb >>> other
+    @targetName("rightShiftLong")
+    inline def >>>(other: Long): Bitboard = bb >>> other
+    @targetName("rightShiftBitboard")
     inline def >>>(other: Bitboard): Bitboard = bb >>> other
 
-    @targetName("minus")
-    inline def -(other: Long): Bitboard     = bb - other
+    @targetName("minusLong")
+    inline def -(other: Long): Bitboard = bb - other
+    @targetName("minusBitboard")
     inline def -(other: Bitboard): Bitboard = bb - other
 
-    @targetName("times")
-    inline def *(other: Long): Bitboard     = bb * other
+    @targetName("timesLong")
+    inline def *(other: Long): Bitboard = bb * other
+    @targetName("timesBitboard")
     inline def *(other: Bitboard): Bitboard = bb * other
 
     inline def isEmpty: Boolean  = bb == empty
