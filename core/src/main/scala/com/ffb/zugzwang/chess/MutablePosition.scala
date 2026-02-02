@@ -1,6 +1,7 @@
 package com.ffb.zugzwang.chess
 
 import com.ffb.zugzwang.board.Bitboard
+import com.ffb.zugzwang.chess.zobrist.{Zobrist, ZobristHash, ZobristKeys}
 import com.ffb.zugzwang.move.{HQSlidingAttacks, KingAttacks, KnightAttacks, Move, MoveType, PawnAttacks}
 
 final class MutablePosition(
@@ -10,7 +11,8 @@ final class MutablePosition(
   var enPassantSq: Option[Square],
   var castleRights: CastleRights,
   var halfMoveClock: Int,
-  var fullMoveClock: Int
+  var fullMoveClock: Int,
+  var zobristHash: ZobristHash = ZobristHash.empty
 ):
   // internal history stack
   private val maxDepth = 256
@@ -23,6 +25,7 @@ final class MutablePosition(
   var kingSq: Array[Square]    = Array(Square.E1, Square.E8)
 
   rebuildCaches()
+  zobristHash = Zobrist.compute(this)
 
   private def rebuildCaches(): Unit =
     occupied = Bitboard.empty
@@ -123,11 +126,22 @@ final class MutablePosition(
   def applyMove(move: Move): Unit =
     val state = history(ply)
 
+    state.prevZobristHash = zobristHash
     state.prevCastleRights = castleRights
     state.prevEnPassant = enPassantSq
     state.prevHalfMove = halfMoveClock
     state.prevFullMove = fullMoveClock
 
+    val oldCastleMask = castleRights.maskValue
+
+    if enPassantSq.nonEmpty then
+      val sq = enPassantSq.get
+      // TODO: look at the performance of Square.file
+      zobristHash ^= ZobristKeys.epFile(Square.file(sq).value)
+
+    zobristHash ^= ZobristKeys.sideToMove
+
+    // clear ep by default (may be set again below)
     enPassantSq = None
 
     val from  = move.from
@@ -140,35 +154,63 @@ final class MutablePosition(
 
     var didCapture = false
 
+    // zobrist: moving piece leaves from square
+    // (always happens for any legal move)
+    zobristHash ^= ZobristKeys.pieceSquare(moved)(from.value)
+
     move.moveType match
       case MoveType.CastleKingside =>
         removePieceAt(to)
         movePiece(from, to)
 
+        // zobrist: king appears on to square
+        zobristHash ^= ZobristKeys.pieceSquare(moved)(to.value)
+
         val (rookFrom, rookTo) =
           if moved.color == Color.White then (Square.H1, Square.F1)
           else (Square.H8, Square.F8)
+
+        val rook = squares(rookFrom.value) // should be the rook
+        // rook moves rookFrom -> rookTo
+        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookFrom.value)
+        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookTo.value)
+
         movePiece(rookFrom, rookTo)
 
+        // castling rights are removed when king castles
         castleRights = castleRights.removeAll(activeSide)
 
       case MoveType.CastleQueenside =>
         removePieceAt(to)
         movePiece(from, to)
 
+        // zobrist: king appears on to square
+        zobristHash ^= ZobristKeys.pieceSquare(moved)(to.value)
+
         val (rookFrom, rookTo) =
           if activeSide == Color.White then (Square.A1, Square.D1)
           else (Square.A8, Square.D8)
+
+        val rook = squares(rookFrom.value)
+        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookFrom.value)
+        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookTo.value)
+
         movePiece(rookFrom, rookTo)
 
         castleRights = castleRights.removeAll(activeSide)
 
       case MoveType.EnPassant =>
+        // ep capture: captured pawn is *behind* the to-square
         val capturedSquare =
           if activeSide == Color.White then Square(to.value - 8)
           else Square(to.value + 8)
 
         state.capturedSquare = capturedSquare
+
+        val capturedPawn = squares(capturedSquare.value)
+        // zobrist: remove captured pawn from capturedSquare
+        if !capturedPawn.isNoPiece then zobristHash ^= ZobristKeys.pieceSquare(capturedPawn)(capturedSquare.value)
+
         val captured = removePieceAt(capturedSquare)
         state.captured = captured
         didCapture = true
@@ -176,9 +218,14 @@ final class MutablePosition(
         removePieceAt(to)
         movePiece(from, to)
 
+        // zobrist: moving pawn appears on to square
+        zobristHash ^= ZobristKeys.pieceSquare(moved)(to.value)
+
       case _ =>
         val captured = removePieceAt(to)
         if !captured.isNoPiece then
+          // zobrist: remove captured piece from to square
+          zobristHash ^= ZobristKeys.pieceSquare(captured)(to.value)
           state.captured = captured
           didCapture = true
 
@@ -186,29 +233,52 @@ final class MutablePosition(
 
         if move.isPromotion then
           val promoPiece = Piece.from(activeSide, move.promotion)
+
+          zobristHash ^= ZobristKeys.pieceSquare(promoPiece)(to.value)
+
           removePieceAt(to)
           putPieceAt(promoPiece, to)
+        else
+          // non-promotion: moving piece appears on to square
+          zobristHash ^= ZobristKeys.pieceSquare(moved)(to.value)
 
+        // double push sets EP square
         if move.moveType == MoveType.DoublePush then
           val epSquare =
             if activeSide == Color.White then Square(to.value - 8)
             else Square(to.value + 8)
-
           enPassantSq = Some(epSquare)
 
         updateCastleRightsOnMove(moved, from, state.captured, to)
 
+    // clocks
     if moved.isPawn || didCapture then halfMoveClock = 0
     else halfMoveClock += 1
 
-    if activeSide == Color.Black then fullMoveClock else fullMoveClock += 1
+    if activeSide == Color.White then fullMoveClock else fullMoveClock += 1
 
+    // zobrist: add new state-dependent runes (castling + ep)
+    val newCastleMask = castleRights.maskValue
+    if newCastleMask != oldCastleMask then
+      zobristHash ^= ZobristKeys.castling(oldCastleMask)
+      zobristHash ^= ZobristKeys.castling(newCastleMask)
+
+    if enPassantSq.nonEmpty then
+      val sq = enPassantSq.get
+      zobristHash ^= ZobristKeys.epFile(Square.file(sq).value)
+
+    // flip side to move in the position
     activeSide = activeSide.enemy
     ply += 1
+
+  // DEBUG: uncomment the line below to test
+  // assert(zobristHash == Zobrist.compute(this))
 
   def unapplyMove(move: Move): Unit =
     ply -= 1
     val state = history(ply)
+
+    zobristHash = state.prevZobristHash
 
     activeSide = activeSide.enemy
 

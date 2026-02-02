@@ -33,22 +33,24 @@ object CastleRights:
     CastleRights(rights)
 
   extension (cr: CastleRights)
-    def has(color: Color, side: CastleSide): Boolean =
+    inline def maskValue: Int = cr
+
+    inline def has(color: Color, side: CastleSide): Boolean =
       (cr & mask(color, side)) != 0
 
-    def add(color: Color, side: CastleSide): CastleRights =
+    inline def add(color: Color, side: CastleSide): CastleRights =
       CastleRights(cr | mask(color, side))
 
-    def remove(color: Color, side: CastleSide): CastleRights =
+    inline def remove(color: Color, side: CastleSide): CastleRights =
       CastleRights(cr & ~mask(color, side))
 
-    def removeAll(color: Color): CastleRights =
+    inline def removeAll(color: Color): CastleRights =
       val colorMask =
         mask(color, CastleSide.Kingside) | mask(color, CastleSide.Queenside)
 
       CastleRights(cr & ~colorMask)
 
-    def isEmpty: Boolean = cr == 0
+    inline def isEmpty: Boolean = cr == 0
 
     def toFen: String =
       val sb = new mutable.StringBuilder
