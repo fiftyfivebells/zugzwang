@@ -28,6 +28,8 @@ object Move:
 
   val None: Move = Move.apply(from = Square.H1, to = Square.H1, moveType = MoveType.NoMove)
 
+  def fromInt(in: Int): Move = in
+
   def apply(
     from: Square,
     to: Square,
@@ -47,6 +49,10 @@ object Move:
     Some((move.from, move.to, move.promotion, move.moveType))
 
   extension (move: Move)
+    inline def value: Int = move
+
+    inline def toLong: Long = move.toLong
+
     inline def from: Square = Square(move & squareMask)
 
     inline def to: Square = Square((move >>> toShift) & squareMask)
