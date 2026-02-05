@@ -49,6 +49,18 @@ final class MutablePosition(
 
       sq += 1
 
+  def isRepetition: Boolean =
+    var i           = 4
+    var currentHash = zobristHash
+
+    while i <= halfMoveClock do
+      val previousPly = ply - i
+      if previousPly >= 0 && history(previousPly).prevZobristHash == currentHash then return true
+
+      i += 2
+
+    false
+
   def pieceAt(sq: Square): Piece = squares(sq.value)
 
   private def putPieceAt(piece: Piece, sq: Square): Unit =
