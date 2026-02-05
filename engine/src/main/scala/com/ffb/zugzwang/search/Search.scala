@@ -22,6 +22,7 @@ final case class SearchContext(
   val startTime: SearchTime,
   val endTime: SearchTime,
   val depthLimit: Depth,
+  val table: TranspositionTable,
   var nodes: Node = Node.zero,
   var stopped: Boolean = false
 )
@@ -38,7 +39,8 @@ object Search:
     val ctx = SearchContext(
       startTime = now,
       endTime = window.hardDeadline,
-      depthLimit = limits.depth
+      depthLimit = limits.depth,
+      new TranspositionTable(64)
     )
 
     @tailrec
@@ -67,8 +69,13 @@ object Search:
     else defaultMove
 
   def findBestMove(position: MutablePosition, depth: Depth, ctx: SearchContext): SearchResult =
+    val ttEntry = ctx.table.probe(position.zobristHash)
+    val ttMove  = if ttEntry.isDefined then ttEntry.move else Move.None
+
     val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
-    val sortedMoves = MoveSorter.sortMoves(moves, position)
+    val sortedMoves = MoveSorter.sortMoves(moves, position, ttMove)
+
+    val defaultBestMove = if sortedMoves.nonEmpty then sortedMoves(0) else Move.None
 
     @tailrec
     def loop(i: Int, bestMove: Move, alpha: Score, beta: Score, legalMoves: Int, ply: Ply = Ply.base): SearchResult =
@@ -76,7 +83,10 @@ object Search:
         if legalMoves == 0 then
           if position.isSideInCheck(position.activeSide) then SearchResult(Move.None, -Score.Checkmate)
           else SearchResult(Move.None, Score.Stalemate)
-        else SearchResult(bestMove, alpha)
+        else
+          val finalMove = if bestMove == Move.None then defaultBestMove else bestMove
+          ctx.table.store(position.zobristHash, finalMove, alpha, depth, TTEntry.FlagExact, ply)
+          SearchResult(bestMove, alpha)
       else
         val move = sortedMoves(i)
         position.applyMove(move)
@@ -95,16 +105,26 @@ object Search:
 
   // TODO: look into maybe making this a tail recursive function
   private def negamax(position: MutablePosition, depth: Depth, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
-    if shouldStop(ctx) then return Evaluation.evaluate(position)
+    if ply > 0 && (position.isRepetition || position.halfMoveClock >= 100) then return Score.Stalemate
 
+    val ttEntry = ctx.table.probe(position.zobristHash)
+    var ttMove  = Move.None
+
+    if ttEntry.isDefined then
+      ttMove = ttEntry.move
+      if ply.value > 0 && ttEntry.canCutoff(depth, alpha, beta, ply) then return ttEntry.score(ply)
+
+    if shouldStop(ctx) then return Evaluation.evaluate(position)
     if depth.isZero then return quiesce(position, alpha, beta, ctx, ply)
 
     val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
     val sortedMoves = MoveSorter.sortMoves(moves, position)
 
     var bestScore       = -Score.Infinity
+    var bestMove        = Move.None // for tracking TT move
     var currentAlpha    = alpha
     var legalMovesFound = 0
+    var ttFlag          = TTEntry.FlagUpper
 
     var i = 0
     while i < sortedMoves.size do
@@ -120,9 +140,15 @@ object Search:
 
         position.unapplyMove(move)
 
-        if score >= beta then return beta
-        if score > bestScore then bestScore = score
-        if score > currentAlpha then currentAlpha = score
+        if score >= beta then
+          ctx.table.store(position.zobristHash, move, beta, depth, TTEntry.FlagLower, ply)
+          return beta
+        if score > bestScore then
+          bestMove = move
+          bestScore = score
+        if score > currentAlpha then
+          currentAlpha = score
+          ttFlag = TTEntry.FlagExact
       else position.unapplyMove(move) // illegal move
 
       i += 1
@@ -132,7 +158,9 @@ object Search:
     if legalMovesFound == 0 then
       if position.isSideInCheck(position.activeSide) then -Score.Checkmate + ply.value
       else Score.Stalemate
-    else bestScore
+    else
+      ctx.table.store(position.zobristHash, bestMove, bestScore, depth, ttFlag, ply)
+      bestScore
 
   private def quiesce(position: MutablePosition, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
     if shouldStop(ctx) then Evaluation.evaluate(position)

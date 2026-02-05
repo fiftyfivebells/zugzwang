@@ -6,6 +6,7 @@ import com.ffb.zugzwang.move.{Move, MoveType}
 
 object MoveSorter:
 
+  private inline val TTMoveScore     = 2000000
   private inline val CaptureBase     = 100000
   private inline val PromotionBase   = 80000
   private inline val CastleBonus     = 500
@@ -69,13 +70,16 @@ object MoveSorter:
 
     score
 
-  def sortMoves(moves: List[Move], position: MutablePosition): Array[Move] =
+  def sortMoves(moves: List[Move], position: MutablePosition, ttMove: Move = Move.None): Array[Move] =
     val arr    = moves.toArray
     val scores = new Array[Int](arr.length)
 
     var i = 0
     while i < arr.length do
-      scores(i) = scoreMove(arr(i), position)
+      val move = arr(i)
+      if move == ttMove then scores(i) = TTMoveScore
+      else scores(i) = scoreMove(move, position)
+
       i += 1
 
     i = 0
