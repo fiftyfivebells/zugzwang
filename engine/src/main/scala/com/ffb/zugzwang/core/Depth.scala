@@ -7,22 +7,37 @@ object Depth:
   def apply(in: Int): Depth = in
 
   extension (d: Depth)
-    inline def value: Int = d
+    inline def value: Int   = d
+    inline def toLong: Long = d.toLong
 
     inline def isZero: Boolean = d == 0
 
-    @targetName("plus")
-    inline def +(other: Int): Depth   = d + other
+    @targetName("plusInt")
+    inline def +(other: Int): Depth = d + other
+    @targetName("plusDepth")
     inline def +(other: Depth): Depth = d + other
 
-    @targetName("minus")
-    inline def -(other: Int): Depth   = d - other
+    @targetName("minusInt")
+    inline def -(other: Int): Depth = d - other
+    @targetName("minusDepth")
     inline def -(other: Depth): Depth = d - other
 
-    @targetName("lessThan")
-    inline def <(other: Int): Boolean   = d < other
+    @targetName("lessThanInt")
+    inline def <(other: Int): Boolean = d < other
+    @targetName("lessThanDepth")
     inline def <(other: Depth): Boolean = d < other
 
-    @targetName("greaterThan")
-    inline def >(other: Int): Boolean   = d > other
+    @targetName("lessThanEqualInt")
+    inline def <=(other: Int): Boolean = d <= other
+    @targetName("lessThanEqualDepth")
+    inline def <=(other: Depth): Boolean = d <= other
+
+    @targetName("greaterThanInt")
+    inline def >(other: Int): Boolean = d > other
+    @targetName("greaterThanDepth")
     inline def >(other: Depth): Boolean = d > other
+
+    @targetName("greaterThanEqualInt")
+    inline def >=(other: Int): Boolean = d >= other
+    @targetName("greaterThanEqualDepth")
+    inline def >=(other: Depth): Boolean = d >= other
