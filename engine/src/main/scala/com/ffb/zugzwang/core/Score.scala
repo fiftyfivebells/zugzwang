@@ -19,6 +19,8 @@ object Score:
   extension (s: Score)
     inline def value: Int = s
 
+    inline def toLong: Long = s.toLong
+
     @targetName("plus")
     inline def +(other: Int): Score   = s + other
     inline def +(other: Score): Score = s + other
