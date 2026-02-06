@@ -1,8 +1,11 @@
 package com.ffb.zugzwang.chess
 
 import com.ffb.zugzwang.board.Bitboard
+import com.ffb.zugzwang.chess.PieceType.{Bishop, Knight, Queen, Rook}
 import com.ffb.zugzwang.chess.zobrist.{Zobrist, ZobristHash, ZobristKeys}
 import com.ffb.zugzwang.move.{HQSlidingAttacks, KingAttacks, KnightAttacks, Move, MoveType, PawnAttacks}
+
+import scala.collection.mutable.ListBuffer
 
 final class MutablePosition(
   var pieces: Array[Bitboard],
@@ -15,9 +18,11 @@ final class MutablePosition(
   var zobristHash: ZobristHash = ZobristHash.empty
 ):
   // internal history stack
-  private val maxDepth = 256
-  private val history  = Array.fill(maxDepth)(new PositionUndoState)
-  private var ply      = 0
+  private val maxDepth       = 256
+  private val undoHistory    = Array.fill(maxDepth)(new PositionUndoState)
+  private val zobristHistory = new Array[ZobristHash](1024)
+  private var zobristCount   = 0
+  private var ply            = 0
 
   // cached info so we don't need to recompute all the time
   var occupied: Bitboard       = Bitboard.empty
@@ -26,6 +31,7 @@ final class MutablePosition(
 
   rebuildCaches()
   zobristHash = Zobrist.compute(this)
+  zobristHistory(ply) = zobristHash
 
   private def rebuildCaches(): Unit =
     occupied = Bitboard.empty
@@ -49,15 +55,39 @@ final class MutablePosition(
 
       sq += 1
 
+  def setZobristHistory(hashes: List[ZobristHash]): Unit =
+    zobristCount = 0
+    for hash <- hashes.reverse do
+      if zobristCount < 1024 then
+        zobristHistory(zobristCount) = hash
+        zobristCount += 1
+
+  def getZobristHistorySnapshot: List[ZobristHash] =
+    val combined = new ListBuffer[ZobristHash]
+
+    var p = ply - 1
+    while p >= 0 do
+      combined += undoHistory(p).prevZobristHash
+      p -= 1
+
+    var i = zobristCount - 1
+    while i >= 0 do
+      combined += zobristHistory(i)
+      i -= 1
+
+    combined.toList
+
   def isRepetition: Boolean =
-    var i           = 4
-    var currentHash = zobristHash
+    val currentHash = zobristHash
+    var count       = 1
+    var searchPly   = ply - 2 // same side to move
 
-    while i <= halfMoveClock do
-      val previousPly = ply - i
-      if previousPly >= 0 && history(previousPly).prevZobristHash == currentHash then return true
+    while searchPly >= 0 && (ply - searchPly) <= halfMoveClock do
+      if zobristHistory(searchPly) == currentHash then
+        count += 1
+        if count >= 3 then return true
 
-      i += 2
+      searchPly -= 2 // skip opponent positions
 
     false
 
@@ -136,7 +166,7 @@ final class MutablePosition(
       else if to == rookHome(color, CastleSide.Queenside) then castleRights = castleRights.remove(color, CastleSide.Queenside)
 
   def applyMove(move: Move): Unit =
-    val state = history(ply)
+    val state = undoHistory(ply)
 
     state.prevZobristHash = zobristHash
     state.prevCastleRights = castleRights
@@ -282,13 +312,14 @@ final class MutablePosition(
     // flip side to move in the position
     activeSide = activeSide.enemy
     ply += 1
+    zobristHistory(ply) = zobristHash
 
   // DEBUG: uncomment the line below to test
   // assert(zobristHash == Zobrist.compute(this))
 
   def unapplyMove(move: Move): Unit =
     ply -= 1
-    val state = history(ply)
+    val state = undoHistory(ply)
 
     zobristHash = state.prevZobristHash
 
@@ -334,6 +365,40 @@ final class MutablePosition(
 
   private val sliders = HQSlidingAttacks
 
+  def applyNullMove: Unit =
+    val state = undoHistory(ply)
+
+    state.prevZobristHash = zobristHash
+    state.prevCastleRights = castleRights
+    state.prevEnPassant = enPassantSq
+    state.prevHalfMove = halfMoveClock
+    state.prevFullMove = fullMoveClock
+
+    if enPassantSq.isDefined then zobristHash ^= ZobristKeys.epFile(Square.file(enPassantSq.get).value)
+    enPassantSq = None
+
+    zobristHash ^= ZobristKeys.sideToMove
+    activeSide = activeSide.enemy
+
+    halfMoveClock += 1
+    ply += 1
+
+  def unapplyNullMove: Unit =
+    ply -= 1
+    val state = undoHistory(ply)
+
+    zobristHash = state.prevZobristHash
+    enPassantSq = state.prevEnPassant
+    halfMoveClock = state.prevHalfMove
+    activeSide = activeSide.enemy
+
+  def hasMajorPieces(side: Color): Boolean =
+    val sideValue = if side == Color.White then 0 else 6
+    val majorPieces =
+      pieces(sideValue + Knight) | pieces(sideValue + Bishop) | pieces(sideValue + Rook) | pieces(sideValue + Queen)
+
+    majorPieces.nonEmpty
+
   def isSideInCheck(side: Color): Boolean =
     val sq = kingSq(side.ordinal)
     isSquareAttacked(sq, side.enemy)
@@ -371,7 +436,7 @@ final class MutablePosition(
 
 object MutablePosition:
   def from(state: GameState): MutablePosition =
-    new MutablePosition(
+    val position = new MutablePosition(
       Array.from(state.board.pieces),
       Array.from(state.board.squares),
       state.activeSide,
@@ -380,3 +445,6 @@ object MutablePosition:
       state.halfMoveClock,
       state.fullMoveClock
     )
+
+    position.setZobristHistory(state.history)
+    position
