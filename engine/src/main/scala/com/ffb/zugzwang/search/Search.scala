@@ -28,6 +28,10 @@ final case class SearchContext(
 )
 
 object Search:
+  private val tt = new TranspositionTable(64)
+
+  def clear: Unit = tt.clear()
+
   def search(position: MutablePosition, limits: SearchLimits): Move =
     val now    = SearchTime.currentTime
     val window = TimeControl.computeTimeWindow(limits.moveTime)
@@ -40,7 +44,7 @@ object Search:
       startTime = now,
       endTime = window.hardDeadline,
       depthLimit = limits.depth,
-      new TranspositionTable(64)
+      table = tt
     )
 
     @tailrec
