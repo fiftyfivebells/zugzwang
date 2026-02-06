@@ -55,13 +55,16 @@ object Rules:
       if state.activeSide == Color.Black then state.fullMoveClock + 1
       else state.fullMoveClock
 
+    val newHistory = state.zobristHash :: state.history
+
     GameState(
       board = newBoard,
       activeSide = state.activeSide.enemy,
       castleRights = newCastleRights,
       enPassant = epSquare,
       halfMoveClock = newHalfMove,
-      fullMoveClock = newFullMove
+      fullMoveClock = newFullMove,
+      history = newHistory
     )
 
   def isValidMove(state: GameState, move: Move): Boolean =
@@ -76,6 +79,9 @@ object Rules:
 
   def isStaleMate(state: GameState): Boolean =
     legalMoves(state).isEmpty && !isSideInCheck(state, state.activeSide)
+
+  def isRepetition(state: GameState): Boolean =
+    state.history.count(_ == state.zobristHash) >= 2
 
   // TODO: this is pretty ugly. it looks like it works for now, but it could perhaps
   // use some cleaning up in the future

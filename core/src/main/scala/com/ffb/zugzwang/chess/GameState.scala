@@ -1,6 +1,7 @@
 package com.ffb.zugzwang.chess
 
 import com.ffb.zugzwang.board.Board
+import com.ffb.zugzwang.chess.zobrist.{Zobrist, ZobristHash}
 import com.ffb.zugzwang.rules.Rules
 
 import scala.collection.immutable.ArraySeq
@@ -71,18 +72,20 @@ object CastleRights:
         case (Color.Black, CastleSide.Kingside)  => blackKingside
         case (Color.Black, CastleSide.Queenside) => blackQueenside
 
-  end extension
-
-end CastleRights
-
 final case class GameState(
   board: Board,
   activeSide: Color,
   castleRights: CastleRights,
   enPassant: Option[Square],
   halfMoveClock: Int,
-  fullMoveClock: Int
+  fullMoveClock: Int,
+  history: List[ZobristHash] = Nil
 ):
+
+  lazy val zobristHash =
+    val position = MutablePosition.from(this)
+    Zobrist.compute(position)
+
   def hasCastleRights: Boolean =
     castleRights.has(activeSide, CastleSide.Kingside) || castleRights.has(
       activeSide,
@@ -100,6 +103,9 @@ final case class GameState(
 
   def isStalemate: Boolean =
     Rules.isStaleMate(this)
+
+  def isRepetition: Boolean =
+    Rules.isRepetition(this)
 
   def toFen: String =
     val boardFen = board.toFen
@@ -133,7 +139,8 @@ object GameState:
       castleRights = CastleRights.initial,
       enPassant = None,
       halfMoveClock = 0,
-      fullMoveClock = 1
+      fullMoveClock = 1,
+      history = Nil
     )
 
   val initialFEN: String = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
@@ -165,7 +172,8 @@ object GameState:
       castleRights,
       enPassant,
       halfMoveClock,
-      fullMoveClock
+      fullMoveClock,
+      history = Nil
     )
 
   def from(position: MutablePosition): GameState =
@@ -175,7 +183,8 @@ object GameState:
       position.castleRights,
       position.enPassantSq,
       position.halfMoveClock,
-      position.fullMoveClock
+      position.fullMoveClock,
+      history = position.getZobristHistorySnapshot
     )
 
   def sameAs(original: GameState, other: GameState): Boolean =
