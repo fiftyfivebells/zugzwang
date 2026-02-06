@@ -119,7 +119,7 @@ object Bitboard:
 
     inline def removeLsb: Bitboard = bb & (bb - 1L)
 
-    inline def popCount: Bitboard = java.lang.Long.bitCount(bb)
+    inline def popCount: Int = java.lang.Long.bitCount(bb)
 
     inline def reverse: Bitboard = java.lang.Long.reverse(bb.value)
 
