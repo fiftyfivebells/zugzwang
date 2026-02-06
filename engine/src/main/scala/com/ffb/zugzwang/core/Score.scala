@@ -7,6 +7,7 @@ object Score:
   val Checkmate: Score = Score(30000)
   val Infinity: Score  = Score(32000)
   val Stalemate: Score = Score(0)
+  val Draw: Score      = Score(0)
 
   def apply(in: Int): Score = in
 
