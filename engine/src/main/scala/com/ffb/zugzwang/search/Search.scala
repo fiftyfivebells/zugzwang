@@ -1,5 +1,4 @@
 package com.ffb.zugzwang.search
-
 import com.ffb.zugzwang.chess.MutablePosition
 import com.ffb.zugzwang.core.{Depth, Node, Ply, Score, SearchTime, TimeControl}
 import com.ffb.zugzwang.evaluation.Evaluation
@@ -117,6 +116,8 @@ object Search:
     if ttEntry.isDefined then
       ttMove = ttEntry.move
       if ply.value > 0 && ttEntry.canCutoff(depth, alpha, beta, ply) then return ttEntry.score(ply)
+
+    if attemptNullMove(position, depth, beta, ctx, ply) then return beta
 
     if shouldStop(ctx) then return Evaluation.evaluate(position)
     if depth.isZero then return quiesce(position, alpha, beta, ctx, ply)
