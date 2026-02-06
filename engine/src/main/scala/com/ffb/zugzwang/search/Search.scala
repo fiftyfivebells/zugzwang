@@ -23,10 +23,22 @@ final case class SearchContext(
   val depthLimit: Depth,
   val table: TranspositionTable,
   var nodes: Node = Node.zero,
-  var stopped: Boolean = false
-)
+  var stopped: Boolean = false,
+  val killers: Array[Array[Move]] = Array.fill(Search.MaxPly.value, 2)(Move.None)
+):
+
+  def storeKiller(ply: Ply, move: Move): Unit =
+    if ply >= Search.MaxPly then return
+
+    val p = ply.value
+
+    if killers(p)(0) == move then return
+
+    killers(p)(1) = killers(p)(0)
+    killers(p)(0) = move
 
 object Search:
+  val MaxPly     = Ply(128)
   private val tt = new TranspositionTable(64)
 
   def clear: Unit = tt.clear()
@@ -37,7 +49,7 @@ object Search:
 
     val legalMoves = MoveGenerator.legalMovesMutable(position)
     if legalMoves.isEmpty then return Move.None // no legal moves
-    val defaultMove = MoveSorter.sortMoves(legalMoves, position).head
+    val defaultMove = MoveSorter.sortMoves(legalMoves, position, Array.empty[Move]).head
 
     val ctx = SearchContext(
       startTime = now,
@@ -77,7 +89,7 @@ object Search:
     val ttMove  = if ttEntry.isDefined then ttEntry.move else Move.None
 
     val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
-    val sortedMoves = MoveSorter.sortMoves(moves, position, ttMove)
+    val sortedMoves = MoveSorter.sortMoves(moves, position, ctx.killers(0), ttMove)
 
     @tailrec
     def loop(
@@ -161,8 +173,10 @@ object Search:
     if shouldStop(ctx) then return Evaluation.evaluate(position)
     if depth.isZero then return quiesce(position, alpha, beta, ctx, ply)
 
-    val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
-    val sortedMoves = MoveSorter.sortMoves(moves, position)
+    val moves = MoveGenerator.pseudoLegalMovesMutable(position)
+
+    val currentKillers = if ply < MaxPly then ctx.killers(ply.value) else Array.empty[Move]
+    val sortedMoves    = MoveSorter.sortMoves(moves, position, currentKillers)
 
     var bestScore       = -Score.Infinity
     var bestMove        = Move.None // for tracking TT move
@@ -186,6 +200,9 @@ object Search:
 
         if score >= beta then
           ctx.table.store(position.zobristHash, move, beta, depth, TTEntry.FlagLower, ply)
+
+          if !move.isCapture then ctx.storeKiller(ply, move)
+
           return beta
         if score > bestScore then
           bestMove = move
@@ -246,7 +263,7 @@ object Search:
         var currentAlpha = Score.max(alpha, standPat)
 
         val moves       = MoveGenerator.pseudoLegalCapturesMutable(position)
-        val sortedMoves = MoveSorter.sortMoves(moves, position)
+        val sortedMoves = MoveSorter.sortMoves(moves, position, ctx.killers(ply.value))
 
         var i = 0
         while i < sortedMoves.size && !shouldStop(ctx) do
