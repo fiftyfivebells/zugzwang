@@ -8,6 +8,7 @@ object Score:
   val Infinity: Score  = Score(32000)
   val Stalemate: Score = Score(0)
   val Draw: Score      = Score(0)
+  val DrawBias: Score  = Score(1)
 
   def apply(in: Int): Score = in
 
