@@ -447,4 +447,6 @@ object MutablePosition:
     )
 
     position.setZobristHistory(state.history)
+    position.ply = position.zobristCount
+
     position
