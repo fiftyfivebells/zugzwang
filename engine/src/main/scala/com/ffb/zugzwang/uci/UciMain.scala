@@ -30,6 +30,10 @@ object UciMain:
           println("uciok")
           state
 
+        case "ucinewgame" :: _ =>
+          Search.clear
+          state
+
         case "isready" :: _ =>
           println("readyok")
           state
