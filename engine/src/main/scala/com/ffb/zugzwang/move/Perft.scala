@@ -1,6 +1,7 @@
 package com.ffb.zugzwang.move
-
+import com.ffb.zugzwang.chess.zobrist.Zobrist
 import com.ffb.zugzwang.chess.{Color, GameState, MutablePosition}
+import com.ffb.zugzwang.move.{Move, MoveGenerator, MoveList}
 import com.ffb.zugzwang.rules.Rules
 
 import scala.annotation.tailrec
@@ -81,6 +82,51 @@ object Perft:
           nodes
 
       rec(depth)
+
+  // perft debugger: validates Zobrist Hash integrity at every node and every unmake
+  def zobristDebugPerft(position: MutablePosition, depth: Int): Long =
+    val currentHash    = position.zobristHash
+    val calculatedHash = Zobrist.compute(position)
+
+    if currentHash != calculatedHash then
+      println(s"CRITICAL: Hash Mismatch at depth $depth")
+      println(s"Fen: ${GameState.from(position).toFen}")
+      println(s"Current (Incremental): $currentHash")
+      println(s"Calculated (Scratch):  $calculatedHash")
+      throw new RuntimeException("Hash Corruption Detected")
+
+    if depth == 0 then return 1L
+
+    val moves = MoveGenerator.pseudoLegalMovesMutable(position).toArray
+    var nodes = 0L
+    var i     = 0
+    val mover = position.activeSide
+
+    while i < moves.length do
+      val m = moves(i)
+
+      val preMoveHash = position.zobristHash
+
+      position.applyMove(m)
+
+      val king    = position.kingSq(mover.ordinal)
+      val illegal = position.isSquareAttacked(king, position.activeSide)
+
+      if !illegal then nodes += zobristDebugPerft(position, depth - 1)
+
+      position.unapplyMove(m)
+
+      if position.zobristHash != preMoveHash then
+        println("CRITICAL: Hash not restored after unapplyMove!")
+        println(s"Move: ${m.toUci}")
+        println(s"Expected: $preMoveHash")
+        println(s"Actual:   ${position.zobristHash}")
+        println(s"Fen: ${GameState.from(position).toFen}")
+        throw new RuntimeException("Unmake Corruption Detected")
+
+      i += 1
+
+    nodes
 
   def perftTrace(state: GameState, depth: Int, trace: List[Move] = Nil): Long =
     if depth == 0 then
