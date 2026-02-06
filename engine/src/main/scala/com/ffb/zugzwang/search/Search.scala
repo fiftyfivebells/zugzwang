@@ -106,8 +106,16 @@ object Search:
         else
           val newFirstLegalMove = if firstLegalMove == Move.None then move else firstLegalMove
           ctx.nodes += 1
-          val score                   = -negamax(position, depth - 1, -beta, -alpha, ctx, ply + 1)
-          val (newAlpha, newBestMove) = if score > alpha then (score, move) else (alpha, bestMove)
+          val rawScore = -negamax(position, depth - 1, -beta, -alpha, ctx, ply + 1)
+          val comparisonScore =
+            if rawScore == Score.Draw then
+              alpha match
+                case a if a < Score.Draw => rawScore + Score.DrawBias
+                case a if a > Score.Draw => rawScore - Score.DrawBias
+                case _                   => rawScore
+            else rawScore
+
+          val (newAlpha, newBestMove) = if comparisonScore > alpha then (rawScore, move) else (alpha, bestMove)
           position.unapplyMove(move)
 
           loop(i + 1, newBestMove, newAlpha, beta, legalMoves + 1, newFirstLegalMove, ply)
@@ -138,7 +146,8 @@ object Search:
 
   // TODO: look into maybe making this a tail recursive function
   private def negamax(position: MutablePosition, depth: Depth, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
-    if ply > 0 && (position.isRepetition || position.halfMoveClock >= 100) then return Score.Draw
+    if position.halfMoveClock >= 100 then return Score.Draw
+    if ply > 0 && position.isRepetition then return Score.Draw
 
     val ttEntry = ctx.table.probe(position.zobristHash)
     var ttMove  = Move.None
