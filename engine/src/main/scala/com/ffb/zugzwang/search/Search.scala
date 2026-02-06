@@ -66,7 +66,8 @@ object Search:
         s"info depth $currentDepth score $scoreStr nodes ${ctx.nodes.toString} nps $nps time ${timeTaken.toString} pv ${bestAtDepth.move.toUci}"
       )
 
-      iterativeDeepening(currentDepth + 1, bestAtDepth.move)
+      val nextBestMove = if bestAtDepth.move != Move.None then bestAtDepth.move else bestMove
+      iterativeDeepening(currentDepth + 1, nextBestMove)
 
     if TimeControl.shouldSearch(limits.moveTime) then iterativeDeepening(Depth(1), defaultMove)
     else defaultMove
@@ -78,37 +79,66 @@ object Search:
     val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
     val sortedMoves = MoveSorter.sortMoves(moves, position, ttMove)
 
-    val defaultBestMove = if sortedMoves.nonEmpty then sortedMoves(0) else Move.None
-
     @tailrec
-    def loop(i: Int, bestMove: Move, alpha: Score, beta: Score, legalMoves: Int, ply: Ply = Ply.base): SearchResult =
+    def loop(
+      i: Int,
+      bestMove: Move,
+      alpha: Score,
+      beta: Score,
+      legalMoves: Int,
+      firstLegalMove: Move = Move.None,
+      ply: Ply = Ply.base
+    ): SearchResult =
       if i >= sortedMoves.size then
         if legalMoves == 0 then
           if position.isSideInCheck(position.activeSide) then SearchResult(Move.None, -Score.Checkmate)
           else SearchResult(Move.None, Score.Stalemate)
         else
-          val finalMove = if bestMove == Move.None then defaultBestMove else bestMove
+          val finalMove = if bestMove == Move.None then firstLegalMove else bestMove
           ctx.table.store(position.zobristHash, finalMove, alpha, depth, TTEntry.FlagExact, ply)
-          SearchResult(bestMove, alpha)
+          SearchResult(finalMove, alpha)
       else
         val move = sortedMoves(i)
         position.applyMove(move)
         if position.isSideInCheck(position.activeSide.enemy) then
           position.unapplyMove(move)
-          loop(i + 1, bestMove, alpha, beta, legalMoves, ply)
+          loop(i + 1, bestMove, alpha, beta, legalMoves, firstLegalMove, ply)
         else
+          val newFirstLegalMove = if firstLegalMove == Move.None then move else firstLegalMove
           ctx.nodes += 1
           val score                   = -negamax(position, depth - 1, -beta, -alpha, ctx, ply + 1)
           val (newAlpha, newBestMove) = if score > alpha then (score, move) else (alpha, bestMove)
           position.unapplyMove(move)
 
-          loop(i + 1, newBestMove, newAlpha, beta, legalMoves + 1, ply)
+          loop(i + 1, newBestMove, newAlpha, beta, legalMoves + 1, newFirstLegalMove, ply)
 
     loop(0, Move.None, -Score.Infinity, Score.Infinity, 0)
 
+  private inline val NullMoveReduction = 2
+
+  private def attemptNullMove(
+    position: MutablePosition,
+    depth: Depth,
+    beta: Score,
+    ctx: SearchContext,
+    ply: Ply
+  ): Boolean =
+    if depth.value < 3 ||
+      position.isSideInCheck(position.activeSide) ||
+      ply.value == 0 ||
+      beta >= Score.Infinity ||
+      !position.hasMajorPieces(position.activeSide)
+    then false
+    else
+      try
+        position.applyNullMove
+        val score = -negamax(position, depth - 1 - NullMoveReduction, -beta, -beta + 1, ctx, ply + 1)
+        score >= beta
+      finally position.unapplyNullMove
+
   // TODO: look into maybe making this a tail recursive function
   private def negamax(position: MutablePosition, depth: Depth, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
-    if ply > 0 && (position.isRepetition || position.halfMoveClock >= 100) then return Score.Stalemate
+    if ply > 0 && (position.isRepetition || position.halfMoveClock >= 100) then return Score.Draw
 
     val ttEntry = ctx.table.probe(position.zobristHash)
     var ttMove  = Move.None
