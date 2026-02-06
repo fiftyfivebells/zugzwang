@@ -49,7 +49,7 @@ object TTEntry:
       (tte >>> FlagShift) & FlagMask
 
     inline def score(ply: Ply): Score =
-      val internalScore = Score((tte >>> ScoreShift).toInt)
+      val internalScore = Score((tte >> ScoreShift).toShort.toInt)
 
       if internalScore > (Score.Checkmate - 1000) then internalScore - ply.value
       else if internalScore < -(Score.Checkmate - 1000) then internalScore + ply.value
