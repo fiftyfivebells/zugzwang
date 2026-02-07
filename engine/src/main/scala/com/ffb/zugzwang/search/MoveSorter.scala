@@ -1,19 +1,19 @@
 package com.ffb.zugzwang.search
 
 import com.ffb.zugzwang.chess.{MutablePosition, Piece, PieceType, Square}
+import com.ffb.zugzwang.core.Score
 import com.ffb.zugzwang.evaluation.PieceSquareTables
 import com.ffb.zugzwang.move.{Move, MoveType}
 
 object MoveSorter:
 
-  private inline val Killer1Bonus = 70000
-  private inline val Killer2Bonus = 60000
-
-  private inline val TTMoveScore     = 2000000
-  private inline val CaptureBase     = 100000
-  private inline val PromotionBase   = 80000
-  private inline val CastleBonus     = 500
-  private inline val DoublePushBonus = 40
+  private val Killer1Bonus    = Score(70000)
+  private val Killer2Bonus    = Score(60000)
+  private val TTMoveScore     = Score(2000000)
+  private val CaptureBase     = Score(100000)
+  private val PromotionBase   = Score(80000)
+  private val CastleBonus     = Score(500)
+  private val DoublePushBonus = Score(40)
 
   // breaks ties between quiet moves
   private inline val PstDeltaWeight = 2
