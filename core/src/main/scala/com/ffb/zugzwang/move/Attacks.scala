@@ -24,8 +24,6 @@ object PawnAttacks:
     leftAttack | rightAttack
   }
 
-end PawnAttacks
-
 object KnightAttacks:
   private val NotFileAOrB = ~(Bitboard.fileA | Bitboard.fileB)
   private val NotFileHOrG = ~(Bitboard.fileH | Bitboard.fileG)
@@ -48,8 +46,6 @@ object KnightAttacks:
     northNorthWest | northNorthEast | eastEastNorth | eastEastSouth | westWestNorth | westWestSouth | southSouthEast | southSouthWest
   }
 
-end KnightAttacks
-
 object KingAttacks:
   val table: IArray[Bitboard] = IArray.tabulate(64) { sq =>
     val startSquare = 1L << sq
@@ -65,7 +61,6 @@ object KingAttacks:
 
     north | northEast | east | southEast | south | southWest | west | northWest
   }
-end KingAttacks
 
 object Attacks:
 
@@ -83,5 +78,3 @@ object Attacks:
         sliders.bishopAttacks(from, occupied) |
           sliders.rookAttacks(from, occupied)
       case p if p.isKing => KingAttacks.table(from.value)
-
-end Attacks

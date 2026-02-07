@@ -27,4 +27,3 @@ class PerftSpec extends AnyFlatSpec with Matchers:
     Perft.perft(state, 3) shouldBe 97862
     Perft.perft(state, 4) shouldBe 4085603
   }
-end PerftSpec

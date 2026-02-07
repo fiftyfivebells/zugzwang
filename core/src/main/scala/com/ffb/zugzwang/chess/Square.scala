@@ -19,8 +19,6 @@ object Square:
       case Color.White => rank.value == 1
       case Color.Black => rank.value == 6
 
-  end extension
-
   def apply(x: Int): Square = x
 
   // this uses 7 - file.value because the least significant bit in the bitboard is h1, which is the
@@ -115,5 +113,3 @@ object Square:
   val C8: Square = 61
   val B8: Square = 62
   val A8: Square = 63
-
-end Square

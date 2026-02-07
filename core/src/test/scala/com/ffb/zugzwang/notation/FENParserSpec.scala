@@ -122,5 +122,3 @@ class FENParserSpec extends AnyFlatSpec with Matchers:
     val fen = "8/8/8/8/8/8/8/P7 w - - 0 1"
     FENParser.from(fen).isLeft shouldBe true
   }
-
-end FENParserSpec

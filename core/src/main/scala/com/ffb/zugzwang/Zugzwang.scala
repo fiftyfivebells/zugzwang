@@ -20,8 +20,6 @@ object Zugzwang:
   def legalMoves(state: GameState): Seq[Move] =
     Rules.legalMoves(state)
 
-end Zugzwang
-
 class Zugzwang:
   private var state: GameState = GameState.initial
 
@@ -34,5 +32,3 @@ class Zugzwang:
     state = Rules.applyMove(state, move)
 
   def legalMoves: Seq[Move] = Rules.legalMoves(state)
-
-end Zugzwang

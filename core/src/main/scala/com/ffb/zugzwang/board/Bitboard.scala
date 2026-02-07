@@ -6,7 +6,6 @@ import scala.annotation.targetName
 import scala.collection.Iterator
 
 opaque type Bitboard = Long
-
 object Bitboard:
   val empty: Bitboard = 0L
   val full: Bitboard  = 0xffffffffffffffffL
@@ -145,7 +144,3 @@ object Bitboard:
         sb.append("\n")
       sb.append("  a b c d e f g h\n")
       sb.toString
-
-  end extension
-
-end Bitboard

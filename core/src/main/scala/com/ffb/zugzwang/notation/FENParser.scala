@@ -110,5 +110,3 @@ enum FENParserError(val errorMessage: String) extends Throwable:
         s"En passant square was on an invalid rank: $value"
       )
   case BadMoveCount(countType: String, value: String) extends FENParserError(s"Invalid $countType value: $value")
-
-end FENParserError
