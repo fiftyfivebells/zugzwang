@@ -19,14 +19,14 @@ object MoveSorter:
   private inline val PstDeltaWeight = 2
   private inline val DevelopBonus   = 10
 
-  def scoreMove(move: Move, position: MutablePosition): Int =
+  def scoreMove(move: Move, position: MutablePosition): Score =
     val mover: Piece = position.pieceAt(move.from)
 
     // prioritize promotions
     if move.isPromotion then
       val promoValue = move.promotion.value
       val capExtra =
-        if move.moveType == MoveType.CapturePromotion then 10000 else 0
+        if move.moveType == MoveType.CapturePromotion then Score(10000) else Score.Zero
       return PromotionBase + capExtra + promoValue
 
     // then captures
@@ -51,7 +51,7 @@ object MoveSorter:
     // quiet moves
     val beforePst = PieceSquareTables.value(mover.pieceType, move.from, mover.color)
     val afterPst  = PieceSquareTables.value(mover.pieceType, move.to, mover.color)
-    var score     = (afterPst - beforePst) * PstDeltaWeight
+    var score     = Score((afterPst - beforePst) * PstDeltaWeight)
 
     // this should encourage pieces to move off their home squares (encourage development)
     mover.pieceType match
@@ -73,9 +73,15 @@ object MoveSorter:
 
     score
 
-  def sortMoves(moves: List[Move], position: MutablePosition, killers: Array[Move], ttMove: Move = Move.None): Array[Move] =
+  def sortMoves(
+    moves: List[Move],
+    position: MutablePosition,
+    killers: Array[Move],
+    history: Array[Array[Score]],
+    ttMove: Move = Move.None
+  ): Array[Move] =
     val arr    = moves.toArray
-    val scores = new Array[Int](arr.length)
+    val scores = new Array[Score](arr.length)
 
     val k1 = if killers.length > 0 then killers(0) else Move.None
     val k2 = if killers.length > 1 then killers(1) else Move.None
@@ -86,7 +92,10 @@ object MoveSorter:
       if move == ttMove then scores(i) = TTMoveScore
       else if move == k1 then Killer1Bonus
       else if move == k2 then Killer2Bonus
-      else scores(i) = scoreMove(move, position)
+      else
+        val positionalScore = scoreMove(move, position)
+        val historyScore    = history(move.from.value)(move.to.value)
+        scores(i) = positionalScore + historyScore
 
       i += 1
 
