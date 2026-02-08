@@ -392,6 +392,13 @@ final class MutablePosition(
     halfMoveClock = state.prevHalfMove
     activeSide = activeSide.enemy
 
+  def pieceCount(piece: Piece): Int =
+    pieces(piece).popCount
+
+  def pieceTypeCount(pt: PieceType): Int =
+    if pt == PieceType.NoType then (occupied ^ Bitboard.full).popCount
+    else pieces(pt).popCount + pieces(pt + 6).popCount
+
   def hasMajorPieces(side: Color): Boolean =
     val sideValue = if side == Color.White then 0 else 6
     val majorPieces =
