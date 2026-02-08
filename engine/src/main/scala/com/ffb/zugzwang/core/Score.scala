@@ -24,28 +24,39 @@ object Score:
 
     inline def toLong: Long = s.toLong
 
-    @targetName("plus")
-    inline def +(other: Int): Score   = s + other
+    @targetName("plusInt")
+    inline def +(other: Int): Score = s + other
+    @targetName("plusScore")
     inline def +(other: Score): Score = s + other
 
-    @targetName("minus")
-    inline def -(other: Int): Score   = s - other
+    @targetName("minusInt")
+    inline def -(other: Int): Score = s - other
+    @targetName("minusScore")
     inline def -(other: Score): Score = s - other
 
-    @targetName("greaterThanEqual")
-    inline def >=(other: Int): Boolean   = s >= other
+    @targetName("timesInt")
+    inline def *(other: Int): Score = s * other
+    @targetName("timesScore")
+    inline def *(other: Score): Score = s * other
+
+    @targetName("greaterThanEqualInt")
+    inline def >=(other: Int): Boolean = s >= other
+    @targetName("greaterThanEqualScore")
     inline def >=(other: Score): Boolean = s >= other
 
-    @targetName("greaterThan")
-    inline def >(other: Int): Boolean   = s > other
+    @targetName("greaterThanInt")
+    inline def >(other: Int): Boolean = s > other
+    @targetName("greaterThanScore")
     inline def >(other: Score): Boolean = s > other
 
-    @targetName("lessThanEqual")
-    inline def <=(other: Int): Boolean   = s <= other
+    @targetName("lessThanEqualInt")
+    inline def <=(other: Int): Boolean = s <= other
+    @targetName("lessThanEqualScore")
     inline def <=(other: Score): Boolean = s <= other
 
-    @targetName("lessThan")
-    inline def <(other: Int): Boolean   = s < other
+    @targetName("lessThanInt")
+    inline def <(other: Int): Boolean = s < other
+    @targetName("lessThanScore")
     inline def <(other: Score): Boolean = s < other
 
     inline def unary_- : Score = apply(-s)
