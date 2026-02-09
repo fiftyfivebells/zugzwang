@@ -39,6 +39,11 @@ object Score:
     @targetName("timesScore")
     inline def *(other: Score): Score = s * other
 
+    @targetName("divideInt")
+    inline def /(other: Int): Score = s / other
+    @targetName("divideScore")
+    inline def /(other: Score): Score = s / other
+
     @targetName("greaterThanEqualInt")
     inline def >=(other: Int): Boolean = s >= other
     @targetName("greaterThanEqualScore")
