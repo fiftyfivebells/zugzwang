@@ -20,10 +20,11 @@ object Square:
       case Color.Black => rank.value == 6
 
     def next: Square =
-      if sq == 64 then Square(0)
+      if sq < 0 || sq == 65 then Square.H1
       else Square(sq + 1)
 
-  def apply(x: Int): Square = x
+  def apply(x: Int): Square =
+    if x >= 0 && x < 64 then x else Square.NoSquare
 
   // this uses 7 - file.value because the least significant bit in the bitboard is h1, which is the
   // largest file value. Subtracting 7 "reverses" the file so that the index of the file corresponds

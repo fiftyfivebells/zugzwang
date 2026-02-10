@@ -74,9 +74,10 @@ object Piece:
 
   extension (p: Piece)
 
-    inline def pieceType: PieceType = p % 6
-    inline def isWhite: Boolean     = p >= 0 && p < 6
-    inline def isBlack: Boolean     = p >= 6 && p < 12
+    inline def pieceType: PieceType =
+      if isNoPiece then PieceType.NoType else p % 6
+    inline def isWhite: Boolean = p >= 0 && p < 6
+    inline def isBlack: Boolean = p >= 6 && p < 12
 
     inline def color: Color =
       if isWhite then Color.White
@@ -89,7 +90,7 @@ object Piece:
     inline def isRook: Boolean    = (p % 6) == PieceType.Rook
     inline def isQueen: Boolean   = (p % 6) == PieceType.Queen
     inline def isKing: Boolean    = (p % 6) == PieceType.King
-    inline def isNoPiece: Boolean = p == 12
+    inline def isNoPiece: Boolean = p >= 12 || p < 0
 
     inline def toUciChar: Char =
       if p.isNoPiece then '.'
