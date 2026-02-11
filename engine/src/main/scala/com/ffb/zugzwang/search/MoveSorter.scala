@@ -49,23 +49,6 @@ object MoveSorter:
     if move.moveType == MoveType.DoublePush then ()
 
     // quiet moves
-    val beforePst = PieceSquareTables.value(mover.pieceType, move.from, mover.color)
-    val afterPst  = PieceSquareTables.value(mover.pieceType, move.to, mover.color)
-    var score     = Score((afterPst - beforePst) * PstDeltaWeight)
-
-    // this should encourage pieces to move off their home squares (encourage development)
-    mover.pieceType match
-      case PieceType.Knight =>
-        val fromHome = move.from == Square.B1 || move.from == Square.G1 || move.from == Square.B8 || move.from == Square.G8
-        val toHome   = move.to == Square.B1 || move.to == Square.G1 || move.to == Square.B8 || move.to == Square.G8
-        if fromHome && !toHome then score += DevelopBonus
-        if !fromHome && toHome then score -= DevelopBonus
-
-      case PieceType.Bishop =>
-        val fromHome = move.from == Square.C1 || move.from == Square.F1 || move.from == Square.C8 || move.from == Square.F8
-        val toHome   = move.to == Square.C1 || move.to == Square.F1 || move.to == Square.C8 || move.to == Square.F8
-        if fromHome && !toHome then score += (DevelopBonus - 20)
-        if !fromHome && toHome then score -= (DevelopBonus - 20)
 
       case _ =>
 
