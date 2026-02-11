@@ -189,7 +189,7 @@ object Search:
     val moves = MoveGenerator.pseudoLegalMovesMutable(position)
 
     val currentKillers = if ply < MaxPly then ctx.killers(ply.value) else Array.empty[Move]
-    val sortedMoves    = MoveSorter.sortMoves(moves, position, currentKillers, ctx.history)
+    val sortedMoves    = MoveSorter.sortMoves(moves, position, currentKillers, ctx.history, ttMove)
 
     var bestScore       = -Score.Infinity
     var bestMove        = Move.None // for tracking TT move
