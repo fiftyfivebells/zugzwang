@@ -49,12 +49,13 @@ object MoveSorter:
     if move.moveType == MoveType.DoublePush then ()
 
     // quiet moves
+    val beforePst = PieceSquareTables.value(PieceSquareTables.MidgamePieceSquareTables, mover, move.from)
+    val afterPst  = PieceSquareTables.value(PieceSquareTables.MidgamePieceSquareTables, mover, move.to)
 
-      case _ =>
+    val delta    = afterPst - beforePst
+    val pstDelta = if mover.isWhite then delta else -delta
 
-    if move.moveType == MoveType.DoublePush then score += DoublePushBonus
-
-    score
+    Score(pstDelta * PstDeltaWeight)
 
   def sortMoves(
     moves: List[Move],
