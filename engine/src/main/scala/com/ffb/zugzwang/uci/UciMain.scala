@@ -1,13 +1,15 @@
 package com.ffb.zugzwang.uci
 
-import com.ffb.zugzwang.chess.{Color, GameState, MutablePosition}
+import com.ffb.zugzwang.chess.{Color, GameState, MutablePosition, Piece, Square}
 import com.ffb.zugzwang.core.{Depth, SearchTime}
+import com.ffb.zugzwang.evaluation.{PestoEvaluation, PieceSquareTables}
 import com.ffb.zugzwang.move.MoveGenerator
 import com.ffb.zugzwang.notation.FENParser
 import com.ffb.zugzwang.rules.Rules
-import com.ffb.zugzwang.search.{Search, SearchLimits}
+import com.ffb.zugzwang.search.{Search, SearchLimits, SearchStats}
 import com.ffb.zugzwang.tools.PerftRunner
 
+import java.io.{File, PrintWriter}
 import scala.annotation.tailrec
 import scala.io.Source
 
@@ -32,7 +34,7 @@ object UciMain:
 
         case "ucinewgame" :: _ =>
           Search.clear
-          state
+          GameState.initial
 
         case "isready" :: _ =>
           println("readyok")
@@ -92,6 +94,7 @@ object UciMain:
           state
 
   private def handleGo(state: GameState, tokens: List[String]): GameState =
+    SearchStats.reset()
     tokens match
       case "perft" :: (d: String) :: _ =>
         val depth = d.toInt
@@ -105,6 +108,7 @@ object UciMain:
         val bestMove       = Search.search(searchPosition, limits)
 
         println(s"bestmove ${bestMove.toUci}")
+        SearchStats.printReport()
         state
 
   private def parseTime(params: List[String], side: Color): SearchLimits =
