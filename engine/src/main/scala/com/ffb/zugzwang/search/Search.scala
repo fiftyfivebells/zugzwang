@@ -79,9 +79,10 @@ object Search:
       val after = SearchTime.currentTime
       if after >= window.hardDeadline then return bestMove
 
-      val timeTaken = after - ctx.startTime
-      val nps       = ctx.nodes.perSecond(timeTaken.toLong)
-      val scoreStr  = bestAtDepth.score.format
+      val timeTaken  = after - ctx.startTime
+      val totalNodes = Node(SearchStats.nodes + SearchStats.qNodes)
+      val nps        = totalNodes.perSecond(timeTaken.toLong)
+      val scoreStr   = bestAtDepth.score.format
       println(
         s"info depth $currentDepth score $scoreStr nodes ${ctx.nodes.toString} nps $nps time ${timeTaken.toString} pv ${bestAtDepth.move.toUci}"
       )
@@ -125,8 +126,7 @@ object Search:
           loop(i + 1, bestMove, alpha, beta, legalMoves, firstLegalMove, ply)
         else
           val newFirstLegalMove = if firstLegalMove == Move.None then move else firstLegalMove
-          ctx.nodes += 1
-          val rawScore = -negamax(position, depth - 1, -beta, -alpha, ctx, ply + 1)
+          val rawScore          = -negamax(position, depth - 1, -beta, -alpha, ctx, ply + 1)
           val comparisonScore =
             if rawScore == Score.Draw then
               alpha match
@@ -166,6 +166,8 @@ object Search:
 
   // TODO: look into maybe making this a tail recursive function
   private def negamax(position: MutablePosition, depth: Depth, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
+    SearchStats.nodes += 1
+
     if position.halfMoveClock >= 100 then return Score.Draw
     if ply > 0 && position.isRepetition then return Score.Draw
 
@@ -173,14 +175,16 @@ object Search:
     var ttMove  = Move.None
 
     if ttEntry.isDefined then
+      SearchStats.ttHits += 1
       ttMove = ttEntry.move
       if ply.value > 0 && ttEntry.canCutoff(depth, alpha, beta, ply) then return ttEntry.score(ply)
 
     if attemptNullMove(position, depth, beta, ctx, ply) then return beta
 
-    if shouldStop(ctx) then return Evaluation.evaluate(position)
-    if depth.isZero then return quiesce(position, alpha, beta, ctx, ply)
     if shouldStop(ctx) then return PestoEvaluation.evaluate(position)
+    if depth.isZero then
+      SearchStats.leafNodes += 1
+      return quiesce(position, alpha, beta, ctx, ply)
 
     val moves = MoveGenerator.pseudoLegalMovesMutable(position)
 
@@ -200,7 +204,6 @@ object Search:
       position.applyMove(move)
 
       if !position.isSideInCheck(position.activeSide.enemy) then
-        ctx.nodes += 1
         legalMovesFound += 1
 
         val score = -negamax(position, depth - 1, -beta, -currentAlpha, ctx, ply + 1)
@@ -208,7 +211,12 @@ object Search:
         position.unapplyMove(move)
 
         if score >= beta then
+          SearchStats.betaCutoffs += 1
           ctx.table.store(position.zobristHash, move, beta, depth, TTEntry.FlagLower, ply)
+
+          if i == 0 then SearchStats.firstMoveCutoffs += 1
+          else if currentKillers.contains(move) then SearchStats.killerCutoffs += 1
+          else SearchStats.historyCutoffs += 1
 
           if !move.isCapture then
             ctx.storeKiller(ply, move)
@@ -234,12 +242,17 @@ object Search:
       ctx.table.store(position.zobristHash, bestMove, bestScore, depth, ttFlag, ply)
       bestScore
 
-  private def quiesce(position: MutablePosition, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
-    if shouldStop(ctx) then Evaluation.evaluate(position)
+  private def quiesce(position: MutablePosition, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply, qDepth: Int = 0): Score =
+    SearchStats.qNodes += 1
+    SearchStats.qSearchMaxDepth = Math.max(qDepth, SearchStats.qSearchMaxDepth)
+
+    val MaxQDepth = 10
     if qDepth >= MaxQDepth then return PestoEvaluation.evaluate(position)
+
+    if shouldStop(ctx) then PestoEvaluation.evaluate(position)
     else if position.isSideInCheck(position.activeSide) then
       val moves           = MoveGenerator.pseudoLegalMovesMutable(position)
-      var currentAlpha    = alpha
+      var bestScore       = -Score.Infinity
       var legalMovesFound = 0
 
       var i = 0
@@ -249,24 +262,24 @@ object Search:
 
         // after applyMove, side-to-move flips; check legality by ensuring the mover's king isn't in check
         if !position.isSideInCheck(position.activeSide.enemy) then
-          ctx.nodes += 1
+          SearchStats.qSearchInCheckCount += 1
           legalMovesFound += 1
 
-          val score = -quiesce(position, -beta, -currentAlpha, ctx, ply + 1)
+          val score = -quiesce(position, -beta, -alpha, ctx, ply + 1, qDepth + 1)
 
           position.unapplyMove(move)
 
           if score >= beta then return beta
-          if score > currentAlpha then currentAlpha = score
+          if score > bestScore then bestScore = score
         else position.unapplyMove(move)
 
         i += 1
 
-      if ctx.stopped then return currentAlpha
+      if ctx.stopped then return bestScore
 
       // Checkmated (mate score is ply-based)
       if legalMovesFound == 0 then -Score.Checkmate + ply.value
-      else currentAlpha
+      else bestScore
     else
       val standPat = PestoEvaluation.evaluate(position)
 
@@ -274,27 +287,33 @@ object Search:
       else
         var currentAlpha = Score.max(alpha, standPat)
 
-        val moves       = MoveGenerator.pseudoLegalCapturesMutable(position)
-        val sortedMoves = MoveSorter.sortMoves(moves, position, ctx.killers(ply.value), ctx.history)
+        val DeltaMargin = 900
+        if standPat + DeltaMargin < alpha then return currentAlpha
+
+        val captures       = MoveGenerator.pseudoLegalCapturesMutable(position)
+        val sortedCaptures = MoveSorter.sortCaptures(captures.toArray, position)
+        SearchStats.qSearchCapturesGenerated += captures.size
 
         var i = 0
-        while i < sortedMoves.size && !shouldStop(ctx) do
-          val move = sortedMoves(i)
+        while i < sortedCaptures.size && !shouldStop(ctx) do
+          val move = sortedCaptures(i)
 
-          position.applyMove(move)
+          val captured = position.pieceAt(move.to)
+          if standPat + captured.pieceType.value + 200 < alpha then i += 1
+          else
+            position.applyMove(move)
 
-          if !position.isSideInCheck(position.activeSide.enemy) then
-            ctx.nodes += 1
-            val score = -quiesce(position, -beta, -currentAlpha, ctx, ply + 1)
+            if !position.isSideInCheck(position.activeSide.enemy) then
+              val score = -quiesce(position, -beta, -currentAlpha, ctx, ply + 1, qDepth + 1)
 
-            position.unapplyMove(move)
+              position.unapplyMove(move)
 
-            if score >= beta then return beta
-            if score > currentAlpha then currentAlpha = score
-          else position.unapplyMove(move)
+              if score >= beta then return beta
+              if score > currentAlpha then currentAlpha = score
+            else position.unapplyMove(move)
 
           i += 1
-
+          SearchStats.qSearchMovesSearched += 1
         currentAlpha
 
   private inline def shouldStop(ctx: SearchContext): Boolean =
