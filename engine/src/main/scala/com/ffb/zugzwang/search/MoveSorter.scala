@@ -74,8 +74,8 @@ object MoveSorter:
     while i < arr.length do
       val move = arr(i)
       if move == ttMove then scores(i) = TTMoveScore
-      else if move == k1 then Killer1Bonus
-      else if move == k2 then Killer2Bonus
+      else if move == k1 then scores(i) = Killer1Bonus
+      else if move == k2 then scores(i) = Killer2Bonus
       else
         val positionalScore = scoreMove(move, position)
         val historyScore    = history(move.from.value)(move.to.value)
