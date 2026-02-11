@@ -103,3 +103,15 @@ object MoveSorter:
       i += 1
 
     arr
+
+  def sortCaptures(moves: Array[Move], position: MutablePosition): Array[Move] =
+    // score moves purely by MVV/LVA
+    (moves
+      .sortInPlaceBy: move =>
+        val victim   = position.pieceAt(move.to)
+        val attacker = position.pieceAt(move.from)
+
+        // TODO: research this, there might be a better way to score these
+        -((victim.pieceType.value * 10) - attacker.pieceType.value)
+      )
+      .toArray
