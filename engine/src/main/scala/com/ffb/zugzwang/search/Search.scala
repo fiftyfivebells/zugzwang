@@ -1,7 +1,7 @@
 package com.ffb.zugzwang.search
 import com.ffb.zugzwang.chess.MutablePosition
 import com.ffb.zugzwang.core.{Depth, Node, Ply, Score, SearchTime, TimeControl}
-import com.ffb.zugzwang.evaluation.Evaluation
+import com.ffb.zugzwang.evaluation.PestoEvaluation
 import com.ffb.zugzwang.move.{Move, MoveGenerator}
 
 import scala.annotation.tailrec
@@ -180,6 +180,7 @@ object Search:
 
     if shouldStop(ctx) then return Evaluation.evaluate(position)
     if depth.isZero then return quiesce(position, alpha, beta, ctx, ply)
+    if shouldStop(ctx) then return PestoEvaluation.evaluate(position)
 
     val moves = MoveGenerator.pseudoLegalMovesMutable(position)
 
@@ -235,6 +236,7 @@ object Search:
 
   private def quiesce(position: MutablePosition, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
     if shouldStop(ctx) then Evaluation.evaluate(position)
+    if qDepth >= MaxQDepth then return PestoEvaluation.evaluate(position)
     else if position.isSideInCheck(position.activeSide) then
       val moves           = MoveGenerator.pseudoLegalMovesMutable(position)
       var currentAlpha    = alpha
@@ -266,7 +268,7 @@ object Search:
       if legalMovesFound == 0 then -Score.Checkmate + ply.value
       else currentAlpha
     else
-      val standPat = Evaluation.evaluate(position)
+      val standPat = PestoEvaluation.evaluate(position)
 
       if standPat >= beta then beta
       else
