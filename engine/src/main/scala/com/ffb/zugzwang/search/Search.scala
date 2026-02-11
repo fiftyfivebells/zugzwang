@@ -41,12 +41,12 @@ final case class SearchContext(
   def updateHistory(move: Move, depth: Depth): Unit =
     val bonus   = depth.value * depth.value
     val current = history(move.from.value)(move.to.value)
-    if current < 50000 then // TODO: magic number alert, make this a constant
-      history(move.from.value)(move.to.value) = current + bonus
+    if current < 50000 then                                                // TODO: magic number alert, make this a constant
+      history(move.from.value)(move.to.value) = current * 95 / 100 + bonus // 5% decay
 
 object Search:
   val MaxPly     = Ply(128)
-  private val tt = new TranspositionTable(64)
+  private val tt = new TranspositionTable(256)
 
   def clear: Unit = tt.clear()
 
@@ -142,7 +142,7 @@ object Search:
 
     loop(0, Move.None, -Score.Infinity, Score.Infinity, 0)
 
-  private inline val NullMoveReduction = 2
+  private inline def nullMoveReduction(depth: Depth): Int = if depth > 6 then 3 else 2
 
   private def attemptNullMove(
     position: MutablePosition,
@@ -160,7 +160,7 @@ object Search:
     else
       try
         position.applyNullMove
-        val score = -negamax(position, depth - 1 - NullMoveReduction, -beta, -beta + 1, ctx, ply + 1)
+        val score = -negamax(position, depth - 1 nullMoveReduction (depth), -beta, -beta + 1, ctx, ply + 1)
         score >= beta
       finally position.unapplyNullMove
 
