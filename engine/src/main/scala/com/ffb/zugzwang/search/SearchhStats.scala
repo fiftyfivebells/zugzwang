@@ -6,18 +6,22 @@ object SearchStats:
   var leafNodes: Long = 0
   var ttHits: Long    = 0
 
-  var betaCutoffs: Long        = 0
-  var firstMoveCutoffs: Long   = 0
-  var killerCutoffs: Long      = 0
-  var historyCutoffs: Long     = 0
-  var qSearchMaxDepth          = 0
-  var qSearchInCheckCount      = 0
-  var qSearchCapturesGenerated = 0
-  var qSearchMovesSearched     = 0
+  var betaCutoffs: Long         = 0
+  var firstMoveCutoffs: Long    = 0
+  var killerCutoffs: Long       = 0
+  var historyCutoffs: Long      = 0
+  var qSearchMaxDepth           = 0
+  var qSearchInCheckCount       = 0
+  var qSearchCapturesGenerated  = 0
+  var qSearchMovesSearched      = 0
+  var aspirationFailLows: Long  = 0
+  var aspirationFailHighs: Long = 0
 
   def reset(): Unit =
     nodes = 0; qNodes = 0; ttHits = 0
     betaCutoffs = 0; firstMoveCutoffs = 0; killerCutoffs = 0; historyCutoffs = 0
+    qSearchCapturesGenerated = 0; qSearchInCheckCount = 0; qSearchMaxDepth = 0
+    qSearchMovesSearched = 0; aspirationFailLows = 0; aspirationFailHighs = 0
 
   def printReport(): Unit =
     println()
@@ -32,6 +36,13 @@ object SearchStats:
       println(f"  First Move (PV/TT): ${firstMoveCutoffs}%,d (${(firstMoveCutoffs.toDouble / betaCutoffs) * 100}%.1f%%)")
       println(f"  Killer Moves:       ${killerCutoffs}%,d (${(killerCutoffs.toDouble / betaCutoffs) * 100}%.1f%%)")
       println(f"  History Moves:      ${historyCutoffs}%,d (${(historyCutoffs.toDouble / betaCutoffs) * 100}%.1f%%)")
+
+      // Add this section:
+      if aspirationFailLows > 0 || aspirationFailHighs > 0 then
+        println("--- Aspiration Window Stats ---")
+        println(f"  Fail-Lows:  $aspirationFailLows%,d")
+        println(f"  Fail-Highs: $aspirationFailHighs%,d")
+        println(f"  Total Fails: ${aspirationFailLows + aspirationFailHighs}%,d")
       println(f"  Q-Nodes per Leaf:   ${qNodes.toDouble / leafNodes}%.2f")
       println(f"  Q Search Max Depth: ${qSearchMaxDepth}%,d")
       println(f"  Q Search In Check:  ${qSearchInCheckCount}%,d")

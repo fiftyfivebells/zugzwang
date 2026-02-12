@@ -67,14 +67,20 @@ object Search:
     val defaultMove = MoveSorter.sortMoves(legalMoves, position, ctx.killers(0), ctx.history).head
 
     @tailrec
-    def iterativeDeepening(currentDepth: Depth, bestMove: Move): Move =
+    def iterativeDeepening(currentDepth: Depth, bestMove: Move, prevScore: Score): Move =
       val now           = SearchTime.currentTime
       val outOfTime     = now >= window.softDeadline
       val depthExceeded = currentDepth > limits.depth
 
       if outOfTime || depthExceeded then return bestMove
 
-      val bestAtDepth = findBestMove(position, currentDepth, ctx)
+      val (alpha, beta) =
+        if currentDepth >= Depth(5) then
+          val windowSize = 50 // TODO: maybe experiment with window sizes?
+          (prevScore - windowSize, prevScore + windowSize)
+        else (-Score.Infinity, Score.Infinity)
+
+      val result = findBestMoveWithAspiration(position, currentDepth, alpha, beta, ctx)
 
       val after = SearchTime.currentTime
       if after >= window.hardDeadline then return bestMove
@@ -82,18 +88,50 @@ object Search:
       val timeTaken  = after - ctx.startTime
       val totalNodes = Node(SearchStats.nodes + SearchStats.qNodes)
       val nps        = totalNodes.perSecond(timeTaken.toLong)
-      val scoreStr   = bestAtDepth.score.format
+      val scoreStr   = result.score.format
       println(
-        s"info depth $currentDepth score $scoreStr nodes ${ctx.nodes.toString} nps $nps time ${timeTaken.toString} pv ${bestAtDepth.move.toUci}"
+        s"info depth $currentDepth score $scoreStr nodes ${totalNodes.toString} nps $nps time ${timeTaken.toString} pv ${result.move.toUci}"
       )
 
-      val nextBestMove = if bestAtDepth.move != Move.None then bestAtDepth.move else bestMove
-      iterativeDeepening(currentDepth + 1, nextBestMove)
+      val nextBestMove = if result.move != Move.None then result.move else bestMove
+      iterativeDeepening(currentDepth + 1, nextBestMove, result.score)
 
-    if TimeControl.shouldSearch(limits.moveTime) then iterativeDeepening(Depth(1), defaultMove)
+    if TimeControl.shouldSearch(limits.moveTime) then iterativeDeepening(Depth(1), defaultMove, Score.Draw)
     else defaultMove
 
-  def findBestMove(position: MutablePosition, depth: Depth, ctx: SearchContext): SearchResult =
+  def findBestMoveWithAspiration(
+    position: MutablePosition,
+    depth: Depth,
+    initialAlpha: Score,
+    initialBeta: Score,
+    ctx: SearchContext
+  ): SearchResult =
+    var alpha = initialAlpha
+    var beta  = initialBeta
+
+    var result = findBestMove(position, depth, alpha, beta, ctx)
+
+    var attempts    = 0
+    val maxAttempts = 3
+
+    while (result.score <= alpha || result.score >= beta) && attempts < maxAttempts do
+      attempts += 1
+
+      if result.score <= alpha then
+        SearchStats.aspirationFailLows += 1
+        alpha = alpha - (100 * attempts)
+        if alpha < -Score.Infinity then alpha = -Score.Infinity
+
+      if result.score >= beta then
+        SearchStats.aspirationFailHighs += 1
+        beta = beta + (100 * attempts)
+        if beta > Score.Infinity then beta = Score.Infinity
+
+      result = findBestMove(position, depth, alpha, beta, ctx)
+
+    result
+
+  def findBestMove(position: MutablePosition, depth: Depth, alpha: Score, beta: Score, ctx: SearchContext): SearchResult =
     val ttEntry = ctx.table.probe(position.zobristHash)
     val ttMove  = if ttEntry.isDefined then ttEntry.move else Move.None
 
@@ -140,7 +178,7 @@ object Search:
 
           loop(i + 1, newBestMove, newAlpha, beta, legalMoves + 1, newFirstLegalMove, ply)
 
-    loop(0, Move.None, -Score.Infinity, Score.Infinity, 0)
+    loop(0, Move.None, alpha, beta, 0)
 
   private inline def nullMoveReduction(depth: Depth): Int = if depth > 6 then 3 else 2
 
@@ -160,7 +198,7 @@ object Search:
     else
       try
         position.applyNullMove
-        val score = -negamax(position, depth - 1 nullMoveReduction (depth), -beta, -beta + 1, ctx, ply + 1)
+        val score = -negamax(position, depth - 1 - nullMoveReduction(depth), -beta, -beta + 1, ctx, ply + 1)
         score >= beta
       finally position.unapplyNullMove
 
