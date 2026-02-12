@@ -303,7 +303,7 @@ object Search:
           SearchStats.qSearchInCheckCount += 1
           legalMovesFound += 1
 
-          val score = -quiesce(position, -beta, -alpha, ctx, ply + 1, qDepth + 1)
+          val score = -quiesce(position, -beta, -alpha, ctx, ply, qDepth + 1)
 
           position.unapplyMove(move)
 
@@ -342,7 +342,7 @@ object Search:
             position.applyMove(move)
 
             if !position.isSideInCheck(position.activeSide.enemy) then
-              val score = -quiesce(position, -beta, -currentAlpha, ctx, ply + 1, qDepth + 1)
+              val score = -quiesce(position, -beta, -currentAlpha, ctx, ply, qDepth + 1)
 
               position.unapplyMove(move)
 
