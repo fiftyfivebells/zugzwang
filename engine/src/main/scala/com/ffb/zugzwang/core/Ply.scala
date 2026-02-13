@@ -4,7 +4,7 @@ import scala.annotation.targetName
 
 opaque type Ply = Int
 object Ply:
-  val base: Ply = 1
+  val Base: Ply = 1
 
   def apply(in: Int): Ply = in
 
