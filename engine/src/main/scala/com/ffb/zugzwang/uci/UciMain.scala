@@ -13,6 +13,7 @@ import scala.annotation.tailrec
 import scala.io.Source
 
 object UciMain:
+  private var isDebugMode = false
 
   def main(args: Array[String]): Unit =
     val inputLines = Source.stdin.getLines()
@@ -27,7 +28,7 @@ object UciMain:
       val nextState = tokens match
         case "uci" :: _ =>
           val versionStr =
-            if BuildInfo.gitCommit.nonEmtpy then s"${BuildInfo.version}-dev.${BuildInfo.gitCommit}"
+            if BuildInfo.gitCommit.nonEmpty then s"${BuildInfo.version}-dev.${BuildInfo.gitCommit}"
             else BuildInfo.version
 
           println(s"id name Zugzwang $versionStr")
@@ -53,6 +54,10 @@ object UciMain:
         case "go" :: rest =>
           val newState = handleGo(state, rest)
           newState
+
+        case "debug" :: rest =>
+          handleDebug(rest)
+          state
 
         case "quit" :: _ =>
           return
@@ -111,7 +116,8 @@ object UciMain:
         val bestMove       = Search.search(searchPosition, limits)
 
         println(s"bestmove ${bestMove.toUci}")
-        SearchStats.printReport()
+        if isDebugMode then SearchStats.printReport()
+
         state
 
   private def parseTime(params: List[String], side: Color): SearchLimits =
@@ -154,3 +160,9 @@ object UciMain:
     tokens.dropWhile(_ != key) match
       case `key` :: value :: _ => Some(value)
       case _                   => None
+
+  private def handleDebug(params: List[String]): Unit =
+    params.headOption match
+      case Some(param) if param == "on"  => isDebugMode = true
+      case Some(param) if param == "off" => isDebugMode = false
+      case _                             => ()
