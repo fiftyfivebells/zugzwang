@@ -205,6 +205,7 @@ object Search:
   // TODO: look into maybe making this a tail recursive function
   private def negamax(position: MutablePosition, depth: Depth, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
     SearchStats.nodes += 1
+    ctx.nodes = ctx.nodes + 1
 
     if position.halfMoveClock >= 100 then return Score.Draw
     if ply > 0 && position.isRepetition then return Score.Draw
@@ -282,6 +283,7 @@ object Search:
 
   private def quiesce(position: MutablePosition, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply, qDepth: Int = 0): Score =
     SearchStats.qNodes += 1
+    ctx.nodes = ctx.nodes + 1
     SearchStats.qSearchMaxDepth = Math.max(qDepth, SearchStats.qSearchMaxDepth)
 
     val MaxQDepth = 10
