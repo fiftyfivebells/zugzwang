@@ -111,20 +111,22 @@ object Search:
 
     var result = findBestMove(position, depth, alpha, beta, ctx)
 
-    var attempts    = 0
+    var delta       = 50
     val maxAttempts = 3
+    var attempts    = 0
 
     while (result.score <= alpha || result.score >= beta) && attempts < maxAttempts do
       attempts += 1
+      delta = delta * 2
 
       if result.score <= alpha then
         SearchStats.aspirationFailLows += 1
-        alpha = alpha - (100 * attempts)
+        alpha = alpha - delta
         if alpha < -Score.Infinity then alpha = -Score.Infinity
 
       if result.score >= beta then
         SearchStats.aspirationFailHighs += 1
-        beta = beta + (100 * attempts)
+        beta = beta + delta
         if beta > Score.Infinity then beta = Score.Infinity
 
       result = findBestMove(position, depth, alpha, beta, ctx)
