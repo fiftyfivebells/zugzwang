@@ -64,7 +64,8 @@ object Search:
       table = tt
     )
 
-    val defaultMove = MoveSorter.sortMoves(legalMoves, position, ctx.killers(0), ctx.history).head
+    val (defaultMoves, defaultScores) = MoveSorter.sortMoves(legalMoves, position, ctx.killers(0), ctx.history)
+    val defaultMove                   = MoveSorter.pickNext(defaultMoves, defaultScores, 0)
 
     @tailrec
     def iterativeDeepening(currentDepth: Depth, bestMove: Move, prevScore: Score): Move =
@@ -137,20 +138,20 @@ object Search:
     val ttEntry = ctx.table.probe(position.zobristHash)
     val ttMove  = if ttEntry.isDefined then ttEntry.move else Move.None
 
-    val moves       = MoveGenerator.pseudoLegalMovesMutable(position)
-    val sortedMoves = MoveSorter.sortMoves(moves, position, ctx.killers(0), ctx.history, ttMove)
+    val moves                     = MoveGenerator.pseudoLegalMovesMutable(position)
+    val (sortedMoves, moveScores) = MoveSorter.sortMoves(moves, position, ctx.killers(0), ctx.history, ttMove)
 
     @tailrec
     def loop(
-      i: Int,
+      moveIndex: Int,
       bestMove: Move,
       alpha: Score,
       beta: Score,
       legalMoves: Int,
       firstLegalMove: Move = Move.None,
-      ply: Ply = Ply.base
+      ply: Ply = Ply.Base
     ): SearchResult =
-      if i >= sortedMoves.size then
+      if moveIndex >= sortedMoves.length then
         if legalMoves == 0 then
           if position.isSideInCheck(position.activeSide) then SearchResult(Move.None, -Score.Checkmate)
           else SearchResult(Move.None, Score.Stalemate)
@@ -160,11 +161,11 @@ object Search:
           ctx.table.store(position.zobristHash, finalMove, alpha, depth, ttFlag, ply)
           SearchResult(finalMove, alpha)
       else
-        val move = sortedMoves(i)
+        val move = MoveSorter.pickNext(sortedMoves, moveScores, moveIndex)
         position.applyMove(move)
         if position.isSideInCheck(position.activeSide.enemy) then
           position.unapplyMove(move)
-          loop(i + 1, bestMove, alpha, beta, legalMoves, firstLegalMove, ply)
+          loop(moveIndex + 1, bestMove, alpha, beta, legalMoves, firstLegalMove, ply)
         else
           val newFirstLegalMove = if firstLegalMove == Move.None then move else firstLegalMove
           val rawScore          = -negamax(position, depth - 1, -beta, -alpha, ctx, ply + 1)
@@ -179,7 +180,7 @@ object Search:
           val (newAlpha, newBestMove) = if comparisonScore > alpha then (rawScore, move) else (alpha, bestMove)
           position.unapplyMove(move)
 
-          loop(i + 1, newBestMove, newAlpha, beta, legalMoves + 1, newFirstLegalMove, ply)
+          loop(moveIndex + 1, newBestMove, newAlpha, beta, legalMoves + 1, newFirstLegalMove, ply)
 
     loop(0, Move.None, alpha, beta, 0)
 
@@ -230,8 +231,8 @@ object Search:
 
     val moves = MoveGenerator.pseudoLegalMovesMutable(position)
 
-    val currentKillers = if ply < MaxPly then ctx.killers(ply.value) else Array.empty[Move]
-    val sortedMoves    = MoveSorter.sortMoves(moves, position, currentKillers, ctx.history, ttMove)
+    val currentKillers            = if ply < MaxPly then ctx.killers(ply.value) else Array.empty[Move]
+    val (sortedMoves, moveScores) = MoveSorter.sortMoves(moves, position, currentKillers, ctx.history, ttMove)
 
     var bestScore       = -Score.Infinity
     var bestMove        = Move.None // for tracking TT move
@@ -240,8 +241,8 @@ object Search:
     var ttFlag          = TTEntry.FlagUpper
 
     var i = 0
-    while i < sortedMoves.size do
-      val move = sortedMoves(i)
+    while i < sortedMoves.length do
+      val move = MoveSorter.pickNext(sortedMoves, moveScores, i)
 
       position.applyMove(move)
 
@@ -333,13 +334,14 @@ object Search:
         val DeltaMargin = 900
         if standPat + DeltaMargin < alpha then return currentAlpha
 
-        val captures       = MoveGenerator.pseudoLegalCapturesMutable(position)
-        val sortedCaptures = MoveSorter.sortCaptures(captures.toArray, position)
+        val captures      = MoveGenerator.pseudoLegalCapturesMutable(position)
+        val captureArr    = captures.toArray
+        val captureScores = MoveSorter.scoreCaptures(captureArr, position)
         SearchStats.qSearchCapturesGenerated += captures.size
 
         var i = 0
-        while i < sortedCaptures.size && !shouldStop(ctx) do
-          val move = sortedCaptures(i)
+        while i < captureArr.length && !shouldStop(ctx) do
+          val move = MoveSorter.pickNext(captureArr, captureScores, i)
 
           val captured = position.pieceAt(move.to)
           if standPat + captured.pieceType.value + 200 < alpha then i += 1

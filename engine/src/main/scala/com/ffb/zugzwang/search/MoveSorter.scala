@@ -63,7 +63,7 @@ object MoveSorter:
     killers: Array[Move],
     history: Array[Array[Score]],
     ttMove: Move = Move.None
-  ): Array[Move] =
+  ): (Array[Move], Array[Score]) =
     val arr    = moves.toArray
     val scores = new Array[Score](arr.length)
 
@@ -83,35 +83,29 @@ object MoveSorter:
 
       i += 1
 
-    i = 0
-    while i < arr.length - 1 do
-      var bestIdx   = i
-      var bestScore = scores(i)
+    (arr, scores)
 
-      var j = i + 1
-      while j < arr.length do
-        val s = scores(j)
-        if s > bestScore then
-          bestScore = s
-          bestIdx = j
-        j += 1
+  inline def pickNext(moves: Array[Move], scores: Array[Score], index: Int): Move =
+    var bestIdx   = index
+    var bestScore = scores(index)
+    var j         = index + 1
+    while j < moves.length do
+      if scores(j) > bestScore then
+        bestScore = scores(j)
+        bestIdx = j
+      j += 1
+    if bestIdx != index then
+      val tmpM = moves(index); moves(index) = moves(bestIdx); moves(bestIdx) = tmpM
+      val tmpS = scores(index); scores(index) = scores(bestIdx); scores(bestIdx) = tmpS
+    moves(index)
 
-      if bestIdx != i then
-        val tmpM = arr(i); arr(i) = arr(bestIdx); arr(bestIdx) = tmpM
-        val tmpS = scores(i); scores(i) = scores(bestIdx); scores(bestIdx) = tmpS
-
+  def scoreCaptures(moves: Array[Move], position: MutablePosition): Array[Score] =
+    val scores = new Array[Score](moves.length)
+    var i      = 0
+    while i < moves.length do
+      val move     = moves(i)
+      val victim   = position.pieceAt(move.to)
+      val attacker = position.pieceAt(move.from)
+      scores(i) = Score((victim.pieceType.value * 10) - attacker.pieceType.value)
       i += 1
-
-    arr
-
-  def sortCaptures(moves: Array[Move], position: MutablePosition): Array[Move] =
-    // score moves purely by MVV/LVA
-    (moves
-      .sortInPlaceBy: move =>
-        val victim   = position.pieceAt(move.to)
-        val attacker = position.pieceAt(move.from)
-
-        // TODO: research this, there might be a better way to score these
-        -((victim.pieceType.value * 10) - attacker.pieceType.value)
-      )
-      .toArray
+    scores
