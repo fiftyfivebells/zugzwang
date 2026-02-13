@@ -154,7 +154,8 @@ object Search:
           else SearchResult(Move.None, Score.Stalemate)
         else
           val finalMove = if bestMove == Move.None then firstLegalMove else bestMove
-          ctx.table.store(position.zobristHash, finalMove, alpha, depth, TTEntry.FlagExact, ply)
+          val ttFlag    = if bestMove == Move.None then TTEntry.FlagUpper else TTEntry.FlagExact
+          ctx.table.store(position.zobristHash, finalMove, alpha, depth, ttFlag, ply)
           SearchResult(finalMove, alpha)
       else
         val move = sortedMoves(i)
