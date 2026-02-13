@@ -1,5 +1,6 @@
 package com.ffb.zugzwang.uci
 
+import com.ffb.zugzwang.BuildInfo
 import com.ffb.zugzwang.chess.{Color, GameState, MutablePosition}
 import com.ffb.zugzwang.core.{Depth, SearchTime}
 import com.ffb.zugzwang.move.MoveGenerator
@@ -25,8 +26,12 @@ object UciMain:
 
       val nextState = tokens match
         case "uci" :: _ =>
-          println("id name Zugzwang")
-          println("id author Stephen Bell")
+          val versionStr =
+            if BuildInfo.gitCommit.nonEmtpy then s"${BuildInfo.version}-dev.${BuildInfo.gitCommit}"
+            else BuildInfo.version
+
+          println(s"id name Zugzwang $versionStr")
+          println(s"id author Stephen Bell")
           println("uciok")
           state
 
