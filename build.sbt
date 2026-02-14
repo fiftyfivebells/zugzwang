@@ -1,3 +1,4 @@
+import scala.util.Try
 import scala.sys.process
 inThisBuild(
   List(
@@ -38,8 +39,22 @@ lazy val engine = (project in file("engine"))
     buildInfoObject  := "BuildInfo"
   )
   .settings(
-    assembly / mainClass       := Some("com.ffb.zugzwang.uci.UciMain"),
-    assembly / assemblyJarName := "zugzwang.jar"
+    assembly / mainClass := Some("com.ffb.zugzwang.uci.UciMain"),
+    assembly / assemblyJarName := {
+      val v = version.value
+      val z = "zugzwang"
+      Try
+      val isTagged = Try(
+        process.Process("git describe --exact-match --tags HEAD").!!.trim.nonEmpty
+      ).getOrElse(false)
+
+      if (isTagged) {
+        s"$z-$v.jar"
+      } else {
+        val commit = Try(process.Process("git rev-parse --short HEAD").!!.trim).getOrElse("unknown")
+        s"$z-$v-dev.$commit.jar"
+      }
+    }
   )
 
 lazy val root = (project in file("."))
