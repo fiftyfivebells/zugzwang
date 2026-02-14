@@ -159,16 +159,17 @@ object UciMain:
 
         timeOpt match
           case Some(timeRemaining) =>
-            val movesToGo = findKeywordByValue(params, "movestogo").map(_.toInt)
-            val estMoves  = movesToGo.getOrElse(20)
+            val estimatedMovesToGo = 30
 
-            val baseTime = timeRemaining / estMoves
-            val budget   = baseTime + (inc / 2)
+            val baseTime = timeRemaining / estimatedMovesToGo
+            val budget   = baseTime + inc
 
-            val safeTime    = math.min(budget, timeRemaining - 50)
-            val finalBudget = math.max(10, safeTime)
+            val maxBudget    = timeRemaining / 7
+            val cappedBudget = math.min(budget, maxBudget)
 
-            SearchLimits(moveTime = SearchTime(finalBudget))
+            val safeBudget = math.max(10, cappedBudget - 20)
+
+            SearchLimits(moveTime = SearchTime(safeBudget))
 
           case None =>
             val depth = findKeywordByValue(params, "depth").map(_.toInt).getOrElse(6)
