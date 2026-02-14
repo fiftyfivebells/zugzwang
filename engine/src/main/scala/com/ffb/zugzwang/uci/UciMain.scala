@@ -14,6 +14,10 @@ import scala.io.Source
 
 object UciMain:
   private var isDebugMode = false
+  @volatile
+  private var searchThread: Thread | Null = null
+  @volatile
+  private var isSearching: Boolean = false
 
   def main(args: Array[String]): Unit =
     val inputLines = Source.stdin.getLines()
@@ -37,8 +41,10 @@ object UciMain:
           state
 
         case "ucinewgame" :: _ =>
-          Search.clear
-          GameState.initial
+          if isSearching then state
+          else
+            Search.clear()
+            GameState.initial
 
         case "isready" :: _ =>
           println("readyok")
@@ -59,7 +65,13 @@ object UciMain:
           handleDebug(rest)
           state
 
+        case "stop" :: _ =>
+          if isSearching then Search.requestStop()
+          state
+
         case "quit" :: _ =>
+          Search.requestStop()
+          if searchThread != null then searchThread.nn.join(1000)
           return
 
         case _ =>
@@ -113,10 +125,16 @@ object UciMain:
       case _ =>
         val limits         = parseTime(tokens, state.activeSide)
         val searchPosition = MutablePosition.from(state)
-        val bestMove       = Search.search(searchPosition, limits)
 
-        println(s"bestmove ${bestMove.toUci}")
-        if isDebugMode then SearchStats.printReport()
+        isSearching = true
+        searchThread = Thread { () =>
+          try
+            val bestMove = Search.search(searchPosition, limits)
+            println(s"bestmove ${bestMove.toUci}")
+            if isDebugMode then SearchStats.printReport()
+          finally isSearching = false
+        }
+        searchThread.nn.start()
 
         state
 

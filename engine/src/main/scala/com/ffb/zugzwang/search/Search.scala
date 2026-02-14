@@ -45,12 +45,19 @@ final case class SearchContext(
       history(move.from.value)(move.to.value) = current * 95 / 100 + bonus // 5% decay
 
 object Search:
+  @volatile
+  private var stopRequested = false
+
   val MaxPly     = Ply(128)
   private val tt = new TranspositionTable(256)
 
-  def clear: Unit = tt.clear()
+  def clear(): Unit = tt.clear()
+
+  def requestStop(): Unit = stopRequested = true
 
   def search(position: MutablePosition, limits: SearchLimits): Move =
+    stopRequested = false
+
     val now    = SearchTime.currentTime
     val window = TimeControl.computeTimeWindow(limits.moveTime)
 
@@ -73,7 +80,7 @@ object Search:
       val outOfTime     = now >= window.softDeadline
       val depthExceeded = currentDepth > limits.depth
 
-      if outOfTime || depthExceeded then return bestMove
+      if outOfTime || depthExceeded || stopRequested then return bestMove
 
       val (alpha, beta) =
         if currentDepth >= Depth(5) then
