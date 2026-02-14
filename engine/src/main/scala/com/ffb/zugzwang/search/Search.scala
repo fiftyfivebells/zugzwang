@@ -3,6 +3,7 @@ import com.ffb.zugzwang.chess.MutablePosition
 import com.ffb.zugzwang.core.{Depth, Node, Ply, Score, SearchTime, TimeControl}
 import com.ffb.zugzwang.evaluation.PestoEvaluation
 import com.ffb.zugzwang.move.{Move, MoveGenerator}
+import com.ffb.zugzwang.tools.DebugLogger
 
 import scala.annotation.tailrec
 
@@ -70,6 +71,7 @@ object Search:
       depthLimit = limits.depth,
       table = tt
     )
+    tt.incrementGeneration()
 
     val (defaultMoves, defaultScores) = MoveSorter.sortMoves(legalMoves, position, ctx.killers(0), ctx.history)
     val defaultMove                   = MoveSorter.pickNext(defaultMoves, defaultScores, 0)
@@ -104,8 +106,14 @@ object Search:
       val nextBestMove = if result.move != Move.None then result.move else bestMove
       iterativeDeepening(currentDepth + 1, nextBestMove, result.score)
 
-    if TimeControl.shouldSearch(limits.moveTime) then iterativeDeepening(Depth(1), defaultMove, Score.Draw)
-    else defaultMove
+    try
+      if TimeControl.shouldSearch(limits.moveTime) then iterativeDeepening(Depth(1), defaultMove, Score.Draw)
+      else defaultMove
+    catch
+      case e =>
+        DebugLogger.log("CRASH")
+        DebugLogger.log(e.getMessage())
+        defaultMove
 
   def findBestMoveWithAspiration(
     position: MutablePosition,

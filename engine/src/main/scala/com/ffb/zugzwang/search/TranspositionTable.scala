@@ -12,7 +12,15 @@ final class TranspositionTable(sizeInMb: Int):
   private val keys = new Array[Long](numEntries)
   private val data = new Array[Long](numEntries)
 
+  private var generation: Int = 0
+
+  def incrementGeneration(): Unit =
+    generation = (generation + 1) & 0x3f
+
+  def currentGeneration: Int = generation
+
   def probe(zobristHash: ZobristHash): TTEntry =
+    SearchStats.ttProbes += 1
     val index = (zobristHash.value & mask).toInt
     if keys(index) == zobristHash.value then data(index).asInstanceOf[TTEntry]
     else TTEntry.None
@@ -20,12 +28,17 @@ final class TranspositionTable(sizeInMb: Int):
   def store(zobristHash: ZobristHash, move: Move, score: Score, depth: Depth, flag: Long, ply: Ply): Unit =
     val index = (zobristHash.value & mask).toInt
 
-    val existing = data(index).asInstanceOf[TTEntry]
+    val existing     = data(index).asInstanceOf[TTEntry]
+    val samePosition = keys(index) == zobristHash.value
+    val shouldReplace =
+      if samePosition then depth >= existing.depth
+      else
+        val existingScore = existing.depth.value + (if existing.generation == generation then 8 else 0)
+        val newScore      = depth.value + 8
+        existingScore <= newScore
 
-    if keys(index) != zobristHash.value || depth >= existing.depth then
-
-      val packed = TTEntry(move, score, depth, flag, ply)
-
+    val packed = TTEntry(move, score, depth, flag, ply, generation)
+    if existing.isEmpty || shouldReplace then
       keys(index) = zobristHash.value
       data(index) = packed.asInstanceOf[Long]
 
