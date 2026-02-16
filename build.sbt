@@ -3,7 +3,7 @@ import scala.sys.process
 inThisBuild(
   List(
     organization      := "com.ffb",
-    version           := "0.1.0",
+    version           := "0.2.0",
     scalaVersion      := "3.7.2",
     semanticdbEnabled := true,
     scalacOptions ++= Seq("-deprecation", "-Wunused:imports")
