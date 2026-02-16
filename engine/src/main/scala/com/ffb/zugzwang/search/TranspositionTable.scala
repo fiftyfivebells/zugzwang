@@ -22,26 +22,39 @@ final class TranspositionTable(sizeInMb: Int):
   def probe(zobristHash: ZobristHash): TTEntry =
     SearchStats.ttProbes += 1
     val index = (zobristHash.value & mask).toInt
-    if keys(index) == zobristHash.value then data(index).asInstanceOf[TTEntry]
-    else TTEntry.None
+
+    if keys(index) == zobristHash.value then return data(index).asInstanceOf[TTEntry]
+
+    if index + 1 < numEntries && keys(index + 1) == zobristHash.value then return data(index + 1).asInstanceOf[TTEntry]
+
+    TTEntry.None
 
   def store(zobristHash: ZobristHash, move: Move, score: Score, depth: Depth, flag: Long, ply: Ply): Unit =
-    val index = (zobristHash.value & mask).toInt
-
-    val existing     = data(index).asInstanceOf[TTEntry]
-    val samePosition = keys(index) == zobristHash.value
-    val shouldReplace =
-      if samePosition then depth >= existing.depth
-      else
-        val existingScore = existing.depth.value + (if existing.generation == generation then 8 else 0)
-        val newScore      = depth.value + 8
-        existingScore <= newScore
-
+    val index  = (zobristHash.value & mask).toInt
     val packed = TTEntry(move, score, depth, flag, ply, generation)
-    if existing.isEmpty || shouldReplace then
+
+    if index + 1 >= numEntries then
       keys(index) = zobristHash.value
       data(index) = packed.asInstanceOf[Long]
+      return
+
+    if keys(index) == zobristHash.value then
+      data(index) = packed.asInstanceOf[Long]
+      return
+
+    if keys(index + 1) == zobristHash.value then
+      data(index + 1) = packed.asInstanceOf[Long]
+      return
+
+    val entry0 = data(index).asInstanceOf[TTEntry]
+    if entry0.isEmpty || entry0.depth.value <= depth.value || entry0.generation != generation then
+      keys(index) = zobristHash.value
+      data(index) = packed.asInstanceOf[Long]
+    else
+      keys(index + 1) = zobristHash.value
+      data(index + 1) = packed.asInstanceOf[Long]
 
   def clear(): Unit =
     java.util.Arrays.fill(keys, 0L)
     java.util.Arrays.fill(data, 0L)
+    generation = 0

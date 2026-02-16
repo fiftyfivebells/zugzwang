@@ -308,10 +308,16 @@ object Search:
     val MaxQDepth = 10
     if qDepth >= MaxQDepth then return PestoEvaluation.evaluate(position)
 
+    val ttEntry = ctx.table.probe(position.zobristHash)
+    if ttEntry.isDefined then
+      SearchStats.ttHits += 1
+      if ttEntry.canCutoff(Depth(0), alpha, beta, ply) then return ttEntry.score(ply)
+
     if shouldStop(ctx) then PestoEvaluation.evaluate(position)
     else if position.isSideInCheck(position.activeSide) then
       val moves           = MoveGenerator.pseudoLegalMovesMutable(position)
       var bestScore       = -Score.Infinity
+      var bestMove        = Move.None
       var legalMovesFound = 0
 
       var i = 0
@@ -328,8 +334,12 @@ object Search:
 
           position.unapplyMove(move)
 
-          if score >= beta then return beta
-          if score > bestScore then bestScore = score
+          if score >= beta then
+            ctx.table.store(position.zobristHash, move, beta, Depth(0), TTEntry.FlagLower, ply)
+            return beta
+          if score > bestScore then
+            bestMove = move
+            bestScore = score
         else position.unapplyMove(move)
 
         i += 1
@@ -338,7 +348,10 @@ object Search:
 
       // Checkmated (mate score is ply-based)
       if legalMovesFound == 0 then -Score.Checkmate + ply.value
-      else bestScore
+      else
+        val ttFlag = if bestScore > alpha then TTEntry.FlagExact else TTEntry.FlagUpper
+        ctx.table.store(position.zobristHash, bestMove, bestScore, Depth(0), ttFlag, ply)
+        bestScore
     else
       val standPat = PestoEvaluation.evaluate(position)
 
@@ -354,6 +367,8 @@ object Search:
         val captureScores = MoveSorter.scoreCaptures(captureArr, position)
         SearchStats.qSearchCapturesGenerated += captures.size
 
+        var bestMove = Move.None
+
         var i = 0
         while i < captureArr.length && !shouldStop(ctx) do
           val move = MoveSorter.pickNext(captureArr, captureScores, i)
@@ -368,12 +383,19 @@ object Search:
 
               position.unapplyMove(move)
 
-              if score >= beta then return beta
-              if score > currentAlpha then currentAlpha = score
+              if score >= beta then
+                ctx.table.store(position.zobristHash, move, beta, Depth(0), TTEntry.FlagLower, ply)
+                return beta
+              if score > currentAlpha then
+                bestMove = move
+                currentAlpha = score
             else position.unapplyMove(move)
 
           i += 1
           SearchStats.qSearchMovesSearched += 1
+
+        if bestMove != Move.None then ctx.table.store(position.zobristHash, bestMove, currentAlpha, Depth(0), TTEntry.FlagExact, ply)
+
         currentAlpha
 
   private inline def shouldStop(ctx: SearchContext): Boolean =
