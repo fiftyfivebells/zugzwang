@@ -19,13 +19,15 @@ object SearchStats:
   var aspirationFailHighs: Long   = 0
   var pvsReSearches: Long         = 0
   var pvsNullWindowSearches: Long = 0
+  var lmrReductions: Long         = 0
+  var lmrResearches: Long         = 0
 
   def reset(): Unit =
     nodes = 0; qNodes = 0; ttHits = 0; ttProbes = 0;
     betaCutoffs = 0; firstMoveCutoffs = 0; killerCutoffs = 0; historyCutoffs = 0
     qSearchCapturesGenerated = 0; qSearchInCheckCount = 0; qSearchMaxDepth = 0
     qSearchMovesSearched = 0; aspirationFailLows = 0; aspirationFailHighs = 0
-    pvsReSearches = 0; pvsNullWindowSearches = 0
+    pvsReSearches = 0; pvsNullWindowSearches = 0; lmrReductions = 0; lmrResearches = 0
 
   def printReport(): Unit =
     println()
@@ -42,19 +44,20 @@ object SearchStats:
       println(f"  First Move (PV/TT): ${firstMoveCutoffs}%,d (${(firstMoveCutoffs.toDouble / betaCutoffs) * 100}%.1f%%)")
       println(f"  Killer Moves:       ${killerCutoffs}%,d (${(killerCutoffs.toDouble / betaCutoffs) * 100}%.1f%%)")
       println(f"  History Moves:      ${historyCutoffs}%,d (${(historyCutoffs.toDouble / betaCutoffs) * 100}%.1f%%)")
+      println(f"  LMR Reductions:     ${lmrReductions}%,d")
+      println(f"  LMR Researches:     ${lmrResearches}%,d")
 
-      if pvsReSearches > 0 then
-        println(f"  PVS Re-searches:         $pvsReSearches%,d")
-        println(f"  PVS Null value searches: $pvsReSearches%,d")
-
-      if aspirationFailLows > 0 || aspirationFailHighs > 0 then
-        println("--- Aspiration Window Stats ---")
-        println(f"  Fail-Lows:  $aspirationFailLows%,d")
-        println(f"  Fail-Highs: $aspirationFailHighs%,d")
-        println(f"  Total Fails: ${aspirationFailLows + aspirationFailHighs}%,d")
-      println(f"  Q-Nodes per Leaf:   ${qNodes.toDouble / leafNodes}%.2f")
-      println(f"  Q Search Max Depth: ${qSearchMaxDepth}%,d")
-      println(f"  Q Search In Check:  ${qSearchInCheckCount}%,d")
-      println(f"  Q Search Captures:  ${qSearchCapturesGenerated}%,d")
-      println(f"  Q Search Total:     ${qSearchMovesSearched}%,d")
+    if pvsReSearches > 0 then
+      println(f"  PVS Re-searches:         $pvsReSearches%,d")
+      println(f"  PVS Null value searches: $pvsReSearches%,d")
+    if aspirationFailLows > 0 || aspirationFailHighs > 0 then
+      println("--- Aspiration Window Stats ---")
+      println(f"  Fail-Lows:  $aspirationFailLows%,d")
+      println(f"  Fail-Highs: $aspirationFailHighs%,d")
+      println(f"  Total Fails: ${aspirationFailLows + aspirationFailHighs}%,d")
+    println(f"  Q-Nodes per Leaf:   ${qNodes.toDouble / leafNodes}%.2f")
+    println(f"  Q Search Max Depth: ${qSearchMaxDepth}%,d")
+    println(f"  Q Search In Check:  ${qSearchInCheckCount}%,d")
+    println(f"  Q Search Captures:  ${qSearchCapturesGenerated}%,d")
+    println(f"  Q Search Total:     ${qSearchMovesSearched}%,d")
     println("===================================================")
