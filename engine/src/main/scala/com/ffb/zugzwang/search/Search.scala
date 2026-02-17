@@ -257,6 +257,8 @@ object Search:
     SearchStats.nodes += 1
     ctx.nodes = ctx.nodes + 1
 
+    if ply >= MaxPly then return PestoEvaluation.evaluate(position)
+
     if position.halfMoveClock >= 100 then return Score.Draw
     if ply > 0 && position.isRepetition then return Score.Draw
 
