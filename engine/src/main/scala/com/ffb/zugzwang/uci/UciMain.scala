@@ -132,6 +132,10 @@ object UciMain:
             val bestMove = Search.search(searchPosition, limits)
             println(s"bestmove ${bestMove.toUci}")
             if isDebugMode then SearchStats.printReport()
+          catch
+            case e: Throwable =>
+              System.err.println(s"FATAL: Search crashed: ${e.getClass().getName()}: ${e.getMessage()}")
+              System.err.println(e.getStackTrace().mkString("\n"))
           finally isSearching = false
         }
         searchThread.nn.start()
