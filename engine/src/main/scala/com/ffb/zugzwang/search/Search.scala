@@ -221,6 +221,37 @@ object Search:
         score >= beta
       finally position.unapplyNullMove
 
+  private inline def computeReduction(depth: Depth, moveIndex: Int): Depth =
+    if depth < Depth(3) || moveIndex < 3 then Depth.Zero
+    else
+      val base = math.log(depth.value) * math.log(moveIndex) / 2.5
+      Depth(math.max(1, math.min(base.floor.toInt, depth.value - 1)))
+
+  private inline def shouldReduce(
+    position: MutablePosition,
+    move: Move,
+    moveIndex: Int,
+    depth: Depth,
+    ply: Ply,
+    ctx: SearchContext
+  ): Boolean =
+    val inCheck        = position.isSideInCheck(position.activeSide.enemy)
+    val givesCheck     = position.isSideInCheck(position.activeSide)
+    val isCapture      = move.isCapture
+    val isPromotion    = move.isPromotion
+    val currentKillers = if ply < MaxPly then ctx.killers(ply.value) else Array.empty[Move]
+    val isKiller       = currentKillers.contains(move)
+    val highHistory    = ctx.history(move.from.value)(move.to.value) > 1000
+
+    depth >= Depth(3) &&
+    moveIndex >= 3 &&
+    !inCheck &&
+    !givesCheck &&
+    !isCapture &&
+    !isPromotion &&
+    !isKiller &&
+    !highHistory
+
   // TODO: look into maybe making this a tail recursive function
   private def negamax(position: MutablePosition, depth: Depth, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
     SearchStats.nodes += 1
