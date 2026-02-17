@@ -6,6 +6,8 @@ opaque type Depth = Int
 object Depth:
   def apply(in: Int): Depth = in
 
+  val Zero: Depth = 0
+
   extension (d: Depth)
     inline def value: Int   = d
     inline def toLong: Long = d.toLong

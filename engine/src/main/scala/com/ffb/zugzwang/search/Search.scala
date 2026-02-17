@@ -311,7 +311,7 @@ object Search:
     val ttEntry = ctx.table.probe(position.zobristHash)
     if ttEntry.isDefined then
       SearchStats.ttHits += 1
-      if ttEntry.canCutoff(Depth(0), alpha, beta, ply) then return ttEntry.score(ply)
+      if ttEntry.canCutoff(Depth.Zero, alpha, beta, ply) then return ttEntry.score(ply)
 
     if shouldStop(ctx) then PestoEvaluation.evaluate(position)
     else if position.isSideInCheck(position.activeSide) then
@@ -335,7 +335,7 @@ object Search:
           position.unapplyMove(move)
 
           if score >= beta then
-            ctx.table.store(position.zobristHash, move, beta, Depth(0), TTEntry.FlagLower, ply)
+            ctx.table.store(position.zobristHash, move, beta, Depth.Zero, TTEntry.FlagLower, ply)
             return beta
           if score > bestScore then
             bestMove = move
@@ -350,7 +350,7 @@ object Search:
       if legalMovesFound == 0 then -Score.Checkmate + ply.value
       else
         val ttFlag = if bestScore > alpha then TTEntry.FlagExact else TTEntry.FlagUpper
-        ctx.table.store(position.zobristHash, bestMove, bestScore, Depth(0), ttFlag, ply)
+        ctx.table.store(position.zobristHash, bestMove, bestScore, Depth.Zero, ttFlag, ply)
         bestScore
     else
       val standPat = PestoEvaluation.evaluate(position)
@@ -384,7 +384,7 @@ object Search:
               position.unapplyMove(move)
 
               if score >= beta then
-                ctx.table.store(position.zobristHash, move, beta, Depth(0), TTEntry.FlagLower, ply)
+                ctx.table.store(position.zobristHash, move, beta, Depth.Zero, TTEntry.FlagLower, ply)
                 return beta
               if score > currentAlpha then
                 bestMove = move
@@ -394,7 +394,7 @@ object Search:
           i += 1
           SearchStats.qSearchMovesSearched += 1
 
-        if bestMove != Move.None then ctx.table.store(position.zobristHash, bestMove, currentAlpha, Depth(0), TTEntry.FlagExact, ply)
+        if bestMove != Move.None then ctx.table.store(position.zobristHash, bestMove, currentAlpha, Depth.Zero, TTEntry.FlagExact, ply)
 
         currentAlpha
 
