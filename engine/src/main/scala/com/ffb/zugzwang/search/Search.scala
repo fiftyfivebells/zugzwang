@@ -295,7 +295,17 @@ object Search:
       if !position.isSideInCheck(position.activeSide.enemy) then
         legalMovesFound += 1
 
-        val score = -negamax(position, depth - 1, -beta, -currentAlpha, ctx, ply + 1)
+        val reduction = if shouldReduce(position, move, i, depth, ply, ctx) then computeReduction(depth, i) else Depth.Zero
+        var score     = Score.Zero
+
+        if reduction > Depth.Zero then
+          SearchStats.lmrReductions += 1
+          score = -negamax(position, depth - 1 - reduction, -beta, -currentAlpha, ctx, ply + 1)
+
+          if score > currentAlpha then
+            SearchStats.lmrResearches += 1
+            score = -negamax(position, depth - 1, -beta, -currentAlpha, ctx, ply + 1)
+        else score = -negamax(position, depth - 1, -beta, -currentAlpha, ctx, ply + 1)
 
         position.unapplyMove(move)
 
