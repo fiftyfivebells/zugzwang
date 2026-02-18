@@ -1,63 +1,90 @@
 package com.ffb.zugzwang.search
 
 object SearchStats:
+  // general counters
   var nodes: Long     = 0
-  var qNodes: Long    = 0 // Quiescence search nodes
+  var qNodes: Long    = 0
   var leafNodes: Long = 0
-  var ttHits: Long    = 0
-  var ttProbes: Long  = 0
 
-  var betaCutoffs: Long           = 0
-  var firstMoveCutoffs: Long      = 0
-  var killerCutoffs: Long         = 0
-  var historyCutoffs: Long        = 0
-  var qSearchMaxDepth             = 0
-  var qSearchInCheckCount         = 0
-  var qSearchCapturesGenerated    = 0
-  var qSearchMovesSearched        = 0
-  var aspirationFailLows: Long    = 0
-  var aspirationFailHighs: Long   = 0
-  var pvsReSearches: Long         = 0
-  var pvsNullWindowSearches: Long = 0
-  var lmrReductions: Long         = 0
-  var lmrResearches: Long         = 0
+  // transposition table (split regular search and quiescence search)
+  var ttProbes: Long  = 0 // Main Search Probes
+  var ttHits: Long    = 0 // Main Search Hits
+  var qTtProbes: Long = 0 // QSearch Probes
+  var qTtHits: Long   = 0 // QSearch Hits
+
+  // move ordering and cutoffs
+  var betaCutoffs: Long      = 0
+  var firstMoveCutoffs: Long = 0
+  var killerCutoffs: Long    = 0
+  var historyCutoffs: Long   = 0
+
+  // search features
+  var lmrReductions: Long       = 0
+  var lmrResearches: Long       = 0
+  var aspirationFailLows: Long  = 0
+  var aspirationFailHighs: Long = 0
+  var pvsReSearches: Long       = 0
+
+  // quiescence search specific counts
+  var qSearchMaxDepth: Int           = 0
+  var qSearchInCheckCount: Long      = 0
+  var qSearchCapturesGenerated: Long = 0
+  var qSearchMovesSearched: Long     = 0
 
   def reset(): Unit =
-    nodes = 0; qNodes = 0; ttHits = 0; ttProbes = 0;
+    nodes = 0; qNodes = 0; leafNodes = 0
+    ttProbes = 0; ttHits = 0; qTtProbes = 0; qTtHits = 0
     betaCutoffs = 0; firstMoveCutoffs = 0; killerCutoffs = 0; historyCutoffs = 0
-    qSearchCapturesGenerated = 0; qSearchInCheckCount = 0; qSearchMaxDepth = 0
-    qSearchMovesSearched = 0; aspirationFailLows = 0; aspirationFailHighs = 0
-    pvsReSearches = 0; pvsNullWindowSearches = 0; lmrReductions = 0; lmrResearches = 0
+    lmrReductions = 0; lmrResearches = 0
+    aspirationFailLows = 0; aspirationFailHighs = 0
+    pvsReSearches = 0
+    qSearchMaxDepth = 0; qSearchInCheckCount = 0
+    qSearchCapturesGenerated = 0; qSearchMovesSearched = 0
 
   def printReport(): Unit =
-    println()
-    println("================ SEARCH STATISTICS ================")
-    println(f"Nodes: $nodes%,d (Q-Nodes: $qNodes%,d)")
-    if nodes > 0 then println(f"Q-Node Ratio: ${(qNodes.toDouble / nodes) * 100}%.1f%%")
-    println(
-      f"TT Hits: $ttHits%,d / $ttProbes%,d probes (${if ttProbes > 0 then f"${(ttHits.toDouble / ttProbes) * 100}%.1f" else "0.0"}%%)"
-    )
+    val totalNodes = nodes + qNodes
+    val qRatio     = if totalNodes > 0 then (qNodes.toDouble / totalNodes) * 100 else 0.0
 
+    println("\n====================== SEARCH STATISTICS ======================")
+    println(f"Nodes:     $totalNodes%,d (Main: $nodes%,d | Q: $qNodes%,d | $qRatio%.1f%% Q-Nodes)")
+
+    // tt stats
+    printTTStats("Main TT", ttHits, ttProbes)
+    printTTStats("QSrch TT", qTtHits, qTtProbes)
+
+    // move ordering
     if betaCutoffs > 0 then
-      println("--- Move Ordering Efficiency ---")
+      println("\n--- Move Ordering Efficiency ---")
       println(f"Total Beta Cutoffs: $betaCutoffs%,d")
-      println(f"  First Move (PV/TT): ${firstMoveCutoffs}%,d (${(firstMoveCutoffs.toDouble / betaCutoffs) * 100}%.1f%%)")
-      println(f"  Killer Moves:       ${killerCutoffs}%,d (${(killerCutoffs.toDouble / betaCutoffs) * 100}%.1f%%)")
-      println(f"  History Moves:      ${historyCutoffs}%,d (${(historyCutoffs.toDouble / betaCutoffs) * 100}%.1f%%)")
-      println(f"  LMR Reductions:     ${lmrReductions}%,d")
-      println(f"  LMR Researches:     ${lmrResearches}%,d")
+      printCutoff("PV/Hash Move", firstMoveCutoffs)
+      printCutoff("Killer Move", killerCutoffs)
+      printCutoff("History Move", historyCutoffs)
 
-    if pvsReSearches > 0 then
-      println(f"  PVS Re-searches:         $pvsReSearches%,d")
-      println(f"  PVS Null value searches: $pvsReSearches%,d")
-    if aspirationFailLows > 0 || aspirationFailHighs > 0 then
-      println("--- Aspiration Window Stats ---")
-      println(f"  Fail-Lows:  $aspirationFailLows%,d")
-      println(f"  Fail-Highs: $aspirationFailHighs%,d")
-      println(f"  Total Fails: ${aspirationFailLows + aspirationFailHighs}%,d")
-    println(f"  Q-Nodes per Leaf:   ${qNodes.toDouble / leafNodes}%.2f")
-    println(f"  Q Search Max Depth: ${qSearchMaxDepth}%,d")
-    println(f"  Q Search In Check:  ${qSearchInCheckCount}%,d")
-    println(f"  Q Search Captures:  ${qSearchCapturesGenerated}%,d")
-    println(f"  Q Search Total:     ${qSearchMovesSearched}%,d")
-    println("===================================================")
+      val remaining = betaCutoffs - (firstMoveCutoffs + killerCutoffs + historyCutoffs)
+      if remaining > 0 then printCutoff("Late Moves", remaining)
+
+    // search features
+    if lmrReductions > 0 || aspirationFailLows > 0 then
+      println("\n--- Search Features ---")
+      if lmrReductions > 0 then
+        val reSearchRate = if lmrReductions > 0 then (lmrResearches.toDouble / lmrReductions) * 100 else 0.0
+        println(f"LMR: $lmrReductions%,d reductions (Researched: $lmrResearches%,d | $reSearchRate%.1f%%)")
+
+      if aspirationFailLows > 0 || aspirationFailHighs > 0 then println(f"Aspiration: +$aspirationFailHighs%,d / -$aspirationFailLows%,d")
+
+    // q-search
+    println("\n--- Quiescence Breakdown ---")
+    println(f"Max Depth: $qSearchMaxDepth   | Checks Handled: $qSearchInCheckCount%,d")
+    println(f"Captures:  $qSearchCapturesGenerated%,d | Moves Played:   $qSearchMovesSearched%,d")
+    if leafNodes > 0 then
+      val qPerLeaf = if leafNodes > 0 then qNodes.toDouble / leafNodes else 0.0
+      println(f"Avg Q-Nodes per Leaf: $qPerLeaf%.1f")
+    println("===============================================================\n")
+
+  private def printTTStats(label: String, hits: Long, probes: Long): Unit =
+    val rate = if probes > 0 then (hits.toDouble / probes) * 100 else 0.0
+    println(f"$label%-10s $hits%,d / $probes%,d ($rate%.1f%%)")
+
+  private def printCutoff(label: String, count: Long): Unit =
+    val rate = if betaCutoffs > 0 then (count.toDouble / betaCutoffs) * 100 else 0.0
+    println(f"  $label%-12s $count%,d ($rate%.1f%%)")

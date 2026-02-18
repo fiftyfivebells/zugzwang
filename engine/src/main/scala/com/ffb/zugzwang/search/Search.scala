@@ -262,6 +262,7 @@ object Search:
     if position.halfMoveClock >= 100 then return Score.Draw
     if ply > 0 && position.isRepetition then return Score.Draw
 
+    SearchStats.ttProbes += 1
     val ttEntry = ctx.table.probe(position.zobristHash)
     var ttMove  = Move.None
 
@@ -351,9 +352,10 @@ object Search:
     val MaxQDepth = 10
     if qDepth >= MaxQDepth then return PestoEvaluation.evaluate(position)
 
+    SearchStats.qTtProbes += 1
     val ttEntry = ctx.table.probe(position.zobristHash)
     if ttEntry.isDefined then
-      SearchStats.ttHits += 1
+      SearchStats.qTtHits += 1
       if ttEntry.canCutoff(Depth.Zero, alpha, beta, ply) then return ttEntry.score(ply)
 
     if shouldStop(ctx) then PestoEvaluation.evaluate(position)
