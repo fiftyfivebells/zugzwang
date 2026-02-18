@@ -15,7 +15,7 @@ final class MutablePosition(
   var castleRights: CastleRights,
   var halfMoveClock: Int,
   var fullMoveClock: Int,
-  var zobristHash: ZobristHash = ZobristHash.empty
+  var zobristHash: ZobristHash = ZobristHash.Empty
 ):
   // internal history stack
   private val maxDepth       = 256

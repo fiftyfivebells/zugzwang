@@ -12,4 +12,4 @@ final class PositionUndoState:
   var prevHalfMove: Int              = 0
   var prevFullMove: Int              = 1
 
-  var prevZobristHash: ZobristHash = ZobristHash.empty
+  var prevZobristHash: ZobristHash = ZobristHash.Empty

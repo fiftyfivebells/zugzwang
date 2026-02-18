@@ -6,7 +6,7 @@ opaque type ZobristHash = Long
 object ZobristHash:
   inline def apply(in: Long): ZobristHash = in
 
-  val empty: ZobristHash = 0L
+  val Empty: ZobristHash = 0L
 
   extension (zh: ZobristHash)
     inline def value: Long = zh

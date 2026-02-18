@@ -4,7 +4,7 @@ import com.ffb.zugzwang.chess.{CastleRights, Color, MutablePosition}
 
 object Zobrist:
   def compute(position: MutablePosition): ZobristHash =
-    var hash = ZobristHash.empty
+    var hash = ZobristHash.Empty
 
     val squares = position.squares
 
