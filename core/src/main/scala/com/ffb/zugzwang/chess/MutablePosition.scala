@@ -18,7 +18,7 @@ final class MutablePosition(
   var zobristHash: ZobristHash = ZobristHash.Empty
 ):
   // internal history stack
-  private val maxDepth       = 256
+  private val maxDepth       = 768
   private val undoHistory    = Array.fill(maxDepth)(new PositionUndoState)
   private val zobristHistory = new Array[ZobristHash](1024)
   private var zobristCount   = 0
