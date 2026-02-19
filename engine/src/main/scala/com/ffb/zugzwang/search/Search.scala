@@ -278,6 +278,15 @@ object Search:
       SearchStats.leafNodes += 1
       return quiesce(position, alpha, beta, ctx, ply)
 
+    val inCheck = position.isSideInCheck(position.activeSide)
+
+    val (canDoFutility, futilityMargin, staticEval) =
+      if depth <= Depth(3) && !inCheck then
+        val eval   = PestoEvaluation.evaluate(position)
+        val margin = depth.value * 150
+        (eval + margin <= alpha, margin, eval)
+      else (false, 0, Score.Zero)
+
     val moves = MoveGenerator.pseudoLegalMovesMutable(position)
 
     val currentKillers            = if ply < MaxPly then ctx.killers(ply.value) else Array.empty[Move]
@@ -293,47 +302,56 @@ object Search:
     while i < sortedMoves.length do
       val move = MoveSorter.pickNext(sortedMoves, moveScores, i)
 
-      position.applyMove(move)
+      if canDoFutility &&
+        !move.isCapture &&
+        !move.isPromotion &&
+        move != ttMove &&
+        legalMovesFound > 0
+      then
+        SearchStats.futilityPrunes += 1
+        i += 1
+      else
+        position.applyMove(move)
 
-      if !position.isSideInCheck(position.activeSide.enemy) then
-        legalMovesFound += 1
+        if !position.isSideInCheck(position.activeSide.enemy) then
+          legalMovesFound += 1
 
-        val reduction = if shouldReduce(position, move, i, depth, ply, ctx) then computeReduction(depth, i) else Depth.Zero
-        var score     = Score.Zero
+          val reduction = if shouldReduce(position, move, i, depth, ply, ctx) then computeReduction(depth, i) else Depth.Zero
+          var score     = Score.Zero
 
-        if reduction > Depth.Zero then
-          SearchStats.lmrReductions += 1
-          score = -negamax(position, depth - 1 - reduction, -beta, -currentAlpha, ctx, ply + 1)
+          if reduction > Depth.Zero then
+            SearchStats.lmrReductions += 1
+            score = -negamax(position, depth - 1 - reduction, -beta, -currentAlpha, ctx, ply + 1)
 
+            if score > currentAlpha then
+              SearchStats.lmrResearches += 1
+              score = -negamax(position, depth - 1, -beta, -currentAlpha, ctx, ply + 1)
+          else score = -negamax(position, depth - 1, -beta, -currentAlpha, ctx, ply + 1)
+
+          position.unapplyMove(move)
+
+          if score >= beta then
+            SearchStats.betaCutoffs += 1
+            ctx.table.store(position.zobristHash, move, beta, depth, TTEntry.FlagLower, ply)
+
+            if i == 0 then SearchStats.firstMoveCutoffs += 1
+            else if currentKillers.contains(move) then SearchStats.killerCutoffs += 1
+            else SearchStats.historyCutoffs += 1
+
+            if !move.isCapture then
+              ctx.storeKiller(ply, move)
+              ctx.updateHistory(move, depth)
+
+            return beta
+          if score > bestScore then
+            bestMove = move
+            bestScore = score
           if score > currentAlpha then
-            SearchStats.lmrResearches += 1
-            score = -negamax(position, depth - 1, -beta, -currentAlpha, ctx, ply + 1)
-        else score = -negamax(position, depth - 1, -beta, -currentAlpha, ctx, ply + 1)
+            currentAlpha = score
+            ttFlag = TTEntry.FlagExact
+        else position.unapplyMove(move) // illegal move
 
-        position.unapplyMove(move)
-
-        if score >= beta then
-          SearchStats.betaCutoffs += 1
-          ctx.table.store(position.zobristHash, move, beta, depth, TTEntry.FlagLower, ply)
-
-          if i == 0 then SearchStats.firstMoveCutoffs += 1
-          else if currentKillers.contains(move) then SearchStats.killerCutoffs += 1
-          else SearchStats.historyCutoffs += 1
-
-          if !move.isCapture then
-            ctx.storeKiller(ply, move)
-            ctx.updateHistory(move, depth)
-
-          return beta
-        if score > bestScore then
-          bestMove = move
-          bestScore = score
-        if score > currentAlpha then
-          currentAlpha = score
-          ttFlag = TTEntry.FlagExact
-      else position.unapplyMove(move) // illegal move
-
-      i += 1
+        i += 1
 
     if ctx.stopped then return currentAlpha
 

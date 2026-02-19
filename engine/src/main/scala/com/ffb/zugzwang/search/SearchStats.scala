@@ -24,6 +24,7 @@ object SearchStats:
   var aspirationFailLows: Long  = 0
   var aspirationFailHighs: Long = 0
   var pvsReSearches: Long       = 0
+  var futilityPrunes: Long      = 0
 
   // quiescence search specific counts
   var qSearchMaxDepth: Int           = 0
@@ -64,13 +65,15 @@ object SearchStats:
       if remaining > 0 then printCutoff("Late Moves", remaining)
 
     // search features
-    if lmrReductions > 0 || aspirationFailLows > 0 then
+    if lmrReductions > 0 || aspirationFailLows > 0 || futilityPrunes > 0 then
       println("\n--- Search Features ---")
       if lmrReductions > 0 then
         val reSearchRate = if lmrReductions > 0 then (lmrResearches.toDouble / lmrReductions) * 100 else 0.0
         println(f"LMR: $lmrReductions%,d reductions (Researched: $lmrResearches%,d | $reSearchRate%.1f%%)")
 
       if aspirationFailLows > 0 || aspirationFailHighs > 0 then println(f"Aspiration: +$aspirationFailHighs%,d / -$aspirationFailLows%,d")
+
+      if futilityPrunes > 0 then println(f"Futility prunes: $futilityPrunes%,d prunes")
 
     // q-search
     println("\n--- Quiescence Breakdown ---")
