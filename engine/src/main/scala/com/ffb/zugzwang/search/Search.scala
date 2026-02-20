@@ -437,7 +437,7 @@ object Search:
           val move = MoveSorter.pickNext(captureArr, captureScores, i)
 
           val captured = position.pieceAt(move.to)
-          if standPat + captured.pieceType.value + 200 < alpha then i += 1
+          if standPat + captured.materialValue + 200 < alpha then i += 1
           else
             position.applyMove(move)
 

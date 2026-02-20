@@ -1,5 +1,7 @@
 package com.ffb.zugzwang.chess
 
+import com.ffb.zugzwang.chess.PieceType.Pawn
+
 opaque type PieceType <: Int = Int
 object PieceType:
   val Pawn: PieceType   = 0
@@ -9,6 +11,9 @@ object PieceType:
   val Queen: PieceType  = 4
   val King: PieceType   = 5
   val NoType: PieceType = 6
+
+  private val materialValues =
+    Array(100, 320, 330, 500, 900, 20000, 0)
 
   extension (pt: PieceType)
     def name: String = pt match
@@ -20,14 +25,7 @@ object PieceType:
       case Queen  => "q"
       case King   => "k"
 
-    def value: Int = pt match
-      case NoType => 0
-      case Pawn   => 100
-      case Knight => 320
-      case Bishop => 330
-      case Rook   => 500
-      case Queen  => 900
-      case King   => 20000
+    inline def value: Int = materialValues(pt)
 
   def apply(piece: Int) = piece match
     case 0 => Pawn
@@ -69,28 +67,60 @@ object Piece:
   private val blackPieces: Array[Piece] =
     Array(BlackPawn, BlackKnight, BlackBishop, BlackRook, BlackQueen, BlackKing)
 
+  private val pieceTypes: Array[Int] =
+    Array(
+      PieceType.Pawn,
+      PieceType.Knight,
+      PieceType.Bishop,
+      PieceType.Rook,
+      PieceType.Queen,
+      PieceType.King,
+      PieceType.Pawn,
+      PieceType.Knight,
+      PieceType.Bishop,
+      PieceType.Rook,
+      PieceType.Queen,
+      PieceType.King,
+      PieceType.NoType
+    )
+
+  private val materialValues: Array[Int] =
+    Array(
+      PieceType.Pawn.value,
+      PieceType.Knight.value,
+      PieceType.Bishop.value,
+      PieceType.Rook.value,
+      PieceType.Queen.value,
+      PieceType.King.value,
+      PieceType.Pawn.value,
+      PieceType.Knight.value,
+      PieceType.Bishop.value,
+      PieceType.Rook.value,
+      PieceType.Queen.value,
+      PieceType.King.value,
+      0 // NoPiece
+    )
+
   def byColor(c: Color): Array[Piece] =
     if c == Color.White then whitePieces else blackPieces
 
   extension (p: Piece)
 
-    inline def pieceType: PieceType =
-      if isNoPiece then PieceType.NoType else p % 6
-    inline def isWhite: Boolean = p >= 0 && p < 6
-    inline def isBlack: Boolean = p >= 6 && p < 12
+    inline def pieceType: PieceType = pieceTypes(p)
+    inline def isWhite: Boolean     = p < 6
+    inline def isBlack: Boolean     = p >= 6 && p < 12
 
-    inline def color: Color =
-      if isWhite then Color.White
-      else if isBlack then Color.Black
-      else throw new Exception(s"Called .color on NoPiece ($p)")
+    inline def materialValue: Int = materialValues(p)
 
-    inline def isPawn: Boolean    = (p % 6) == PieceType.Pawn
-    inline def isKnight: Boolean  = (p % 6) == PieceType.Knight
-    inline def isBishop: Boolean  = (p % 6) == PieceType.Bishop
-    inline def isRook: Boolean    = (p % 6) == PieceType.Rook
-    inline def isQueen: Boolean   = (p % 6) == PieceType.Queen
-    inline def isKing: Boolean    = (p % 6) == PieceType.King
-    inline def isNoPiece: Boolean = p >= 12 || p < 0
+    inline def color: Color = if isWhite then Color.White else Color.Black
+
+    inline def isPawn: Boolean    = pieceType == PieceType.Pawn
+    inline def isKnight: Boolean  = pieceType == PieceType.Knight
+    inline def isBishop: Boolean  = pieceType == PieceType.Bishop
+    inline def isRook: Boolean    = pieceType == PieceType.Rook
+    inline def isQueen: Boolean   = pieceType == PieceType.Queen
+    inline def isKing: Boolean    = pieceType == PieceType.King
+    inline def isNoPiece: Boolean = p >= 12
 
     inline def toUciChar: Char =
       if p.isNoPiece then '.'

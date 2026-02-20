@@ -35,9 +35,9 @@ object MoveSorter:
         if move.moveType == MoveType.EnPassant then PieceType.Pawn.value
         else
           val captured = position.pieceAt(move.to)
-          if captured.isNoPiece then 0 else captured.pieceType.value
+          if captured.isNoPiece then 0 else captured.materialValue
 
-      return CaptureBase + (victimValue * 10) - mover.pieceType.value
+      return CaptureBase + (victimValue * 10) - mover.materialValue
 
     // castles
     move.moveType match
@@ -106,6 +106,6 @@ object MoveSorter:
       val move     = moves(i)
       val victim   = position.pieceAt(move.to)
       val attacker = position.pieceAt(move.from)
-      scores(i) = Score((victim.pieceType.value * 10) - attacker.pieceType.value)
+      scores(i) = Score((victim.materialValue * 10) - attacker.materialValue)
       i += 1
     scores
