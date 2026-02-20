@@ -7,7 +7,7 @@ import com.ffb.zugzwang.move.MoveGenerator
 import com.ffb.zugzwang.notation.FENParser
 import com.ffb.zugzwang.rules.Rules
 import com.ffb.zugzwang.search.{Search, SearchLimits, SearchStats}
-import com.ffb.zugzwang.tools.PerftRunner
+import com.ffb.zugzwang.tools.{DebugLogger, PerftRunner}
 
 import scala.annotation.tailrec
 import scala.io.Source
@@ -135,7 +135,8 @@ object UciMain:
           catch
             case e: Throwable =>
               System.err.println(s"FATAL: Search crashed: ${e.getClass().getName()}: ${e.getMessage()}")
-              System.err.println(e.getStackTrace().mkString("\n"))
+              DebugLogger.log(s"FATAL: Search crashed: ${e.getClass().getName()}: ${e.toString()}")
+              DebugLogger.log(e.getStackTrace().mkString("\n"))
           finally isSearching = false
         }
         searchThread.nn.start()
