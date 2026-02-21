@@ -1,8 +1,8 @@
 package com.ffb.zugzwang.board
 
+import com.ffb.zugzwang.chess.{Piece, Square}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import com.ffb.zugzwang.chess.{Color, Piece, PieceType, Square}
 
 class BoardSpec extends AnyFlatSpec with Matchers:
 
@@ -19,30 +19,27 @@ class BoardSpec extends AnyFlatSpec with Matchers:
     val initialBoardFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
 
     val board = Board.from(initialBoardFen)
-    val a1    = Square.from(7, 0).right.get
-    val e1    = Square.from(4, 0).right.get
-    val e4    = Square.from(4, 3).right.get
 
-    board.pieceAt(e1) shouldBe Some(Piece(Color.White, PieceType.King))
-    board.pieceAt(a1) shouldBe Some(Piece(Color.White, PieceType.Rook))
-    board.pieceAt(e4) shouldBe None
+    board.pieceAt(Square.A1) shouldBe Piece.WhiteRook
+    board.pieceAt(Square.E1) shouldBe Piece.WhiteKing
+    board.pieceAt(Square.E4) shouldBe Piece.NoPiece
   }
 
   ".putPieceAt(square)" should "add a piece at the given square" in {
     val board = Board.empty
 
     Square.fromAlgebraic("a1") map { sq =>
-      val pawn    = Piece(Color.White, PieceType.Pawn)
+      val pawn    = Piece.WhitePawn
       val updated = board.putPieceAt(pawn, sq)
       updated == Board.empty shouldBe false
-      updated.pieceAt(sq) shouldBe Some(pawn)
+      updated.pieceAt(sq) shouldBe pawn
     }
 
     Square.fromAlgebraic("e4") map { sq =>
-      val king    = Piece(Color.Black, PieceType.King)
+      val king    = Piece.BlackKing
       val updated = board.putPieceAt(king, sq)
       updated == Board.empty shouldBe false
-      updated.pieceAt(sq) shouldBe Some(king)
+      updated.pieceAt(sq) shouldBe king
     }
   }
 
@@ -51,6 +48,6 @@ class BoardSpec extends AnyFlatSpec with Matchers:
 
     Square.fromAlgebraic("e1") map { sq =>
       val updated = board.removePieceFrom(sq)
-      updated.pieceAt(sq) shouldBe None
+      updated.pieceAt(sq) shouldBe Piece.NoPiece
     }
   }

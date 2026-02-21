@@ -1,18 +1,17 @@
 package com.ffb.zugzwang.rules
 
+import com.ffb.zugzwang.board.Board
+import com.ffb.zugzwang.chess.{CastleRights, Color, GameState, PieceType, Square}
+import com.ffb.zugzwang.move.{Move, MoveGenerator, MoveType}
+import com.ffb.zugzwang.notation.FENParser
+import com.ffb.zugzwang.rules.Rules
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import com.ffb.zugzwang.rules.Rules
-import com.ffb.zugzwang.chess.{CastleRights, Color, GameState, PieceType, Square}
-import com.ffb.zugzwang.move.{Move, MoveType}
-import com.ffb.zugzwang.board.Board
-import com.ffb.zugzwang.notation.FENParser
-import com.ffb.zugzwang.move.MoveGenerator
 
 class ZugzwangSpec extends AnyFlatSpec with Matchers:
 
   "Zugzwang" should "support a single pawn push" in {
-    val move       = Move(Square.E2, Square.E3, None, MoveType.Quiet)
+    val move       = Move(Square.E2, Square.E3, MoveType.Quiet)
     val movedState = Rules.applyMove(GameState.initial, move)
 
     val expectedState = GameState(
@@ -28,24 +27,21 @@ class ZugzwangSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "not generate a move that puts the king in check" in {
-    val fen   = "rnbqkbnr/pppp1ppp/8/1B2p3/4P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2"
-    val state = FENParser.from(fen)
+    val fen = "rnbqkbnr/pppp1ppp/8/1B2p3/4P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2"
 
-    state.isRight shouldBe true
-
-    val illegal = Move(Square.D7, Square.D6, None, MoveType.Quiet)
-
-    MoveGenerator.legalMoves(state.right.get).contains(illegal) shouldBe false
+    FENParser.from(fen) match
+      case Right(state) =>
+        val illegal = Move(Square.D7, Square.D6, MoveType.Quiet)
+        MoveGenerator.legalMoves(state).contains(illegal) shouldBe false
+      case Left(error) => fail(s"Failed to parse FEN: $error")
   }
 
   it should "correctly identify stalemate" in {
     val stalemateFen = "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1"
 
-    val state = FENParser.from(stalemateFen)
-
-    state.isRight shouldBe true
-
-    Rules.isStaleMate(state.right.get) shouldBe true
+    FENParser.from(stalemateFen) match
+      case Right(state) => Rules.isStaleMate(state) shouldBe true
+      case Left(error)  => fail(s"Failed to parse FEN: $error")
   }
 
   it should "correctly identify insufficient material situations" in {
@@ -57,45 +53,42 @@ class ZugzwangSpec extends AnyFlatSpec with Matchers:
     val insufficientFens = List(kkFen, kkbFen, kknFen, kbkbFen)
 
     val allInsufficient = insufficientFens.forall(fen =>
-      val state = FENParser.from(fen)
-
-      state.isRight shouldBe true
-
-      val result = Rules.isInsufficientMaterial(state.right.get)
-      println(s"$fen: $result")
-
-      result
+      FENParser.from(fen) match
+        case Right(state) =>
+          val result = Rules.isInsufficientMaterial(state)
+          println(s"$fen: $result")
+          result
+        case Left(error) =>
+          fail(s"Failed to parse FEN $fen: $error")
     )
 
     allInsufficient shouldBe true
   }
 
   it should "correctly identify a draw by 50 move rule" in {
-    val fen   = "8/8/8/8/8/8/2k5/3K4 w - - 100 101"
-    val state = FENParser.from(fen)
+    val fen = "8/8/8/8/8/8/2k5/3K4 w - - 100 101"
 
-    state.isRight shouldBe true
-
-    Rules.isDraw(state.right.get) shouldBe true
+    FENParser.from(fen) match
+      case Right(state) => Rules.isDraw(state) shouldBe true
+      case Left(error)  => fail(s"Failed to parse FEN: $error")
   }
 
   it should "correctly generate 4 promotions and no other moves" in {
-    val fen   = "8/5P2/8/8/8/8/8/7k w - - 0 1"
-    val state = FENParser.from(fen)
+    val fen = "8/5P2/8/8/8/8/8/7k w - - 0 1"
 
-    state.isRight shouldBe true
+    FENParser.from(fen) match
+      case Right(state) =>
+        val promotions = MoveGenerator.legalMoves(state)
 
-    val move       = Move(Square.F7, Square.F8, None, MoveType.Promotion)
-    val promotions = MoveGenerator.legalMoves(state.right.get)
+        promotions.length shouldBe 4
 
-    promotions.length shouldBe 4
+        val promotionTypes =
+          Set(PieceType.Knight, PieceType.Bishop, PieceType.Rook, PieceType.Queen)
 
-    val promotionTypes =
-      Set(PieceType.Knight, PieceType.Bishop, PieceType.Rook, PieceType.Queen)
-
-    promotions.collect { case Move(_, _, Some(p), _) =>
-      p
-    }.toSet
-      .intersect(promotionTypes)
-      .size shouldBe 4
+        promotions.collect { case Move(_, _, p, _) =>
+          p
+        }.toSet
+          .intersect(promotionTypes)
+          .size shouldBe 4
+      case Left(error) => fail(s"Failed to parse FEN: $error")
   }

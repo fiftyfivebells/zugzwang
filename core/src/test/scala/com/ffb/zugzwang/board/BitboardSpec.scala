@@ -1,8 +1,8 @@
 package com.ffb.zugzwang.board
 
+import com.ffb.zugzwang.chess.Square
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import com.ffb.zugzwang.chess.Square
 
 class BitboardSpec extends AnyFlatSpec with Matchers:
 

@@ -1,6 +1,6 @@
 package com.ffb.zugzwang.board
 
-import com.ffb.zugzwang.chess.{File, Square}
+import com.ffb.zugzwang.chess.Square
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

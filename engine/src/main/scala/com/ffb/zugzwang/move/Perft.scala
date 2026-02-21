@@ -1,4 +1,5 @@
 package com.ffb.zugzwang.move
+
 import com.ffb.zugzwang.chess.zobrist.Zobrist
 import com.ffb.zugzwang.chess.{Color, GameState, MutablePosition}
 import com.ffb.zugzwang.move.{Move, MoveGenerator, MoveList}

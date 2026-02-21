@@ -86,7 +86,7 @@ object Rules:
   // TODO: this is pretty ugly. it looks like it works for now, but it could perhaps
   // use some cleaning up in the future
   def isInsufficientMaterial(state: GameState): Boolean =
-    val pieces  = state.board.allPieces
+    val pieces  = state.board.allPieces.filterNot(_.isNoPiece)
     val grouped = pieces.groupMapReduce(_.pieceType)(_ => 1)(_ + _)
 
     val total = grouped.values.sum
