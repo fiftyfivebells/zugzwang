@@ -64,7 +64,7 @@ class SEESpec extends AnyFlatSpec with Matchers:
 
     // Queen takes pawn (+100), black pawn recaptures queen - losing for white
     // White wouldn't recapture, so SEE = 0 (clamped)
-    SEE.see(position, move) shouldBe 0
+    SEE.see(position, move) shouldBe -800
   }
 
   it should "handle bishop takes knight defended by bishop (equal)" in {
@@ -72,9 +72,7 @@ class SEESpec extends AnyFlatSpec with Matchers:
     val position = positionFromFen(fen)
     val move     = moveFromUci("e4d5", fen)
 
-    // Bishop takes knight (+320), bishop recaptures (-330)
-    // Net is -10, but white doesn't have to take initially, so max(0, ...)
-    SEE.see(position, move) shouldBe 0
+    SEE.see(position, move) shouldBe -10
   }
 
   it should "handle multiple defenders - rook captures defended by bishop and knight" in {
@@ -84,7 +82,7 @@ class SEESpec extends AnyFlatSpec with Matchers:
     val move     = moveFromUci("e3e4", fen)
 
     // Rook takes pawn (+100), knight recaptures (-500), then white wouldn't continue
-    SEE.see(position, move) shouldBe 0
+    SEE.see(position, move) shouldBe -400
   }
 
   it should "handle discovered attacks - pawn blocks rook x-ray" in {
@@ -103,7 +101,7 @@ class SEESpec extends AnyFlatSpec with Matchers:
     val move     = moveFromUci("c3d4", fen)
 
     // Bishop takes knight (+320), bishop recaptures (-330)
-    SEE.see(position, move) shouldBe 0
+    SEE.see(position, move) shouldBe -10
   }
 
   it should "handle king as attacker" in {
@@ -219,14 +217,14 @@ class SEESpec extends AnyFlatSpec with Matchers:
   }
 
   it should "handle negative thresholds correctly" in {
-    // Losing capture: white queen takes black pawn on e5, defended by black pawn d6 → SEE = 0 (clamped)
+    // Losing capture: white queen takes black pawn on e5, defended by black pawn d6 → SEE = -800 (clamped)
     val fen      = "8/8/3p4/4p3/8/8/8/4Q3 w - - 0 1"
     val position = positionFromFen(fen)
     val move     = moveFromUci("e1e5", fen)
 
     // SEE is 0 (losing capture, clamped to 0)
-    SEE.seeGE(position, move, -100) shouldBe true
-    SEE.seeGE(position, move, 0) shouldBe true
+    SEE.seeGE(position, move, -100) shouldBe false
+    SEE.seeGE(position, move, 0) shouldBe false
     SEE.seeGE(position, move, 1) shouldBe false
   }
 
@@ -308,7 +306,7 @@ class SEESpec extends AnyFlatSpec with Matchers:
     val position = positionFromFen(fen)
     val move     = moveFromUci("d1d4", fen)
 
-    SEE.see(position, move) shouldBe 0
+    SEE.see(position, move) shouldBe -800
   }
 
   it should "handle pawn takes pawn with three defenders (two pawns + knight)" in {
@@ -328,12 +326,12 @@ class SEESpec extends AnyFlatSpec with Matchers:
   // ---------------------------------------------------------------------------
 
   "SEE.seeGE" should "return true for threshold of 0 on any capture (SEE is always >= 0)" in {
-    // Losing capture: white queen takes black pawn on e5, defended by black pawn d6 → SEE = 0 (clamped)
+    // Losing capture: white queen takes black pawn on e5, defended by black pawn d6 → SEE = -800
     val fen      = "8/8/3p4/4p3/8/8/8/4Q3 w - - 0 1"
     val position = positionFromFen(fen)
     val move     = moveFromUci("e1e5", fen)
 
-    SEE.seeGE(position, move, 0) shouldBe true
+    SEE.seeGE(position, move, 0) shouldBe false
   }
 
   it should "return true for an equal trade at threshold 0" in {
