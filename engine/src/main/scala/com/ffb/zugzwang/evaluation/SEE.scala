@@ -5,14 +5,24 @@ import com.ffb.zugzwang.chess.{Color, MutablePosition, Piece, Square}
 import com.ffb.zugzwang.move.{Attacks, Move}
 
 import scala.annotation.tailrec
+import com.ffb.zugzwang.move.MoveType
 
 object SEE:
   def see(position: MutablePosition, move: Move): Int =
-    val to       = move.to
-    val from     = move.from
-    val captured = position.pieceAt(to)
+    val to   = move.to
+    val from = move.from
+
+    val (capturedSquare, captured) = if move.moveType == MoveType.EnPassant then
+      val direction          = if position.activeSide == Color.White then -8 else 8
+      val capturedPawnSquare = Square(to.value + direction)
+      (capturedPawnSquare, position.pieceAt(capturedPawnSquare))
+    else (to, position.pieceAt(to))
 
     if captured.isNoPiece then return 0
+
+    val occupied =
+      if move.moveType == MoveType.EnPassant then position.occupied.clearBitAt(capturedSquare).setBitAt(to)
+      else position.occupied
 
     val gain = Array.fill(32)(0)
 
@@ -46,7 +56,7 @@ object SEE:
         val newScore     = math.max(0, scoreAtDepth - currentScore)
         resolve(depth - 1, newScore)
 
-    val maxDepth = fill(0, position.activeSide, from, captured, position.occupied)
+    val maxDepth = fill(0, position.activeSide, from, captured, occupied)
 
     resolve(maxDepth, 0)
 
