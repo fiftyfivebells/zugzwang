@@ -26,6 +26,9 @@ lazy val engine = (project in file("engine"))
     scalafmtOnCompile                               := true,
     scalafixOnCompile                               := true,
     libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
+    libraryDependencies += "org.scalatest"          %% "scalatest"                  % "3.2.16" % Test
+  )
+  .settings(
     buildInfoKeys := Seq[BuildInfoKey](
       name,
       version,
