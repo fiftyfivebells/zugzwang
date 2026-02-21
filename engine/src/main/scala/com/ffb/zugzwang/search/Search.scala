@@ -1,7 +1,7 @@
 package com.ffb.zugzwang.search
 import com.ffb.zugzwang.chess.MutablePosition
 import com.ffb.zugzwang.core.{Depth, Node, Ply, Score, SearchTime, TimeControl}
-import com.ffb.zugzwang.evaluation.PestoEvaluation
+import com.ffb.zugzwang.evaluation.{PestoEvaluation, SEE}
 import com.ffb.zugzwang.move.{Move, MoveGenerator}
 import com.ffb.zugzwang.tools.DebugLogger
 
@@ -242,6 +242,7 @@ object Search:
     val currentKillers = if ply < MaxPly then ctx.killers(ply.value) else Array.empty[Move]
     val isKiller       = currentKillers.contains(move)
     val highHistory    = ctx.history(move.from.value)(move.to.value) > 1000
+    val isGoodCapture  = isCapture && SEE.seeGE(position, move)
 
     depth >= Depth(3) &&
     moveIndex >= 3 &&
@@ -250,7 +251,8 @@ object Search:
     !isCapture &&
     !isPromotion &&
     !isKiller &&
-    !highHistory
+    !highHistory &&
+    !isGoodCapture
 
   // TODO: look into maybe making this a tail recursive function
   private def negamax(position: MutablePosition, depth: Depth, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
@@ -439,21 +441,25 @@ object Search:
           val captured = position.pieceAt(move.to)
           if standPat + captured.materialValue + 200 < alpha then i += 1
           else
-            position.applyMove(move)
+            val shouldSkip = !SEE.seeGE(position, move)
+            if shouldSkip then
+              SearchStats.seePrunesQSearch += 1
+              i += 1
+            else
+              position.applyMove(move)
 
-            if !position.isSideInCheck(position.activeSide.enemy) then
-              val score = -quiesce(position, -beta, -currentAlpha, ctx, ply, qDepth + 1)
+              if !position.isSideInCheck(position.activeSide.enemy) then
+                val score = -quiesce(position, -beta, -currentAlpha, ctx, ply, qDepth + 1)
 
-              position.unapplyMove(move)
+                position.unapplyMove(move)
 
-              if score >= beta then
-                ctx.table.store(position.zobristHash, move, beta, Depth.Zero, TTEntry.FlagLower, ply)
-                return beta
-              if score > currentAlpha then
-                bestMove = move
-                currentAlpha = score
-            else position.unapplyMove(move)
-
+                if score >= beta then
+                  ctx.table.store(position.zobristHash, move, beta, Depth.Zero, TTEntry.FlagLower, ply)
+                  return beta
+                if score > currentAlpha then
+                  bestMove = move
+                  currentAlpha = score
+              else position.unapplyMove(move)
           i += 1
           SearchStats.qSearchMovesSearched += 1
 

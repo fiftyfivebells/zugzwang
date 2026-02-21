@@ -2,7 +2,7 @@ package com.ffb.zugzwang.search
 
 import com.ffb.zugzwang.chess.{MutablePosition, Piece, PieceType, Square}
 import com.ffb.zugzwang.core.Score
-import com.ffb.zugzwang.evaluation.PieceSquareTables
+import com.ffb.zugzwang.evaluation.{PieceSquareTables, SEE}
 import com.ffb.zugzwang.move.{Move, MoveType}
 
 object MoveSorter:
@@ -74,6 +74,11 @@ object MoveSorter:
     while i < arr.length do
       val move = arr(i)
       if move == ttMove then scores(i) = TTMoveScore
+      else if move.isCapture then
+        val baseScore    = scoreMove(move, position)
+        val seeBonus     = if SEE.seeGE(position, move) then Score(10000) else Score.Zero
+        val historyScore = history(move.from.value)(move.to.value)
+        scores(i) = baseScore + seeBonus + historyScore
       else if move == k1 then scores(i) = Killer1Bonus
       else if move == k2 then scores(i) = Killer2Bonus
       else

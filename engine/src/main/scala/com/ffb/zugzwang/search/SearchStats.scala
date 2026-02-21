@@ -31,6 +31,7 @@ object SearchStats:
   var qSearchInCheckCount: Long      = 0
   var qSearchCapturesGenerated: Long = 0
   var qSearchMovesSearched: Long     = 0
+  var seePrunesQSearch: Long         = 0
 
   def reset(): Unit =
     nodes = 0; qNodes = 0; leafNodes = 0
@@ -79,6 +80,7 @@ object SearchStats:
     println("\n--- Quiescence Breakdown ---")
     println(f"Max Depth: $qSearchMaxDepth   | Checks Handled: $qSearchInCheckCount%,d")
     println(f"Captures:  $qSearchCapturesGenerated%,d | Moves Played:   $qSearchMovesSearched%,d")
+    if seePrunesQSearch > 0 then println(f"SEE pruned Q-search: $seePrunesQSearch%,d")
     if leafNodes > 0 then
       val qPerLeaf = if leafNodes > 0 then qNodes.toDouble / leafNodes else 0.0
       println(f"Avg Q-Nodes per Leaf: $qPerLeaf%.1f")
