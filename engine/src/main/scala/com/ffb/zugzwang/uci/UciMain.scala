@@ -55,6 +55,7 @@ object UciMain:
 
         case "print" :: _ =>
           println(s"\n${state.prettyPrint}")
+          println(s"\n\n${state.toFen}")
           state
 
         case "go" :: rest =>
