@@ -2,10 +2,9 @@ package com.ffb.zugzwang.evaluation
 
 import com.ffb.zugzwang.board.Bitboard
 import com.ffb.zugzwang.chess.{Color, MutablePosition, Piece, Square}
-import com.ffb.zugzwang.move.{Attacks, Move}
+import com.ffb.zugzwang.move.{Attacks, Move, MoveType}
 
 import scala.annotation.tailrec
-import com.ffb.zugzwang.move.MoveType
 
 object SEE:
   def see(position: MutablePosition, move: Move): Int =
@@ -53,14 +52,17 @@ object SEE:
       if depth < 0 then currentScore
       else
         val scoreAtDepth = gain(depth)
-        val newScore     = math.max(0, scoreAtDepth - currentScore)
+        val newScore =
+          if depth == 0 then scoreAtDepth - currentScore
+          else math.max(0, scoreAtDepth - currentScore)
+
         resolve(depth - 1, newScore)
 
     val maxDepth = fill(0, position.activeSide, from, captured, occupied)
 
     resolve(maxDepth, 0)
 
-  def seeGE(position: MutablePosition, move: Move, threshold: Int): Boolean =
+  def seeGE(position: MutablePosition, move: Move, threshold: Int = 0): Boolean =
     see(position, move) >= threshold
 
   private def getAllAttackers(
