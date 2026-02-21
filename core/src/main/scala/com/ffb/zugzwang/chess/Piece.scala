@@ -1,7 +1,5 @@
 package com.ffb.zugzwang.chess
 
-import com.ffb.zugzwang.chess.PieceType.Pawn
-
 opaque type PieceType <: Int = Int
 object PieceType:
   val Pawn: PieceType   = 0

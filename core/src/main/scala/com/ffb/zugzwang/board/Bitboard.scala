@@ -48,9 +48,9 @@ object Bitboard:
   def from(sqs: Square*): Bitboard =
     sqs.foldLeft(0L: Bitboard)((bb, sq) => bb | (1 << sq.value))
 
-  inline def fileMaskFor(sq: Square): Bitboard = fileMasks(sq.value)
+  inline def fileMaskFor(sq: Square): Bitboard = fileMasks(sq.file.value)
 
-  inline def ranKMaskFor(sq: Square): Bitboard = rankMasks(sq.value)
+  inline def rankMaskFor(sq: Square): Bitboard = rankMasks(sq.rank.value)
 
   extension (bb: Bitboard)
 
@@ -58,6 +58,12 @@ object Bitboard:
     inline def toLong: Long = bb
 
     inline def unary_~ : Bitboard = ~bb
+
+    inline def foreach(inline f: Square => Unit): Unit =
+      var bits = bb
+      while bits != 0L do
+        f(Square(java.lang.Long.numberOfTrailingZeros(bits)))
+        bits = bits & (bits - 1L)
 
     def squares: Iterator[Square] =
       new Iterator:
@@ -115,6 +121,9 @@ object Bitboard:
 
     inline def leastSignificantBit: Option[Square] =
       Square.from(java.lang.Long.numberOfTrailingZeros(bb))
+
+    inline def leastSignificantBitUnsafe: Square =
+      Square(java.lang.Long.numberOfTrailingZeros(bb))
 
     inline def removeLsb: Bitboard = bb & (bb - 1L)
 
