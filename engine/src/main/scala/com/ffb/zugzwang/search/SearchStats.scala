@@ -28,7 +28,6 @@ object SearchStats:
 
   // quiescence search specific counts
   var qSearchMaxDepth: Int           = 0
-  var qSearchInCheckCount: Long      = 0
   var qSearchCapturesGenerated: Long = 0
   var qSearchMovesSearched: Long     = 0
   var seePrunesQSearch: Long         = 0
@@ -40,7 +39,7 @@ object SearchStats:
     lmrReductions = 0; lmrResearches = 0
     aspirationFailLows = 0; aspirationFailHighs = 0
     pvsReSearches = 0
-    qSearchMaxDepth = 0; qSearchInCheckCount = 0
+    qSearchMaxDepth = 0
     qSearchCapturesGenerated = 0; qSearchMovesSearched = 0
 
   def printReport(): Unit =
@@ -78,7 +77,7 @@ object SearchStats:
 
     // q-search
     println("\n--- Quiescence Breakdown ---")
-    println(f"Max Depth: $qSearchMaxDepth   | Checks Handled: $qSearchInCheckCount%,d")
+    println(f"Max Depth: $qSearchMaxDepth")
     println(f"Captures:  $qSearchCapturesGenerated%,d | Moves Played:   $qSearchMovesSearched%,d")
     if seePrunesQSearch > 0 then println(f"SEE pruned Q-search: $seePrunesQSearch%,d")
     if leafNodes > 0 then
