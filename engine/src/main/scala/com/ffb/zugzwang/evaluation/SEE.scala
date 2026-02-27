@@ -2,11 +2,13 @@ package com.ffb.zugzwang.evaluation
 
 import com.ffb.zugzwang.board.Bitboard
 import com.ffb.zugzwang.chess.{Color, MutablePosition, Piece, Square}
-import com.ffb.zugzwang.move.{Attacks, Move, MoveType}
+import com.ffb.zugzwang.move.{HQSlidingAttacks, KingAttacks, KnightAttacks, Move, MoveType, PawnAttacks}
 
 import scala.annotation.tailrec
 
 object SEE:
+  private val gain = Array.ofDim[Int](32)
+
   def see(position: MutablePosition, move: Move): Int =
     val to   = move.to
     val from = move.from
@@ -22,8 +24,6 @@ object SEE:
     val occupied =
       if move.moveType == MoveType.EnPassant then position.occupied.clearBitAt(capturedSquare).setBitAt(to)
       else position.occupied
-
-    val gain = Array.fill(32)(0)
 
     @tailrec
     def fill(
@@ -70,20 +70,16 @@ object SEE:
     square: Square,
     occupied: Bitboard
   ): Bitboard =
-    var attackers  = Bitboard.empty
-    val targetMask = Bitboard.from(square)
+    val diag  = HQSlidingAttacks.bishopAttacks(square, occupied)
+    val ortho = HQSlidingAttacks.rookAttacks(square, occupied)
+    val p     = position.pieces
 
-    var checkSquares = occupied
-    while checkSquares.nonEmpty do
-      val sq = checkSquares.leastSignificantBitUnsafe
-      checkSquares = checkSquares.removeLsb
-
-      val piece = position.pieceAt(sq)
-      if !piece.isNoPiece then
-        val attacks = Attacks.attacks(piece, sq, occupied)
-        if (attacks & targetMask).nonEmpty then attackers = attackers.setBitAt(sq)
-
-    attackers
+    ((PawnAttacks.black(square.value) & p(Piece.WhitePawn)) |
+      (PawnAttacks.white(square.value) & p(Piece.BlackPawn)) |
+      (KnightAttacks.table(square.value) & (p(Piece.WhiteKnight) | p(Piece.BlackKnight))) |
+      (diag & (p(Piece.WhiteBishop) | p(Piece.BlackBishop) | p(Piece.WhiteQueen) | p(Piece.BlackQueen))) |
+      (ortho & (p(Piece.WhiteRook) | p(Piece.BlackRook) | p(Piece.WhiteQueen) | p(Piece.BlackQueen))) |
+      (KingAttacks.table(square.value) & (p(Piece.WhiteKing) | p(Piece.BlackKing)))) & occupied
 
   private def findLeastValuableAttacker(
     position: MutablePosition,
