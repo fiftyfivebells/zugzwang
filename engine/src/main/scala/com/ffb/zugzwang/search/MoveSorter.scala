@@ -58,21 +58,20 @@ object MoveSorter:
     Score(pstDelta * PstDeltaWeight)
 
   def sortMoves(
-    moves: List[Move],
+    moves: Array[Move],
+    scores: Array[Score],
+    count: Int,
     position: MutablePosition,
     killers: Array[Move],
     history: Array[Array[Score]],
     ttMove: Move = Move.None
-  ): (Array[Move], Array[Score]) =
-    val arr    = moves.toArray
-    val scores = new Array[Score](arr.length)
-
+  ): Unit =
     val k1 = if killers.length > 0 then killers(0) else Move.None
     val k2 = if killers.length > 1 then killers(1) else Move.None
 
     var i = 0
-    while i < arr.length do
-      val move = arr(i)
+    while i < count do
+      val move = moves(i)
       if move == ttMove then scores(i) = TTMoveScore
       else if move.isCapture then
         val baseScore    = scoreMove(move, position)
@@ -88,13 +87,11 @@ object MoveSorter:
 
       i += 1
 
-    (arr, scores)
-
-  inline def pickNext(moves: Array[Move], scores: Array[Score], index: Int): Move =
+  inline def pickNext(moves: Array[Move], scores: Array[Score], index: Int, limit: Int): Move =
     var bestIdx   = index
     var bestScore = scores(index)
     var j         = index + 1
-    while j < moves.length do
+    while j < limit do
       if scores(j) > bestScore then
         bestScore = scores(j)
         bestIdx = j
@@ -104,13 +101,11 @@ object MoveSorter:
       val tmpS = scores(index); scores(index) = scores(bestIdx); scores(bestIdx) = tmpS
     moves(index)
 
-  def scoreCaptures(moves: Array[Move], position: MutablePosition): Array[Score] =
-    val scores = new Array[Score](moves.length)
-    var i      = 0
-    while i < moves.length do
+  def scoreCaptures(moves: Array[Move], scores: Array[Score], count: Int, position: MutablePosition): Unit =
+    var i = 0
+    while i < count do
       val move     = moves(i)
       val victim   = position.pieceAt(move.to)
       val attacker = position.pieceAt(move.from)
       scores(i) = Score((victim.materialValue * 10) - attacker.materialValue)
       i += 1
-    scores

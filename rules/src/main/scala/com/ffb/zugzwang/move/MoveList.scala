@@ -33,6 +33,13 @@ final case class MoveList(initialCapacity: Int = 256):
     Array.copy(moves, 0, result, 0, count)
     result
 
+  /**
+   * Direct reference to the internal buffer. Zero-copy, zero-allocation. Valid
+   * until the next call to add() that triggers a grow(). Used by the search hot
+   * path with pre-allocated MoveList instances.
+   */
+  def unsafeBuffer: Array[Move] = moves
+
   def foreach(f: Move => Unit): Unit =
     var i = 0
     while i < count do

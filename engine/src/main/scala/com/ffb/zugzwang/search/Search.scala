@@ -26,7 +26,9 @@ final case class SearchContext(
   var nodes: Node = Node.zero,
   var stopped: Boolean = false,
   val killers: Array[Array[Move]] = Array.fill(Search.MaxPly.value, 2)(Move.None),
-  val history: Array[Array[Score]] = Array.ofDim[Score](64, 64)
+  val history: Array[Array[Score]] = Array.ofDim[Score](64, 64),
+  val moveLists: Array[MoveList] = Array.fill(Search.MaxPly.value + Search.MaxQDepth + 1)(MoveList(256)),
+  val scoreBuffers: Array[Array[Score]] = Array.fill(Search.MaxPly.value + Search.MaxQDepth + 1)(new Array[Score](256))
 ):
 
   def storeKiller(ply: Ply, move: Move): Unit =
@@ -64,7 +66,7 @@ object Search:
 
     val rootMl = MoveList(256)
     SearchMoveGen.fillMoveList(position, rootMl)
-    val legalMoves = rootMl.toList.filter { move =>
+    val legalMoves = rootMl.toArray.filter { move =>
       position.applyMove(move)
       val legal = !position.isSideInCheck(position.activeSide.enemy)
       position.unapplyMove(move)
@@ -80,8 +82,9 @@ object Search:
     )
     tt.incrementGeneration()
 
-    val (defaultMoves, defaultScores) = MoveSorter.sortMoves(legalMoves, position, ctx.killers(0), ctx.history)
-    val defaultMove                   = MoveSorter.pickNext(defaultMoves, defaultScores, 0)
+    val defaultScores = new Array[Score](legalMoves.length)
+    MoveSorter.sortMoves(legalMoves, defaultScores, legalMoves.length, position, ctx.killers(0), ctx.history)
+    val defaultMove = MoveSorter.pickNext(legalMoves, defaultScores, 0, legalMoves.length)
 
     @tailrec
     def iterativeDeepening(currentDepth: Depth, bestMove: Move, prevScore: Score): Move =
@@ -160,10 +163,12 @@ object Search:
     val ttEntry = ctx.table.probe(position.zobristHash)
     val ttMove  = if ttEntry.isDefined then ttEntry.move else Move.None
 
-    val moveBuf = MoveList(256)
+    val moveBuf = ctx.moveLists(0)
     SearchMoveGen.fillMoveList(position, moveBuf)
-    val moves                     = moveBuf.toList
-    val (sortedMoves, moveScores) = MoveSorter.sortMoves(moves, position, ctx.killers(0), ctx.history, ttMove)
+    val moveArr   = moveBuf.unsafeBuffer
+    val moveCount = moveBuf.size
+    val scoreArr  = ctx.scoreBuffers(0)
+    MoveSorter.sortMoves(moveArr, scoreArr, moveCount, position, ctx.killers(0), ctx.history, ttMove)
 
     @tailrec
     def loop(
@@ -175,7 +180,7 @@ object Search:
       firstLegalMove: Move = Move.None,
       ply: Ply = Ply.Base
     ): SearchResult =
-      if moveIndex >= sortedMoves.length then
+      if moveIndex >= moveCount then
         if legalMoves == 0 then
           if position.isSideInCheck(position.activeSide) then SearchResult(Move.None, -Score.Checkmate)
           else SearchResult(Move.None, Score.Stalemate)
@@ -185,7 +190,7 @@ object Search:
           ctx.table.store(position.zobristHash, finalMove, alpha, depth, ttFlag, ply)
           SearchResult(finalMove, alpha)
       else
-        val move = MoveSorter.pickNext(sortedMoves, moveScores, moveIndex)
+        val move = MoveSorter.pickNext(moveArr, scoreArr, moveIndex, moveCount)
         position.applyMove(move)
         if position.isSideInCheck(position.activeSide.enemy) then
           position.unapplyMove(move)
@@ -298,12 +303,14 @@ object Search:
         (eval + margin <= alpha, margin, eval)
       else (false, 0, Score.Zero)
 
-    val moveBuf = MoveList(256)
+    val moveBuf = ctx.moveLists(ply.value)
     SearchMoveGen.fillMoveList(position, moveBuf)
-    val moves = moveBuf.toList
+    val moveArr   = moveBuf.unsafeBuffer
+    val moveCount = moveBuf.size
+    val scoreArr  = ctx.scoreBuffers(ply.value)
 
-    val currentKillers            = if ply < MaxPly then ctx.killers(ply.value) else Array.empty[Move]
-    val (sortedMoves, moveScores) = MoveSorter.sortMoves(moves, position, currentKillers, ctx.history, ttMove)
+    val currentKillers = if ply < MaxPly then ctx.killers(ply.value) else Array.empty[Move]
+    MoveSorter.sortMoves(moveArr, scoreArr, moveCount, position, currentKillers, ctx.history, ttMove)
 
     var bestScore       = -Score.Infinity
     var bestMove        = Move.None // for tracking TT move
@@ -312,8 +319,8 @@ object Search:
     var ttFlag          = TTEntry.FlagUpper
 
     var i = 0
-    while i < sortedMoves.length do
-      val move = MoveSorter.pickNext(sortedMoves, moveScores, i)
+    while i < moveCount do
+      val move = MoveSorter.pickNext(moveArr, scoreArr, i, moveCount)
 
       if canDoFutility &&
         !move.isCapture &&
@@ -376,7 +383,7 @@ object Search:
       bestScore
 
   private val QFutilityMargin = 150
-  private val MaxQDepth       = 10
+  val MaxQDepth               = 10
 
   private def quiesce(position: MutablePosition, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply, qDepth: Int = 0): Score =
     SearchStats.qNodes += 1
@@ -395,20 +402,21 @@ object Search:
 
     if position.isSideInCheck(position.activeSide) then
       // Stand-pat is invalid when in check — must search all evasions
-      val moveBuf = MoveList(256)
+      val moveBuf = ctx.moveLists(ply.value)
       SearchMoveGen.fillMoveList(position, moveBuf)
-      val moves        = moveBuf.toList
+      val moveArr      = moveBuf.unsafeBuffer
+      val moveCount    = moveBuf.size
       var bestScore    = -Score.Infinity
       var currentAlpha = alpha
       var legalMoves   = 0
 
       var i = 0
-      while i < moves.size && !shouldStop(ctx) do
-        val move = moves(i)
+      while i < moveCount && !shouldStop(ctx) do
+        val move = moveArr(i)
         position.applyMove(move)
         if !position.isSideInCheck(position.activeSide.enemy) then
           legalMoves += 1
-          val score = -quiesce(position, -beta, -currentAlpha, ctx, ply, qDepth + 1)
+          val score = -quiesce(position, -beta, -currentAlpha, ctx, ply + 1, qDepth + 1)
           position.unapplyMove(move)
           if score >= beta then return beta
           if score > bestScore then bestScore = score
@@ -425,23 +433,24 @@ object Search:
 
       var currentAlpha = Score.max(alpha, standPat)
 
-      val captureBuf = MoveList(128)
+      val captureBuf = ctx.moveLists(ply.value)
       SearchMoveGen.fillCaptures(position, captureBuf)
-      val captures      = captureBuf.toList
-      val captureArr    = captures.toArray
-      val captureScores = MoveSorter.scoreCaptures(captureArr, position)
-      SearchStats.qSearchCapturesGenerated += captures.size
+      val captureArr   = captureBuf.unsafeBuffer
+      val captureCount = captureBuf.size
+      val scoreArr     = ctx.scoreBuffers(ply.value)
+      MoveSorter.scoreCaptures(captureArr, scoreArr, captureCount, position)
+      SearchStats.qSearchCapturesGenerated += captureCount
 
       var i = 0
-      while i < captureArr.length && !shouldStop(ctx) do
-        val move     = MoveSorter.pickNext(captureArr, captureScores, i)
+      while i < captureCount && !shouldStop(ctx) do
+        val move     = MoveSorter.pickNext(captureArr, scoreArr, i, captureCount)
         val captured = position.pieceAt(move.to)
 
         if standPat + captured.materialValue + QFutilityMargin >= currentAlpha then
           if SEE.seeGE(position, move) then
             position.applyMove(move)
             if !position.isSideInCheck(position.activeSide.enemy) then
-              val score = -quiesce(position, -beta, -currentAlpha, ctx, ply, qDepth + 1)
+              val score = -quiesce(position, -beta, -currentAlpha, ctx, ply + 1, qDepth + 1)
               position.unapplyMove(move)
               if score >= beta then return beta
               if score > currentAlpha then currentAlpha = score
