@@ -63,7 +63,7 @@ object Search:
     val window = TimeControl.computeTimeWindow(limits.moveTime)
 
     val rootMl = MoveList(256)
-    SearchMoveGen.fill(position, rootMl)
+    SearchMoveGen.fillMoveList(position, rootMl)
     val legalMoves = rootMl.toList.filter { move =>
       position.applyMove(move)
       val legal = !position.isSideInCheck(position.activeSide.enemy)
@@ -161,7 +161,7 @@ object Search:
     val ttMove  = if ttEntry.isDefined then ttEntry.move else Move.None
 
     val moveBuf = MoveList(256)
-    SearchMoveGen.fill(position, moveBuf)
+    SearchMoveGen.fillMoveList(position, moveBuf)
     val moves                     = moveBuf.toList
     val (sortedMoves, moveScores) = MoveSorter.sortMoves(moves, position, ctx.killers(0), ctx.history, ttMove)
 
@@ -299,7 +299,7 @@ object Search:
       else (false, 0, Score.Zero)
 
     val moveBuf = MoveList(256)
-    SearchMoveGen.fill(position, moveBuf)
+    SearchMoveGen.fillMoveList(position, moveBuf)
     val moves = moveBuf.toList
 
     val currentKillers            = if ply < MaxPly then ctx.killers(ply.value) else Array.empty[Move]
@@ -396,7 +396,7 @@ object Search:
     if position.isSideInCheck(position.activeSide) then
       // Stand-pat is invalid when in check — must search all evasions
       val moveBuf = MoveList(256)
-      SearchMoveGen.fill(position, moveBuf)
+      SearchMoveGen.fillMoveList(position, moveBuf)
       val moves        = moveBuf.toList
       var bestScore    = -Score.Infinity
       var currentAlpha = alpha

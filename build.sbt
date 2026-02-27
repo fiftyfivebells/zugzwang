@@ -16,7 +16,10 @@ lazy val rules = (project in file("rules"))
     name              := "zugzwang-rules",
     scalafmtOnCompile := true,
     scalafixOnCompile := true,
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.16" % Test
+    libraryDependencies ++= Seq(
+      "org.scalatest"          %% "scalatest"                 % "3.2.16" % Test,
+      "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4"
+    )
   )
 
 lazy val engine = (project in file("engine"))
@@ -42,6 +45,12 @@ lazy val engine = (project in file("engine"))
   )
   .settings(
     assembly / mainClass := Some("com.ffb.zugzwang.uci.UciMain"),
+    assembly / assemblyMergeStrategy := {
+      // engine's Perft shadows rules' Perft — take the engine version
+      case PathList("com", "ffb", "zugzwang", "move", n) if n.startsWith("Perft") =>
+        MergeStrategy.first
+      case x => (assembly / assemblyMergeStrategy).value(x)
+    },
     assembly / assemblyJarName := {
       val v        = version.value
       val z        = "zugzwang"

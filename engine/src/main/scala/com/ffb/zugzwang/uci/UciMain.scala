@@ -3,11 +3,11 @@ package com.ffb.zugzwang.uci
 import com.ffb.zugzwang.BuildInfo
 import com.ffb.zugzwang.chess.{Color, GameState, MutablePosition}
 import com.ffb.zugzwang.core.{Depth, SearchTime}
-import com.ffb.zugzwang.move.MoveGenerator
+import com.ffb.zugzwang.move.{MoveGenerator, Perft}
 import com.ffb.zugzwang.notation.FENParser
 import com.ffb.zugzwang.rules.Rules
 import com.ffb.zugzwang.search.{Search, SearchLimits, SearchStats}
-import com.ffb.zugzwang.tools.{DebugLogger, PerftRunner}
+import com.ffb.zugzwang.tools.DebugLogger
 
 import scala.annotation.tailrec
 import scala.io.Source
@@ -118,9 +118,14 @@ object UciMain:
     SearchStats.reset()
     tokens match
       case "perft" :: (d: String) :: _ =>
-        val depth = d.toInt
-        PerftRunner.runPerft(state, depth)
-        println()
+        val depth    = d.toInt
+        val position = MutablePosition.from(state)
+        val start    = System.nanoTime()
+        val nodes    = Perft.divide(position, depth)
+        val elapsed  = (System.nanoTime() - start) / 1e9
+        val nps      = (nodes / elapsed).toLong
+        println(f"Time:  $elapsed%.3f seconds")
+        println(f"NPS:   $nps%,d")
         state
 
       case _ =>
