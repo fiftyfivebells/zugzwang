@@ -28,6 +28,11 @@ final case class MoveList(initialCapacity: Int = 256):
   def toList: List[Move] =
     (0 until count).toList.map(moves(_))
 
+  def toArray: Array[Move] =
+    val result = new Array[Move](count)
+    Array.copy(moves, 0, result, 0, count)
+    result
+
   def foreach(f: Move => Unit): Unit =
     var i = 0
     while i < count do

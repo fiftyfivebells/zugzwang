@@ -2,7 +2,7 @@ package com.ffb.zugzwang.search
 import com.ffb.zugzwang.chess.MutablePosition
 import com.ffb.zugzwang.core.{Depth, Node, Ply, Score, SearchTime, TimeControl}
 import com.ffb.zugzwang.evaluation.{PestoEvaluation, SEE}
-import com.ffb.zugzwang.move.{Move, MoveGenerator}
+import com.ffb.zugzwang.move.{Move, MoveList}
 import com.ffb.zugzwang.tools.DebugLogger
 
 import scala.annotation.tailrec
@@ -62,7 +62,14 @@ object Search:
     val now    = SearchTime.currentTime
     val window = TimeControl.computeTimeWindow(limits.moveTime)
 
-    val legalMoves = MoveGenerator.legalMovesMutable(position)
+    val rootMl = MoveList(256)
+    SearchMoveGen.fill(position, rootMl)
+    val legalMoves = rootMl.toList.filter { move =>
+      position.applyMove(move)
+      val legal = !position.isSideInCheck(position.activeSide.enemy)
+      position.unapplyMove(move)
+      legal
+    }
     if legalMoves.isEmpty then return Move.None // no legal moves
 
     val ctx = SearchContext(
@@ -153,7 +160,9 @@ object Search:
     val ttEntry = ctx.table.probe(position.zobristHash)
     val ttMove  = if ttEntry.isDefined then ttEntry.move else Move.None
 
-    val moves                     = MoveGenerator.pseudoLegalMovesMutable(position)
+    val moveBuf = MoveList(256)
+    SearchMoveGen.fill(position, moveBuf)
+    val moves                     = moveBuf.toList
     val (sortedMoves, moveScores) = MoveSorter.sortMoves(moves, position, ctx.killers(0), ctx.history, ttMove)
 
     @tailrec
@@ -289,7 +298,9 @@ object Search:
         (eval + margin <= alpha, margin, eval)
       else (false, 0, Score.Zero)
 
-    val moves = MoveGenerator.pseudoLegalMovesMutable(position)
+    val moveBuf = MoveList(256)
+    SearchMoveGen.fill(position, moveBuf)
+    val moves = moveBuf.toList
 
     val currentKillers            = if ply < MaxPly then ctx.killers(ply.value) else Array.empty[Move]
     val (sortedMoves, moveScores) = MoveSorter.sortMoves(moves, position, currentKillers, ctx.history, ttMove)
@@ -384,7 +395,9 @@ object Search:
 
     if position.isSideInCheck(position.activeSide) then
       // Stand-pat is invalid when in check — must search all evasions
-      val moves        = MoveGenerator.pseudoLegalMovesMutable(position)
+      val moveBuf = MoveList(256)
+      SearchMoveGen.fill(position, moveBuf)
+      val moves        = moveBuf.toList
       var bestScore    = -Score.Infinity
       var currentAlpha = alpha
       var legalMoves   = 0
@@ -412,7 +425,9 @@ object Search:
 
       var currentAlpha = Score.max(alpha, standPat)
 
-      val captures      = MoveGenerator.pseudoLegalCapturesMutable(position)
+      val captureBuf = MoveList(128)
+      SearchMoveGen.fillCaptures(position, captureBuf)
+      val captures      = captureBuf.toList
       val captureArr    = captures.toArray
       val captureScores = MoveSorter.scoreCaptures(captureArr, position)
       SearchStats.qSearchCapturesGenerated += captures.size

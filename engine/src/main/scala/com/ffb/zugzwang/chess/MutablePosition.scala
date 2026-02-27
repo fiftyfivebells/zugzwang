@@ -1,10 +1,11 @@
 package com.ffb.zugzwang.chess
 
-import com.ffb.zugzwang.board.Bitboard
+import com.ffb.zugzwang.board.{Bitboard, Board}
 import com.ffb.zugzwang.chess.PieceType.{Bishop, Knight, Queen, Rook}
 import com.ffb.zugzwang.chess.zobrist.{Zobrist, ZobristHash, ZobristKeys}
 import com.ffb.zugzwang.move.{HQSlidingAttacks, KingAttacks, KnightAttacks, Move, MoveType, PawnAttacks}
 
+import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.ListBuffer
 
 final class MutablePosition(
@@ -440,6 +441,17 @@ final class MutablePosition(
       if (KingAttacks.table(sq.value) & pieces(Piece.BlackKing)).nonEmpty then return true
 
       false
+
+  def toGameState: GameState =
+    GameState(
+      board = Board.from(IArray.from(pieces), ArraySeq.unsafeWrapArray(squares)),
+      activeSide,
+      castleRights,
+      enPassantSq,
+      halfMoveClock,
+      fullMoveClock,
+      history = getZobristHistorySnapshot
+    )
 
 object MutablePosition:
   def from(state: GameState): MutablePosition =

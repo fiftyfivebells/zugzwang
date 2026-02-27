@@ -1,10 +1,9 @@
 package com.ffb.zugzwang.chess
 
 import com.ffb.zugzwang.board.Board
-import com.ffb.zugzwang.chess.zobrist.{Zobrist, ZobristHash}
+import com.ffb.zugzwang.chess.zobrist.{ZobristHash, ZobristKeys}
 import com.ffb.zugzwang.rules.Rules
 
-import scala.collection.immutable.ArraySeq
 import scala.collection.mutable
 
 enum CastleSide:
@@ -82,15 +81,25 @@ final case class GameState(
   history: List[ZobristHash] = Nil
 ):
 
-  lazy val zobristHash =
-    val position = MutablePosition.from(this)
-    Zobrist.compute(position)
-
   def hasCastleRights: Boolean =
     castleRights.has(activeSide, CastleSide.Kingside) || castleRights.has(
       activeSide,
       CastleSide.Queenside
     )
+
+  lazy val zobristHash: ZobristHash =
+    var hash = ZobristHash.Empty
+    var sq   = 0
+    while sq < 64 do
+      val piece = board.squares(sq)
+      if !piece.isNoPiece then hash = hash ^ ZobristKeys.pieceSquare(piece)(sq)
+      sq += 1
+    if activeSide == Color.Black then hash = hash ^ ZobristKeys.sideToMove
+    hash = hash ^ ZobristKeys.castling(castleRights.maskValue)
+    enPassant match
+      case Some(epSq) => hash = hash ^ ZobristKeys.epFile(epSq.file.value)
+      case None       => ()
+    hash
 
   def isCheck: Boolean =
     Rules.isSideInCheck(this, activeSide)
@@ -174,17 +183,6 @@ object GameState:
       halfMoveClock,
       fullMoveClock,
       history = Nil
-    )
-
-  def from(position: MutablePosition): GameState =
-    GameState(
-      board = Board.from(IArray.from(position.pieces), ArraySeq.unsafeWrapArray(position.squares)),
-      position.activeSide,
-      position.castleRights,
-      position.enPassantSq,
-      position.halfMoveClock,
-      position.fullMoveClock,
-      history = position.getZobristHistorySnapshot
     )
 
   def sameAs(original: GameState, other: GameState): Boolean =

@@ -4,6 +4,7 @@ import com.ffb.zugzwang.chess.zobrist.Zobrist
 import com.ffb.zugzwang.chess.{Color, GameState, MutablePosition}
 import com.ffb.zugzwang.move.{Move, MoveGenerator, MoveList}
 import com.ffb.zugzwang.rules.Rules
+import com.ffb.zugzwang.search.SearchMoveGen
 
 import scala.annotation.tailrec
 import scala.collection.parallel.CollectionConverters.*
@@ -54,8 +55,8 @@ object Perft:
         if d == 0 then 1L
         else
           val ml = moveLists(d)
-          ml.clear
-          val arr = MoveGenerator.pseudoLegalMovesMutable(position).toArray
+          SearchMoveGen.fillMoveList(position, ml)
+          val arr = ml.toArray
 
           val n = arr.size
 
@@ -91,14 +92,16 @@ object Perft:
 
     if currentHash != calculatedHash then
       println(s"CRITICAL: Hash Mismatch at depth $depth")
-      println(s"Fen: ${GameState.from(position).toFen}")
+      println(s"Fen: ${position.toGameState.toFen}")
       println(s"Current (Incremental): $currentHash")
       println(s"Calculated (Scratch):  $calculatedHash")
       throw new RuntimeException("Hash Corruption Detected")
 
     if depth == 0 then return 1L
 
-    val moves = MoveGenerator.pseudoLegalMovesMutable(position).toArray
+    val zobristMl = MoveList(256)
+    SearchMoveGen.fillMoveList(position, zobristMl)
+    val moves = zobristMl.toArray
     var nodes = 0L
     var i     = 0
     val mover = position.activeSide
@@ -122,7 +125,7 @@ object Perft:
         println(s"Move: ${m.toUci}")
         println(s"Expected: $preMoveHash")
         println(s"Actual:   ${position.zobristHash}")
-        println(s"Fen: ${GameState.from(position).toFen}")
+        println(s"Fen: ${position.toGameState.toFen}")
         throw new RuntimeException("Unmake Corruption Detected")
 
       i += 1
@@ -162,7 +165,9 @@ object Perft:
 
     var totalNodes = 0L
 
-    val rootMoves = MoveGenerator.pseudoLegalMovesMutable(position).toArray
+    val rootMl = MoveList(256)
+    SearchMoveGen.fillMoveList(position, rootMl)
+    val rootMoves = rootMl.toArray
     val mover     = position.activeSide
 
     for move <- rootMoves do
@@ -190,9 +195,8 @@ object Perft:
     if d == 0 then 1L
     else
       val ml = moveLists(d)
-      ml.clear
-
-      val moves = MoveGenerator.pseudoLegalMovesMutable(position).toArray
+      SearchMoveGen.fillMoveList(position, ml)
+      val moves = ml.toArray
       val mover = position.activeSide
       var nodes = 0L
       var i     = 0
