@@ -303,6 +303,13 @@ object Search:
         (eval + margin <= alpha, margin, eval)
       else (false, 0, Score.Zero)
 
+    // Reverse futility pruning (static null move pruning)
+    if depth <= Depth(3) && !inCheck then
+      val mateGuard = Score.Checkmate - MaxPly.value
+      if beta < mateGuard && beta > -mateGuard && staticEval - 80 * depth.value >= beta then
+        SearchStats.rfpPrunes += 1
+        return staticEval
+
     val moveBuf = ctx.moveLists(ply.value)
     SearchMoveGen.fillMoveList(position, moveBuf)
     val moveArr   = moveBuf.unsafeBuffer
