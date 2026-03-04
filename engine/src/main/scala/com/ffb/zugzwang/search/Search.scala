@@ -287,26 +287,32 @@ object Search:
       ttMove = ttEntry.move
       if ply.value > 0 && ttEntry.canCutoff(depth, alpha, beta, ply) then return ttEntry.score(ply)
 
-    if attemptNullMove(position, depth, beta, ctx, ply) then return beta
+    // internal iterative reduction: no TT hint at deep nodes → search one ply shallower
+    val newDepth = if ttMove == Move.None && depth >= Depth(4) then
+      SearchStats.iirReductions += 1
+      depth - 1
+    else depth
+
+    if attemptNullMove(position, newDepth, beta, ctx, ply) then return beta
 
     if shouldStop(ctx) then return PestoEvaluation.evaluate(position)
-    if depth.isZero then
+    if newDepth.isZero then
       SearchStats.leafNodes += 1
       return quiesce(position, alpha, beta, ctx, ply)
 
     val inCheck = position.isSideInCheck(position.activeSide)
 
     val (canDoFutility, futilityMargin, staticEval) =
-      if depth <= Depth(3) && !inCheck then
+      if newDepth <= Depth(3) && !inCheck then
         val eval   = PestoEvaluation.evaluate(position)
-        val margin = depth.value * 150
+        val margin = newDepth.value * 150
         (eval + margin <= alpha, margin, eval)
       else (false, 0, Score.Zero)
 
-    // Reverse futility pruning (static null move pruning)
-    if depth <= Depth(3) && !inCheck then
+    // reverse futility pruning (static null move pruning)
+    if newDepth <= Depth(3) && !inCheck then
       val mateGuard = Score.Checkmate - MaxPly.value
-      if beta < mateGuard && beta > -mateGuard && staticEval - 80 * depth.value >= beta then
+      if beta < mateGuard && beta > -mateGuard && staticEval - 80 * newDepth.value >= beta then
         SearchStats.rfpPrunes += 1
         return staticEval
 
@@ -343,23 +349,23 @@ object Search:
         if !position.isSideInCheck(position.activeSide.enemy) then
           legalMovesFound += 1
 
-          val reduction = if shouldReduce(position, move, i, depth, ply, ctx) then computeReduction(depth, i) else Depth.Zero
+          val reduction = if shouldReduce(position, move, i, newDepth, ply, ctx) then computeReduction(newDepth, i) else Depth.Zero
           var score     = Score.Zero
 
           if reduction > Depth.Zero then
             SearchStats.lmrReductions += 1
-            score = -negamax(position, depth - 1 - reduction, -beta, -currentAlpha, ctx, ply + 1)
+            score = -negamax(position, newDepth - 1 - reduction, -beta, -currentAlpha, ctx, ply + 1)
 
             if score > currentAlpha then
               SearchStats.lmrResearches += 1
-              score = -negamax(position, depth - 1, -beta, -currentAlpha, ctx, ply + 1)
-          else score = -negamax(position, depth - 1, -beta, -currentAlpha, ctx, ply + 1)
+              score = -negamax(position, newDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
+          else score = -negamax(position, newDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
 
           position.unapplyMove(move)
 
           if score >= beta then
             SearchStats.betaCutoffs += 1
-            ctx.table.store(position.zobristHash, move, beta, depth, TTEntry.FlagLower, ply)
+            ctx.table.store(position.zobristHash, move, beta, newDepth, TTEntry.FlagLower, ply)
 
             if i == 0 then SearchStats.firstMoveCutoffs += 1
             else if currentKillers.contains(move) then SearchStats.killerCutoffs += 1
@@ -367,7 +373,7 @@ object Search:
 
             if !move.isCapture then
               ctx.storeKiller(ply, move)
-              ctx.updateHistory(move, depth)
+              ctx.updateHistory(move, newDepth)
 
             return beta
           if score > bestScore then
@@ -386,7 +392,7 @@ object Search:
       if position.isSideInCheck(position.activeSide) then -Score.Checkmate + ply.value
       else Score.Stalemate
     else
-      ctx.table.store(position.zobristHash, bestMove, bestScore, depth, ttFlag, ply)
+      ctx.table.store(position.zobristHash, bestMove, bestScore, newDepth, ttFlag, ply)
       bestScore
 
   private val QFutilityMargin = 150
