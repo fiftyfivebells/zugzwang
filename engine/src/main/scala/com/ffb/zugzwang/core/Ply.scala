@@ -9,7 +9,7 @@ object Ply:
   def apply(in: Int): Ply = in
 
   extension (p: Ply)
-    inline def value: Int = p
+    inline def asInt: Int = p
 
     inline def isZero: Boolean = p == 0
 

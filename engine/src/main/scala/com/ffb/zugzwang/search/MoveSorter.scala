@@ -1,7 +1,7 @@
 package com.ffb.zugzwang.search
 
 import com.ffb.zugzwang.chess.{MutablePosition, Piece, PieceType, Square}
-import com.ffb.zugzwang.core.Score
+import com.ffb.zugzwang.core.{Killers, Score}
 import com.ffb.zugzwang.evaluation.{PieceSquareTables, SEE}
 import com.ffb.zugzwang.move.{Move, MoveType}
 
@@ -62,12 +62,12 @@ object MoveSorter:
     scores: Array[Score],
     count: Int,
     position: MutablePosition,
-    killers: Array[Move],
+    killers: Killers,
     history: Array[Array[Score]],
     ttMove: Move = Move.None
   ): Unit =
-    val k1 = if killers.length > 0 then killers(0) else Move.None
-    val k2 = if killers.length > 1 then killers(1) else Move.None
+    val k1 = killers.first
+    val k2 = killers.second
 
     var i = 0
     while i < count do
