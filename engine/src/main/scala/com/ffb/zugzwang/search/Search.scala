@@ -282,9 +282,18 @@ object Search:
     !isGoodCapture
 
   // TODO: look into maybe making this a tail recursive function
-  private def negamax(position: MutablePosition, depth: Depth, alpha: Score, beta: Score, ctx: SearchContext, ply: Ply): Score =
+  private def negamax(
+    position: MutablePosition,
+    depth: Depth,
+    alpha: Score,
+    beta: Score,
+    ctx: SearchContext,
+    ply: Ply
+  ): Score =
     SearchStats.nodes += 1
     ctx.nodes = ctx.nodes + 1
+
+    val isPvNode = beta - alpha > 1
 
     if ply >= MaxPly then return PestoEvaluation.evaluate(position)
 
@@ -298,7 +307,7 @@ object Search:
     if ttEntry.isDefined then
       SearchStats.ttHits += 1
       ttMove = ttEntry.move
-      if ply.asInt > 0 && ttEntry.canCutoff(depth, alpha, beta, ply) then return ttEntry.score(ply)
+      if !isPvNode && ply.asInt > 0 && ttEntry.canCutoff(depth, alpha, beta, ply) then return ttEntry.score(ply)
 
     // internal iterative reduction: no TT hint at deep nodes → search one ply shallower
     val newDepth = if ttMove == Move.None && depth >= Depth(4) then
@@ -306,7 +315,7 @@ object Search:
       depth - 1
     else depth
 
-    if attemptNullMove(position, newDepth, beta, ctx, ply) then return beta
+    if !isPvNode && attemptNullMove(position, newDepth, beta, ctx, ply) then return beta
 
     if shouldStop(ctx) then return PestoEvaluation.evaluate(position)
     if newDepth.isZero then
@@ -315,15 +324,15 @@ object Search:
 
     val inCheck = position.isSideInCheck(position.activeSide)
 
-    val (canDoFutility, futilityMargin, staticEval) =
-      if newDepth <= Depth(3) && !inCheck then
-        val eval   = PestoEvaluation.evaluate(position)
-        val margin = newDepth.value * 150
-        (eval + margin <= alpha, margin, eval)
-      else (false, 0, Score.Zero)
+    val staticEval =
+      if !isPvNode && newDepth <= Depth(3) && !inCheck then PestoEvaluation.evaluate(position)
+      else Score.Zero
+
+    val canDoFutility =
+      !isPvNode && newDepth <= Depth(3) && !inCheck && staticEval + newDepth.value * 150 <= alpha
 
     // reverse futility pruning (static null move pruning)
-    if newDepth <= Depth(3) && !inCheck then
+    if !isPvNode && newDepth <= Depth(3) && !inCheck then
       val mateGuard = Score.Checkmate - MaxPly.asInt
       if beta < mateGuard && beta > -mateGuard && staticEval - 80 * newDepth.value >= beta then
         SearchStats.rfpPrunes += 1
