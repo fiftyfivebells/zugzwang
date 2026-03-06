@@ -156,7 +156,13 @@ object Search:
 
     result
 
-  def findBestMove(position: MutablePosition, depth: Depth, alpha: Score, beta: Score, ctx: SearchContext): SearchResult =
+  def findBestMove(
+    position: MutablePosition,
+    depth: Depth,
+    alpha: Score,
+    beta: Score,
+    ctx: SearchContext
+  ): SearchResult =
     val ttEntry = ctx.table.probe(position.zobristHash)
     val ttMove  = if ttEntry.isDefined then ttEntry.move else Move.None
 
@@ -194,7 +200,17 @@ object Search:
           loop(moveIndex + 1, bestMove, alpha, beta, legalMoves, firstLegalMove, ply)
         else
           val newFirstLegalMove = if firstLegalMove == Move.None then move else firstLegalMove
-          val rawScore          = -negamax(position, depth - 1, -beta, -alpha, ctx, ply + 1)
+
+          val rawScore =
+            if legalMoves == 0 then
+              // first move, full window search
+              -negamax(position, depth - 1, -beta, -alpha, ctx, ply + 1)
+            else
+              val nullScore = -negamax(position, depth - 1, -alpha - 1, -alpha, ctx, ply + 1)
+              // need to re-search with full window if nullScore is in [alpha..beta]
+              if nullScore > alpha && nullScore < beta then -negamax(position, depth - 1, -beta, -alpha, ctx, ply + 1)
+              else nullScore
+
           val comparisonScore =
             if rawScore == Score.Draw then
               alpha match
@@ -346,17 +362,28 @@ object Search:
         if !position.isSideInCheck(position.activeSide.enemy) then
           legalMovesFound += 1
 
-          val reduction = if shouldReduce(position, move, i, newDepth, ply, ctx) then computeReduction(newDepth, i) else Depth.Zero
-          var score     = Score.Zero
+          val reduction    = if shouldReduce(position, move, i, newDepth, ply, ctx) then computeReduction(newDepth, i) else Depth.Zero
+          var score        = Score.Zero
+          val isFullWindow = beta - alpha > 1
 
           if reduction > Depth.Zero then
+            // reduced depth, use null window
             SearchStats.lmrReductions += 1
-            score = -negamax(position, newDepth - 1 - reduction, -beta, -currentAlpha, ctx, ply + 1)
+            score = -negamax(position, newDepth - 1 - reduction, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
 
+            // full depth, still use null window
             if score > currentAlpha then
               SearchStats.lmrResearches += 1
-              score = -negamax(position, newDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
+              score = -negamax(position, newDepth - 1, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
+          // no LMR, not first move -> PVS null window probe
+          else if legalMovesFound > 1 then score = -negamax(position, newDepth - 1, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
+          // first legal move, always search with full window
           else score = -negamax(position, newDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
+
+          // full window re-search -> only at PV nodes and only if null window beat alpha
+          if score > currentAlpha && isFullWindow && legalMovesFound > 1 then
+            SearchStats.pvsReSearches += 1
+            score = -negamax(position, newDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
 
           position.unapplyMove(move)
 
