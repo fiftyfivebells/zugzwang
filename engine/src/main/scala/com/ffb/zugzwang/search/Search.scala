@@ -1,6 +1,6 @@
 package com.ffb.zugzwang.search
 import com.ffb.zugzwang.chess.MutablePosition
-import com.ffb.zugzwang.core.{Depth, KillersList, Node, Ply, Score, SearchTime, TimeControl}
+import com.ffb.zugzwang.core.{Depth, KillersList, Node, Ply, Score, ScoreBuffer, SearchTime, TimeControl}
 import com.ffb.zugzwang.evaluation.{PestoEvaluation, SEE}
 import com.ffb.zugzwang.move.{Move, MoveList}
 import com.ffb.zugzwang.tools.DebugLogger
@@ -28,7 +28,7 @@ final case class SearchContext(
   val killers: KillersList = KillersList.initialize(Search.MaxPly.asInt),
   val history: Array[Array[Score]] = Array.ofDim[Score](64, 64),
   val moveLists: Array[MoveList] = Array.fill(Search.MaxPly.asInt + Search.MaxQDepth + 1)(MoveList(256)),
-  val scoreBuffers: Array[Array[Score]] = Array.fill(Search.MaxPly.asInt + Search.MaxQDepth + 1)(new Array[Score](256))
+  val scoreBuffers: Array[ScoreBuffer] = Array.fill(Search.MaxPly.asInt + Search.MaxQDepth + 1)(ScoreBuffer.initial)
 ):
 
   def storeKiller(ply: Ply, move: Move): Unit =
@@ -79,7 +79,7 @@ object Search:
     )
     tt.incrementGeneration()
 
-    val defaultScores = new Array[Score](legalMoves.length)
+    val defaultScores = ScoreBuffer.initialize(legalMoves.length)
     MoveSorter.sortMoves(legalMoves, defaultScores, legalMoves.length, position, ctx.killers.basePly, ctx.history)
     val defaultMove = MoveSorter.pickNext(legalMoves, defaultScores, 0, legalMoves.length)
 

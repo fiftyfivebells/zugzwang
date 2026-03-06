@@ -1,7 +1,7 @@
 package com.ffb.zugzwang.search
 
 import com.ffb.zugzwang.chess.{MutablePosition, Piece, PieceType, Square}
-import com.ffb.zugzwang.core.{Killers, Score}
+import com.ffb.zugzwang.core.{Killers, Score, ScoreBuffer}
 import com.ffb.zugzwang.evaluation.{PieceSquareTables, SEE}
 import com.ffb.zugzwang.move.{Move, MoveType}
 
@@ -59,53 +59,51 @@ object MoveSorter:
 
   def sortMoves(
     moves: Array[Move],
-    scores: Array[Score],
+    scores: ScoreBuffer,
     count: Int,
     position: MutablePosition,
     killers: Killers,
     history: Array[Array[Score]],
     ttMove: Move = Move.None
   ): Unit =
-    val k1 = killers.first
-    val k2 = killers.second
-
     var i = 0
     while i < count do
       val move = moves(i)
-      if move == ttMove then scores(i) = TTMoveScore
+      if move == ttMove then scores.setScore(i, TTMoveScore)
       else if move.isCapture then
         val baseScore    = scoreMove(move, position)
         val seeBonus     = if SEE.seeGE(position, move) then Score(10000) else Score.Zero
         val historyScore = history(move.from.value)(move.to.value)
-        scores(i) = baseScore + seeBonus + historyScore
-      else if move == k1 then scores(i) = Killer1Bonus
-      else if move == k2 then scores(i) = Killer2Bonus
+        scores.setScore(i, baseScore + seeBonus + historyScore)
+      else if move == killers.first then scores.setScore(i, Killer1Bonus)
+      else if move == killers.second then scores.setScore(i, Killer2Bonus)
       else
         val positionalScore = scoreMove(move, position)
         val historyScore    = history(move.from.value)(move.to.value)
-        scores(i) = positionalScore + historyScore
+        scores.setScore(i, positionalScore + historyScore)
 
       i += 1
 
-  inline def pickNext(moves: Array[Move], scores: Array[Score], index: Int, limit: Int): Move =
+  inline def pickNext(moves: Array[Move], scores: ScoreBuffer, index: Int, limit: Int): Move =
     var bestIdx   = index
-    var bestScore = scores(index)
+    var bestScore = scores.getScore(index)
     var j         = index + 1
     while j < limit do
-      if scores(j) > bestScore then
-        bestScore = scores(j)
+      val currentScore = scores.getScore(j)
+      if currentScore > bestScore then
+        bestScore = currentScore
         bestIdx = j
       j += 1
     if bestIdx != index then
       val tmpM = moves(index); moves(index) = moves(bestIdx); moves(bestIdx) = tmpM
-      val tmpS = scores(index); scores(index) = scores(bestIdx); scores(bestIdx) = tmpS
+      val tmpS = scores.getScore(index); scores.setScore(index, scores.getScore(bestIdx)); scores.setScore(bestIdx, tmpS)
     moves(index)
 
-  def scoreCaptures(moves: Array[Move], scores: Array[Score], count: Int, position: MutablePosition): Unit =
+  def scoreCaptures(moves: Array[Move], scores: ScoreBuffer, count: Int, position: MutablePosition): Unit =
     var i = 0
     while i < count do
       val move     = moves(i)
       val victim   = position.pieceAt(move.to)
       val attacker = position.pieceAt(move.from)
-      scores(i) = Score((victim.materialValue * 10) - attacker.materialValue)
+      scores.setScore(i, Score((victim.materialValue * 10) - attacker.materialValue))
       i += 1
