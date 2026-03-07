@@ -48,6 +48,8 @@ object Search:
   @volatile
   private var stopRequested = false
 
+  private val LmpThreshold = Array(0, 8, 12, 20, 28)
+
   val MaxPly     = Ply(128)
   private val tt = new TranspositionTable(256)
 
@@ -317,12 +319,15 @@ object Search:
 
     if !isPvNode && attemptNullMove(position, newDepth, beta, ctx, ply) then return beta
 
+    val inCheck = position.isSideInCheck(position.activeSide)
+
+    val extension   = if inCheck && isPvNode then Depth(1) else Depth.Zero
+    val searchDepth = newDepth + extension
+
     if shouldStop(ctx) then return PestoEvaluation.evaluate(position)
-    if newDepth.isZero then
+    if searchDepth.isZero then
       SearchStats.leafNodes += 1
       return quiesce(position, alpha, beta, ctx, ply)
-
-    val inCheck = position.isSideInCheck(position.activeSide)
 
     val staticEval =
       if !isPvNode && newDepth <= Depth(3) && !inCheck then PestoEvaluation.evaluate(position)
@@ -353,7 +358,6 @@ object Search:
     var legalMovesFound    = 0
     var quietMovesSearched = 0
     var ttFlag             = TTEntry.FlagUpper
-    val LmpThreshold       = Array(0, 8, 12, 20, 28)
 
     var i = 0
     while i < moveCount do
@@ -368,13 +372,13 @@ object Search:
         SearchStats.futilityPrunes += 1
         i += 1
       else if !isPvNode &&
-        newDepth <= Depth(3) &&
+        searchDepth <= Depth(3) &&
         !inCheck &&
         !move.isCapture &&
         !move.isPromotion &&
         !currentKillers.doesContain(move) &&
         move != ttMove &&
-        quietMovesSearched >= LmpThreshold(newDepth.value)
+        quietMovesSearched >= LmpThreshold(searchDepth.value)
       then
         SearchStats.lmpPrunes += 1
         i += 1
@@ -386,34 +390,34 @@ object Search:
 
           if !move.isCapture && !move.isPromotion then quietMovesSearched += 1
 
-          val reduction    = if shouldReduce(position, move, i, newDepth, ply, ctx) then computeReduction(newDepth, i) else Depth.Zero
+          val reduction    = if shouldReduce(position, move, i, searchDepth, ply, ctx) then computeReduction(searchDepth, i) else Depth.Zero
           var score        = Score.Zero
           val isFullWindow = beta - alpha > 1
 
           if reduction > Depth.Zero then
             // reduced depth, use null window
             SearchStats.lmrReductions += 1
-            score = -negamax(position, newDepth - 1 - reduction, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
+            score = -negamax(position, searchDepth - 1 - reduction, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
 
             // full depth, still use null window
             if score > currentAlpha then
               SearchStats.lmrResearches += 1
-              score = -negamax(position, newDepth - 1, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
+              score = -negamax(position, searchDepth - 1, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
           // no LMR, not first move -> PVS null window probe
-          else if legalMovesFound > 1 then score = -negamax(position, newDepth - 1, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
+          else if legalMovesFound > 1 then score = -negamax(position, searchDepth - 1, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
           // first legal move, always search with full window
-          else score = -negamax(position, newDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
+          else score = -negamax(position, searchDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
 
           // full window re-search -> only at PV nodes and only if null window beat alpha
           if score > currentAlpha && isFullWindow && legalMovesFound > 1 then
             SearchStats.pvsReSearches += 1
-            score = -negamax(position, newDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
+            score = -negamax(position, searchDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
 
           position.unapplyMove(move)
 
           if score >= beta then
             SearchStats.betaCutoffs += 1
-            ctx.table.store(position.zobristHash, move, beta, newDepth, TTEntry.FlagLower, ply)
+            ctx.table.store(position.zobristHash, move, beta, searchDepth, TTEntry.FlagLower, ply)
 
             if i == 0 then SearchStats.firstMoveCutoffs += 1
             else if currentKillers.doesContain(move) then SearchStats.killerCutoffs += 1
