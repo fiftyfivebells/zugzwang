@@ -347,11 +347,13 @@ object Search:
     val currentKillers = ctx.killers.atPly(ply)
     MoveSorter.sortMoves(moveArr, scoreArr, moveCount, position, currentKillers, ctx.history, ttMove)
 
-    var bestScore       = -Score.Infinity
-    var bestMove        = Move.None // for tracking TT move
-    var currentAlpha    = alpha
-    var legalMovesFound = 0
-    var ttFlag          = TTEntry.FlagUpper
+    var bestScore          = -Score.Infinity
+    var bestMove           = Move.None // for tracking TT move
+    var currentAlpha       = alpha
+    var legalMovesFound    = 0
+    var quietMovesSearched = 0
+    var ttFlag             = TTEntry.FlagUpper
+    val LmpThreshold       = Array(0, 8, 12, 20, 28)
 
     var i = 0
     while i < moveCount do
@@ -365,11 +367,24 @@ object Search:
       then
         SearchStats.futilityPrunes += 1
         i += 1
+      else if !isPvNode &&
+        newDepth <= Depth(3) &&
+        !inCheck &&
+        !move.isCapture &&
+        !move.isPromotion &&
+        !currentKillers.doesContain(move) &&
+        move != ttMove &&
+        quietMovesSearched >= LmpThreshold(newDepth.value)
+      then
+        SearchStats.lmpPrunes += 1
+        i += 1
       else
         position.applyMove(move)
 
         if !position.isSideInCheck(position.activeSide.enemy) then
           legalMovesFound += 1
+
+          if !move.isCapture && !move.isPromotion then quietMovesSearched += 1
 
           val reduction    = if shouldReduce(position, move, i, newDepth, ply, ctx) then computeReduction(newDepth, i) else Depth.Zero
           var score        = Score.Zero

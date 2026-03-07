@@ -27,6 +27,7 @@ object SearchStats:
   var futilityPrunes: Long      = 0
   var rfpPrunes: Long           = 0
   var iirReductions: Long       = 0
+  var lmpPrunes: Long           = 0
 
   // quiescence search specific counts
   var qSearchMaxDepth: Int           = 0
@@ -44,6 +45,7 @@ object SearchStats:
     rfpPrunes = 0
     futilityPrunes = 0
     iirReductions = 0
+    lmpPrunes = 0
     qSearchMaxDepth = 0
     qSearchCapturesGenerated = 0; qSearchMovesSearched = 0
     seePrunesQSearch = 0
@@ -84,6 +86,7 @@ object SearchStats:
       if futilityPrunes > 0 then println(f"Futility prunes: $futilityPrunes%,d prunes")
       if rfpPrunes > 0 then println(f"RFP prunes:      $rfpPrunes%,d prunes")
       if iirReductions > 0 then println(f"IIR reductions:  $iirReductions%,d")
+      if lmpPrunes > 0 then println(f"LMP Prunes: $lmpPrunes%,d")
 
     // q-search
     println("\n--- Quiescence Breakdown ---")
