@@ -28,6 +28,8 @@ object SearchStats:
   var rfpPrunes: Long           = 0
   var iirReductions: Long       = 0
   var lmpPrunes: Long           = 0
+  var razorProbes: Long         = 0
+  var razorPrunes: Long         = 0
 
   // quiescence search specific counts
   var qSearchMaxDepth: Int           = 0
@@ -43,7 +45,7 @@ object SearchStats:
     aspirationFailLows = 0; aspirationFailHighs = 0
     pvsReSearches = 0
     rfpPrunes = 0
-    futilityPrunes = 0
+    futilityPrunes = 0; razorProbes = 0; razorPrunes = 0
     iirReductions = 0
     lmpPrunes = 0
     qSearchMaxDepth = 0
@@ -73,7 +75,7 @@ object SearchStats:
       if remaining > 0 then printCutoff("Late Moves", remaining)
 
     // search features
-    if lmrReductions > 0 || aspirationFailLows > 0 || futilityPrunes > 0 || pvsReSearches > 0 then
+    if lmrReductions > 0 || aspirationFailLows > 0 || futilityPrunes > 0 || pvsReSearches > 0 || razorPrunes > 0 then
       println("\n--- Search Features ---")
       if lmrReductions > 0 then
         val reSearchRate = if lmrReductions > 0 then (lmrResearches.toDouble / lmrReductions) * 100 else 0.0
@@ -87,6 +89,7 @@ object SearchStats:
       if rfpPrunes > 0 then println(f"RFP prunes:      $rfpPrunes%,d prunes")
       if iirReductions > 0 then println(f"IIR reductions:  $iirReductions%,d")
       if lmpPrunes > 0 then println(f"LMP Prunes: $lmpPrunes%,d")
+      if razorPrunes > 0 then println(f"Razor Prunes: $razorPrunes%,d")
 
     // q-search
     println("\n--- Quiescence Breakdown ---")

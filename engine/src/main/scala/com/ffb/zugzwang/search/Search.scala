@@ -122,6 +122,7 @@ object Search:
       case e =>
         DebugLogger.log("CRASH")
         DebugLogger.log(e.getMessage())
+        DebugLogger.log(e.getStackTrace().mkString("\n"))
         defaultMove
 
   def findBestMoveWithAspiration(
@@ -342,6 +343,16 @@ object Search:
       if beta < mateGuard && beta > -mateGuard && staticEval - 80 * newDepth.value >= beta then
         SearchStats.rfpPrunes += 1
         return staticEval
+
+    // razoring: if static eval is well below alpha at a low depth, just go straight to quiesce
+    if !isPvNode && newDepth <= Depth(2) && !inCheck then
+      val margin = if newDepth == Depth(1) then 300 else 600 // TODO: magic number alert
+      if staticEval + margin < alpha then
+        val qScore = quiesce(position, alpha - 1, alpha, ctx, ply)
+        SearchStats.razorProbes += 1
+        if qScore < alpha then
+          SearchStats.razorPrunes += 1
+          return qScore
 
     val moveBuf = ctx.moveLists(ply.asInt)
     SearchMoveGen.fillMoveList(position, moveBuf)
