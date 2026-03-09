@@ -53,7 +53,8 @@ object Search:
   @volatile
   private var stopRequested = false
 
-  private val LmpThreshold = Array(0, 8, 12, 20, 28)
+  private val LmpThreshold      = Array(0, 8, 12, 20, 28)
+  private val LmrHistoryDivisor = 8192
 
   val MaxPly     = Ply(128)
   private val tt = new TranspositionTable(256)
@@ -276,7 +277,6 @@ object Search:
     val isPromotion    = move.isPromotion
     val currentKillers = ctx.killers.atPly(ply)
     val isKiller       = currentKillers.doesContain(move)
-    val highHistory    = ctx.history(move.from.value)(move.to.value) > 1000
     val isGoodCapture  = isCapture && SEE.seeGE(position, move)
 
     depth >= Depth(3) &&
@@ -286,7 +286,6 @@ object Search:
     !isCapture &&
     !isPromotion &&
     !isKiller &&
-    !highHistory &&
     !isGoodCapture
 
   // TODO: look into maybe making this a tail recursive function
@@ -413,27 +412,33 @@ object Search:
               ctx.quietsTried(ply.asInt)(qi) = move
               ctx.quietsTriedCount(ply.asInt) = qi + 1
 
-          val reduction    = if shouldReduce(position, move, i, searchDepth, ply, ctx) then computeReduction(searchDepth, i) else Depth.Zero
-          var score        = Score.Zero
-          val isFullWindow = beta - alpha > 1
+          val reduction = if shouldReduce(position, move, i, searchDepth, ply, ctx) then computeReduction(searchDepth, i) else Depth.Zero
+          var score     = Score.Zero
 
           if reduction > Depth.Zero then
-            // reduced depth, use null window
             SearchStats.lmrReductions += 1
-            score = -negamax(position, searchDepth - 1 - reduction, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
+            val histScore = ctx.history(move.from.value)(move.to.value).value
+            val histAdj   = histScore / LmrHistoryDivisor
+            val finalRed  = Depth(math.max(1, (reduction.value - histAdj)))
 
-            // full depth, still use null window
+            // Stage 1: reduced depth, null window
+            score = -negamax(position, searchDepth - 1 - finalRed, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
+
             if score > currentAlpha then
               SearchStats.lmrResearches += 1
+              // Stage 2: full depth, null window
               score = -negamax(position, searchDepth - 1, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
-          // no LMR, not first move -> PVS null window probe
-          else if legalMovesFound > 1 then score = -negamax(position, searchDepth - 1, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
-          // first legal move, always search with full window
-          else score = -negamax(position, searchDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
-
-          // full window re-search -> only at PV nodes and only if null window beat alpha
-          if score > currentAlpha && isFullWindow && legalMovesFound > 1 then
-            SearchStats.pvsReSearches += 1
+              if score > currentAlpha then
+                // Stage 3: full depth, full window (only on PV)
+                score = -negamax(position, searchDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
+          else if legalMovesFound > 1 then
+            // Non-LMR, non-first move: PVS null window first, then full window re-search only at PV nodes
+            score = -negamax(position, searchDepth - 1, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
+            if score > currentAlpha && isPvNode then
+              SearchStats.pvsReSearches += 1
+              score = -negamax(position, searchDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
+          else
+            // First legal move: full window search directly
             score = -negamax(position, searchDepth - 1, -beta, -currentAlpha, ctx, ply + 1)
 
           position.unapplyMove(move)
