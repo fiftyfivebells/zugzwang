@@ -28,7 +28,9 @@ final case class SearchContext(
   val killers: KillersList = KillersList.initialize(Search.MaxPly.asInt),
   val history: Array[Array[Score]] = Array.ofDim[Score](64, 64),
   val moveLists: Array[MoveList] = Array.fill(Search.MaxPly.asInt + Search.MaxQDepth + 1)(MoveList(256)),
-  val scoreBuffers: Array[ScoreBuffer] = Array.fill(Search.MaxPly.asInt + Search.MaxQDepth + 1)(ScoreBuffer.initial)
+  val scoreBuffers: Array[ScoreBuffer] = Array.fill(Search.MaxPly.asInt + Search.MaxQDepth + 1)(ScoreBuffer.initial),
+  val quietsTried: Array[Array[Move]] = Array.fill(Search.MaxPly.asInt + 1)(new Array[Move](256)),
+  val quietsTriedCount: Array[Int] = new Array[Int](Search.MaxPly.asInt + 1)
 ):
 
   def storeKiller(ply: Ply, move: Move): Unit =
@@ -38,11 +40,14 @@ final case class SearchContext(
 
     killers.insertMove(ply, move)
 
-  def updateHistory(move: Move, depth: Depth): Unit =
-    val bonus   = depth.value * depth.value
-    val current = history(move.from.value)(move.to.value)
-    if current < 50000 then                                                // TODO: magic number alert, make this a constant
-      history(move.from.value)(move.to.value) = current * 95 / 100 + bonus // 5% decay
+  private val HistoryMax = 16384
+
+  def updateHistory(from: Int, to: Int, delta: Int): Unit =
+    val entry = history(from)(to).value
+    history(from)(to) = Score(entry + delta - entry * math.abs(delta) / HistoryMax)
+
+  def historyBonus(depth: Depth): Int =
+    math.min(depth.value * depth.value, HistoryMax / 4)
 
 object Search:
   @volatile
@@ -370,6 +375,8 @@ object Search:
     var quietMovesSearched = 0
     var ttFlag             = TTEntry.FlagUpper
 
+    ctx.quietsTriedCount(ply.asInt) = 0
+
     var i = 0
     while i < moveCount do
       val move = MoveSorter.pickNext(moveArr, scoreArr, i, moveCount)
@@ -399,7 +406,12 @@ object Search:
         if !position.isSideInCheck(position.activeSide.enemy) then
           legalMovesFound += 1
 
-          if !move.isCapture && !move.isPromotion then quietMovesSearched += 1
+          if !move.isCapture && !move.isPromotion then
+            quietMovesSearched += 1
+            val qi = ctx.quietsTriedCount(ply.asInt)
+            if qi < 256 then
+              ctx.quietsTried(ply.asInt)(qi) = move
+              ctx.quietsTriedCount(ply.asInt) = qi + 1
 
           val reduction    = if shouldReduce(position, move, i, searchDepth, ply, ctx) then computeReduction(searchDepth, i) else Depth.Zero
           var score        = Score.Zero
@@ -434,9 +446,16 @@ object Search:
             else if currentKillers.doesContain(move) then SearchStats.killerCutoffs += 1
             else SearchStats.historyCutoffs += 1
 
-            if !move.isCapture then
+            if !move.isCapture && !move.isPromotion then
               ctx.storeKiller(ply, move)
-              ctx.updateHistory(move, newDepth)
+              val bonus = ctx.historyBonus(newDepth)
+              ctx.updateHistory(move.from.value, move.to.value, bonus)
+              val count = ctx.quietsTriedCount(ply.asInt)
+              var qi    = 0
+              while qi < count do
+                val q = ctx.quietsTried(ply.asInt)(qi)
+                if q != move then ctx.updateHistory(q.from.value, q.to.value, -bonus)
+                qi += 1
 
             return beta
           if score > bestScore then
