@@ -18,6 +18,11 @@ object Ply:
     @targetName("plusPly")
     inline def +(other: Ply): Ply = p + other
 
+    @targetName("minusInt")
+    inline def -(other: Int): Ply = p - other
+    @targetName("minusPly")
+    inline def -(other: Ply): Ply = p - other
+
     @targetName("lessThanInt")
     inline def <(other: Int): Boolean = p < other
     @targetName("lessThanPly")
