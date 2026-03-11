@@ -19,8 +19,8 @@ object Rules:
       val fromPiece = state.board.pieceAt(move.from)
       if fromPiece.isPawn && move.moveType == MoveType.DoublePush then
         val epSq = state.activeSide match
-          case Color.White => Square(move.to.value - 8)
-          case Color.Black => Square(move.to.value + 8)
+          case Color.White => Square(move.to.toInt - 8)
+          case Color.Black => Square(move.to.toInt + 8)
         Some(epSq)
       else None
 
@@ -108,7 +108,7 @@ object Rules:
     else if total == 4 && bothKings && grouped.get(PieceType.Bishop).contains(2)
     then
       // helper to determine the color of a square: 0 is light, 1 is dark
-      def squareColor(sq: Square): Int = (sq.file.value + sq.rank.value) % 2
+      def squareColor(sq: Square): Int = (sq.file.toInt + sq.rank.toInt) % 2
 
       // TODO: figure out how to avoid the tuple here
       val bishopsByColor = state.board.squares.zipWithIndex.collect {

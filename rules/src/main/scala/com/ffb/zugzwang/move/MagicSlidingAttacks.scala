@@ -52,7 +52,7 @@ object MagicSlidingAttacks extends SlidingAttackGen:
     square: Square,
     occupied: Bitboard
   ): Bitboard =
-    val magic             = bishopMagics(square.value)
+    val magic             = bishopMagics(square.toInt)
     val relevantOccupancy = occupied & magic.mask
     val index             = ((relevantOccupancy.value * magic.magic) >>> magic.shift).toInt
 
@@ -62,7 +62,7 @@ object MagicSlidingAttacks extends SlidingAttackGen:
     square: Square,
     occupied: Bitboard
   ): Bitboard =
-    val magic             = rookMagics(square.value)
+    val magic             = rookMagics(square.toInt)
     val relevantOccupancy = occupied & magic.mask
     val index             = ((relevantOccupancy.value * magic.magic) >>> magic.shift).toInt
 

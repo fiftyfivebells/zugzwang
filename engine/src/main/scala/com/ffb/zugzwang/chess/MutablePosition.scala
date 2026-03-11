@@ -92,10 +92,10 @@ final class MutablePosition(
 
     false
 
-  def pieceAt(sq: Square): Piece = squares(sq.value)
+  def pieceAt(sq: Square): Piece = squares(sq.toInt)
 
   private def putPieceAt(piece: Piece, sq: Square): Unit =
-    val sqIndex = sq.value
+    val sqIndex = sq.toInt
     squares(sqIndex) = piece
 
     val bb = Bitboard.from(sq)
@@ -108,7 +108,7 @@ final class MutablePosition(
     if piece.isKing then kingSq(piece.color.ordinal) = sq
 
   private def removePieceAt(sq: Square): Piece =
-    val sqIndex = sq.value
+    val sqIndex = sq.toInt
     val piece   = squares(sqIndex)
 
     if piece.isNoPiece then Piece.NoPiece
@@ -125,8 +125,8 @@ final class MutablePosition(
       piece
 
   private def movePiece(from: Square, to: Square): Piece =
-    val fromIndex = from.value
-    val toIndex   = to.value
+    val fromIndex = from.toInt
+    val toIndex   = to.toInt
     val moving    = squares(fromIndex)
 
     squares(fromIndex) = Piece.NoPiece
@@ -181,7 +181,7 @@ final class MutablePosition(
     zobristHash ^= ZobristKeys.castling(oldCastleMask)
 
     currentEp match
-      case Some(sq) => zobristHash ^= ZobristKeys.epFile(Square.file(sq).value)
+      case Some(sq) => zobristHash ^= ZobristKeys.epFile(Square.file(sq).toInt)
       case None     => ()
 
     zobristHash ^= ZobristKeys.sideToMove
@@ -191,7 +191,7 @@ final class MutablePosition(
 
     val from  = move.from
     val to    = move.to
-    val moved = squares(from.value)
+    val moved = squares(from.toInt)
     state.movedPiece = moved
 
     state.captured = Piece.NoPiece
@@ -201,7 +201,7 @@ final class MutablePosition(
 
     // zobrist: moving piece leaves from square
     // (always happens for any legal move)
-    zobristHash ^= ZobristKeys.pieceSquare(moved)(from.value)
+    zobristHash ^= ZobristKeys.pieceSquare(moved)(from.toInt)
 
     move.moveType match
       case MoveType.CastleKingside =>
@@ -209,16 +209,16 @@ final class MutablePosition(
         movePiece(from, to)
 
         // zobrist: king appears on to square
-        zobristHash ^= ZobristKeys.pieceSquare(moved)(to.value)
+        zobristHash ^= ZobristKeys.pieceSquare(moved)(to.toInt)
 
         val (rookFrom, rookTo) =
           if moved.color == Color.White then (Square.H1, Square.F1)
           else (Square.H8, Square.F8)
 
-        val rook = squares(rookFrom.value) // should be the rook
+        val rook = squares(rookFrom.toInt) // should be the rook
         // rook moves rookFrom -> rookTo
-        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookFrom.value)
-        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookTo.value)
+        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookFrom.toInt)
+        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookTo.toInt)
 
         movePiece(rookFrom, rookTo)
 
@@ -230,15 +230,15 @@ final class MutablePosition(
         movePiece(from, to)
 
         // zobrist: king appears on to square
-        zobristHash ^= ZobristKeys.pieceSquare(moved)(to.value)
+        zobristHash ^= ZobristKeys.pieceSquare(moved)(to.toInt)
 
         val (rookFrom, rookTo) =
           if activeSide == Color.White then (Square.A1, Square.D1)
           else (Square.A8, Square.D8)
 
-        val rook = squares(rookFrom.value)
-        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookFrom.value)
-        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookTo.value)
+        val rook = squares(rookFrom.toInt)
+        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookFrom.toInt)
+        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookTo.toInt)
 
         movePiece(rookFrom, rookTo)
 
@@ -247,14 +247,14 @@ final class MutablePosition(
       case MoveType.EnPassant =>
         // ep capture: captured pawn is *behind* the to-square
         val capturedSquare =
-          if activeSide == Color.White then Square(to.value - 8)
-          else Square(to.value + 8)
+          if activeSide == Color.White then Square(to.toInt - 8)
+          else Square(to.toInt + 8)
 
         state.capturedSquare = capturedSquare
 
-        val capturedPawn = squares(capturedSquare.value)
+        val capturedPawn = squares(capturedSquare.toInt)
         // zobrist: remove captured pawn from capturedSquare
-        if !capturedPawn.isNoPiece then zobristHash ^= ZobristKeys.pieceSquare(capturedPawn)(capturedSquare.value)
+        if !capturedPawn.isNoPiece then zobristHash ^= ZobristKeys.pieceSquare(capturedPawn)(capturedSquare.toInt)
 
         val captured = removePieceAt(capturedSquare)
         state.captured = captured
@@ -264,13 +264,13 @@ final class MutablePosition(
         movePiece(from, to)
 
         // zobrist: moving pawn appears on to square
-        zobristHash ^= ZobristKeys.pieceSquare(moved)(to.value)
+        zobristHash ^= ZobristKeys.pieceSquare(moved)(to.toInt)
 
       case _ =>
         val captured = removePieceAt(to)
         if !captured.isNoPiece then
           // zobrist: remove captured piece from to square
-          zobristHash ^= ZobristKeys.pieceSquare(captured)(to.value)
+          zobristHash ^= ZobristKeys.pieceSquare(captured)(to.toInt)
           state.captured = captured
           didCapture = true
 
@@ -279,19 +279,19 @@ final class MutablePosition(
         if move.isPromotion then
           val promoPiece = Piece.from(activeSide, move.promotion)
 
-          zobristHash ^= ZobristKeys.pieceSquare(promoPiece)(to.value)
+          zobristHash ^= ZobristKeys.pieceSquare(promoPiece)(to.toInt)
 
           removePieceAt(to)
           putPieceAt(promoPiece, to)
         else
           // non-promotion: moving piece appears on to square
-          zobristHash ^= ZobristKeys.pieceSquare(moved)(to.value)
+          zobristHash ^= ZobristKeys.pieceSquare(moved)(to.toInt)
 
         // double push sets EP square
         if move.moveType == MoveType.DoublePush then
           val epSquare =
-            if activeSide == Color.White then Square(to.value - 8)
-            else Square(to.value + 8)
+            if activeSide == Color.White then Square(to.toInt - 8)
+            else Square(to.toInt + 8)
           enPassantSq = Some(epSquare)
 
         updateCastleRightsOnMove(moved, from, state.captured, to)
@@ -307,7 +307,7 @@ final class MutablePosition(
     zobristHash ^= ZobristKeys.castling(newCastleMask)
 
     enPassantSq match
-      case Some(sq) => zobristHash ^= ZobristKeys.epFile(Square.file(sq).value)
+      case Some(sq) => zobristHash ^= ZobristKeys.epFile(Square.file(sq).toInt)
       case None     => ()
 
     // flip side to move in the position
@@ -375,7 +375,7 @@ final class MutablePosition(
     state.prevHalfMove = halfMoveClock
     state.prevFullMove = fullMoveClock
 
-    if enPassantSq.isDefined then zobristHash ^= ZobristKeys.epFile(Square.file(enPassantSq.get).value)
+    if enPassantSq.isDefined then zobristHash ^= ZobristKeys.epFile(Square.file(enPassantSq.get).toInt)
     enPassantSq = None
 
     zobristHash ^= ZobristKeys.sideToMove
@@ -416,8 +416,8 @@ final class MutablePosition(
     val occNow = occupied
 
     if byColor == Color.White then
-      if (PawnAttacks.black(sq.value) & pieces(Piece.WhitePawn)).nonEmpty then return true
-      if (KnightAttacks.table(sq.value) & pieces(Piece.WhiteKnight)).nonEmpty then return true
+      if (PawnAttacks.black(sq.toInt) & pieces(Piece.WhitePawn)).nonEmpty then return true
+      if (KnightAttacks.table(sq.toInt) & pieces(Piece.WhiteKnight)).nonEmpty then return true
 
       val diag = sliders.bishopAttacks(sq, occNow)
       if (diag & (pieces(Piece.WhiteBishop) | pieces(Piece.WhiteQueen))).nonEmpty then return true
@@ -425,12 +425,12 @@ final class MutablePosition(
       val ortho = sliders.rookAttacks(sq, occNow)
       if (ortho & (pieces(Piece.WhiteRook) | pieces(Piece.WhiteQueen))).nonEmpty then return true
 
-      if (KingAttacks.table(sq.value) & pieces(Piece.WhiteKing)).nonEmpty then return true
+      if (KingAttacks.table(sq.toInt) & pieces(Piece.WhiteKing)).nonEmpty then return true
 
       false
     else
-      if (PawnAttacks.white(sq.value) & pieces(Piece.BlackPawn)).nonEmpty then return true
-      if (KnightAttacks.table(sq.value) & pieces(Piece.BlackKnight)).nonEmpty then return true
+      if (PawnAttacks.white(sq.toInt) & pieces(Piece.BlackPawn)).nonEmpty then return true
+      if (KnightAttacks.table(sq.toInt) & pieces(Piece.BlackKnight)).nonEmpty then return true
 
       val diag = sliders.bishopAttacks(sq, occNow)
       if (diag & (pieces(Piece.BlackBishop) | pieces(Piece.BlackQueen))).nonEmpty then return true
@@ -438,7 +438,7 @@ final class MutablePosition(
       val ortho = sliders.rookAttacks(sq, occNow)
       if (ortho & (pieces(Piece.BlackRook) | pieces(Piece.BlackQueen))).nonEmpty then return true
 
-      if (KingAttacks.table(sq.value) & pieces(Piece.BlackKing)).nonEmpty then return true
+      if (KingAttacks.table(sq.toInt) & pieces(Piece.BlackKing)).nonEmpty then return true
 
       false
 

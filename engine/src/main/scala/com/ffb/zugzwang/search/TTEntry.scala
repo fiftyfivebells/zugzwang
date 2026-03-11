@@ -26,8 +26,8 @@ object TTEntry:
   // TODO: replace flag: Long with a defined type
   def apply(move: Move, rawScore: Score, depth: Depth, flag: Long, ply: Ply, gen: Int): TTEntry =
     val storedScore =
-      if rawScore > (Score.Checkmate - 1000) then rawScore + ply.asInt
-      else if rawScore < -(Score.Checkmate - 1000) then rawScore - ply.asInt
+      if rawScore > (Score.Checkmate - 1000) then rawScore + ply.toInt
+      else if rawScore < -(Score.Checkmate - 1000) then rawScore - ply.toInt
       else rawScore
 
     val moveBits  = move.toLong & MoveMask
@@ -57,8 +57,8 @@ object TTEntry:
     inline def score(ply: Ply): Score =
       val internalScore = Score((tte >> ScoreShift).toShort.toInt)
 
-      if internalScore > (Score.Checkmate - 1000) then internalScore - ply.asInt
-      else if internalScore < -(Score.Checkmate - 1000) then internalScore + ply.asInt
+      if internalScore > (Score.Checkmate - 1000) then internalScore - ply.toInt
+      else if internalScore < -(Score.Checkmate - 1000) then internalScore + ply.toInt
       else internalScore
 
     inline def canCutoff(depth: Depth, alpha: Score, beta: Score, ply: Ply): Boolean =

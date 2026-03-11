@@ -9,7 +9,7 @@ object HQSlidingAttacks extends SlidingAttackGen:
     occ: Bitboard,
     mask: Bitboard
   ): Bitboard =
-    val startSquare = 1L << sq.value
+    val startSquare = 1L << sq.toInt
 
     val bottom = ((occ & mask) - (startSquare << 1)) & mask
     val top =
@@ -49,8 +49,8 @@ object HQSlidingAttacks extends SlidingAttackGen:
     square: Square,
     occupied: Bitboard
   ): Bitboard =
-    val diagonalMask     = diagonalMasks(square.value)
-    val antiDiagonalMask = antiDiagonalMasks(square.value)
+    val diagonalMask     = diagonalMasks(square.toInt)
+    val antiDiagonalMask = antiDiagonalMasks(square.toInt)
 
     val diagonal     = slidingMoves(square, occupied, diagonalMask)
     val antiDiagonal = slidingMoves(square, occupied, antiDiagonalMask)
@@ -58,8 +58,8 @@ object HQSlidingAttacks extends SlidingAttackGen:
     diagonal | antiDiagonal
 
   def rookAttacks(square: Square, occupied: Bitboard): Bitboard =
-    val rankMask = HorizontalMasks(square.value)
-    val fileMask = VerticalMasks(square.value)
+    val rankMask = HorizontalMasks(square.toInt)
+    val fileMask = VerticalMasks(square.toInt)
 
     val rank = slidingMoves(square, occupied, rankMask)
     val file = slidingMoves(square, occupied, fileMask)

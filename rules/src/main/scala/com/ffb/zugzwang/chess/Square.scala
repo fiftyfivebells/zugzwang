@@ -7,17 +7,17 @@ opaque type Square = Int
 object Square:
 
   extension (sq: Square)
-    def value: Int = sq
+    def toInt: Int = sq
     def file: File = File.of(sq)
     def rank: Rank = Rank.of(sq)
 
     def lastRank(c: Color): Boolean = c match
-      case Color.White => rank.value == 7
-      case Color.Black => rank.value == 0
+      case Color.White => rank.toInt == 7
+      case Color.Black => rank.toInt == 0
 
     def startingPawnRank(c: Color): Boolean = c match
-      case Color.White => rank.value == 1
-      case Color.Black => rank.value == 6
+      case Color.White => rank.toInt == 1
+      case Color.Black => rank.toInt == 6
 
     def next: Square =
       if sq < 0 || sq == 65 then Square.H1
@@ -31,7 +31,7 @@ object Square:
   // with the index in the board, ie. file h goes from index 7 to index 0. I'm only doing this because
   // it makes my bit math easier (at least to me).
   def from(file: File, rank: Rank): Square =
-    (rank.value * 8) + (7 - file.value)
+    (rank.toInt * 8) + (7 - file.toInt)
 
   def from(file: Int, rank: Int): Either[String, Square] = for
     file <- File(file)

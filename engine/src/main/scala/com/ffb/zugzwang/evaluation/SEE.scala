@@ -15,7 +15,7 @@ object SEE:
 
     val (capturedSquare, captured) = if move.moveType == MoveType.EnPassant then
       val direction          = if position.activeSide == Color.White then -8 else 8
-      val capturedPawnSquare = Square(to.value + direction)
+      val capturedPawnSquare = Square(to.toInt + direction)
       (capturedPawnSquare, position.pieceAt(capturedPawnSquare))
     else (to, position.pieceAt(to))
 
@@ -74,12 +74,12 @@ object SEE:
     val ortho = HQSlidingAttacks.rookAttacks(square, occupied)
     val p     = position.pieces
 
-    ((PawnAttacks.black(square.value) & p(Piece.WhitePawn)) |
-      (PawnAttacks.white(square.value) & p(Piece.BlackPawn)) |
-      (KnightAttacks.table(square.value) & (p(Piece.WhiteKnight) | p(Piece.BlackKnight))) |
+    ((PawnAttacks.black(square.toInt) & p(Piece.WhitePawn)) |
+      (PawnAttacks.white(square.toInt) & p(Piece.BlackPawn)) |
+      (KnightAttacks.table(square.toInt) & (p(Piece.WhiteKnight) | p(Piece.BlackKnight))) |
       (diag & (p(Piece.WhiteBishop) | p(Piece.BlackBishop) | p(Piece.WhiteQueen) | p(Piece.BlackQueen))) |
       (ortho & (p(Piece.WhiteRook) | p(Piece.BlackRook) | p(Piece.WhiteQueen) | p(Piece.BlackQueen))) |
-      (KingAttacks.table(square.value) & (p(Piece.WhiteKing) | p(Piece.BlackKing)))) & occupied
+      (KingAttacks.table(square.toInt) & (p(Piece.WhiteKing) | p(Piece.BlackKing)))) & occupied
 
   private def findLeastValuableAttacker(
     position: MutablePosition,

@@ -104,6 +104,7 @@ object Piece:
 
   extension (p: Piece)
 
+    inline def index: Int           = p
     inline def pieceType: PieceType = pieceTypes(p)
     inline def isWhite: Boolean     = p < 6
     inline def isBlack: Boolean     = p >= 6 && p < 12

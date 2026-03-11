@@ -80,7 +80,7 @@ object FENParser:
       Square.fromAlgebraic(epStr) match
         case Left(_) => Left(FENParserError.EPSquareInvalid(epStr))
         case Right(sq) =>
-          if sq.rank.value == 2 || sq.rank.value == 5 then Right(Some(sq))
+          if sq.rank.toInt == 2 || sq.rank.toInt == 5 then Right(Some(sq))
           else Left(FENParserError.EPSquareBadRank(epStr))
 
   private def parseMoveCountStr(

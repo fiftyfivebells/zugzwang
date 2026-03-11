@@ -69,12 +69,12 @@ object Attacks:
 
   inline def attacks(piece: Piece, from: Square, occupied: Bitboard): Bitboard =
     piece match
-      case Piece.WhitePawn => PawnAttacks.white(from.value)
-      case Piece.BlackPawn => PawnAttacks.black(from.value)
-      case p if p.isKnight => KnightAttacks.table(from.value)
+      case Piece.WhitePawn => PawnAttacks.white(from.toInt)
+      case Piece.BlackPawn => PawnAttacks.black(from.toInt)
+      case p if p.isKnight => KnightAttacks.table(from.toInt)
       case p if p.isBishop => sliders.bishopAttacks(from, occupied)
       case p if p.isRook   => sliders.rookAttacks(from, occupied)
       case p if p.isQueen =>
         sliders.bishopAttacks(from, occupied) |
           sliders.rookAttacks(from, occupied)
-      case p if p.isKing => KingAttacks.table(from.value)
+      case p if p.isKing => KingAttacks.table(from.toInt)

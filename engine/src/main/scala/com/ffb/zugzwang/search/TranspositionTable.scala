@@ -50,7 +50,7 @@ final class TranspositionTable(sizeInMb: Int):
     // slot 1 (peer) stores newest search
     val entry0 = data(index).asInstanceOf[TTEntry]
 
-    if depth.value >= entry0.depth.value then
+    if depth.toInt >= entry0.depth.toInt then
       keys(index) = zobristHash.value
       data(index) = newEntryLong
     else

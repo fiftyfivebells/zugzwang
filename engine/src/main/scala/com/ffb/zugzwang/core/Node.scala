@@ -9,7 +9,7 @@ object Node:
   def apply(in: Long): Node = in
 
   extension (n: Node)
-    inline def value: Long = n
+    inline def toLong: Long = n
 
     inline def isZero: Boolean = n == 0
 

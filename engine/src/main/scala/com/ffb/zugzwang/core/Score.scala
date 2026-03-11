@@ -20,7 +20,7 @@ object Score:
     if a <= b then a else b
 
   extension (s: Score)
-    inline def value: Int = s
+    inline def toInt: Int = s
 
     inline def toLong: Long = s.toLong
 

@@ -33,7 +33,7 @@ object MoveGenerator:
 
         if piece == Piece.WhitePawn || piece == Piece.BlackPawn then
           var pawnAttacks = rawAttacks & (attackMask | (state.enPassant match
-            case Some(sq) => 1L << sq.value
+            case Some(sq) => 1L << sq.toInt
             case None     => 0L
           ))
           // first generate pawn attacks
@@ -50,8 +50,8 @@ object MoveGenerator:
           // now handle pawn pushes
           var singlePush =
             ~occupied & (state.activeSide match
-              case Color.White => (1L << from.value) << 8
-              case Color.Black => (1L << from.value) >>> 8
+              case Color.White => (1L << from.toInt) << 8
+              case Color.Black => (1L << from.toInt) >>> 8
             )
           var doublePush =
             ~occupied & (state.activeSide match

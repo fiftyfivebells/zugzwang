@@ -147,7 +147,7 @@ object PieceSquareTables:
     // need to invert the index completely (rank AND file).
     //  0 (H1) -> visual 63 (H1).
     // 63 (A8) -> visual  0 (A8).
-    val visualIndex = 63 - sq.value
+    val visualIndex = 63 - sq.toInt
 
     val finalIndex = if piece.isWhite then visualIndex else visualIndex ^ 56
     if finalIndex >= 0 && finalIndex < 64 then tables(piece.pieceType)(finalIndex) else 0

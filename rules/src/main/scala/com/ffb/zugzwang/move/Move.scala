@@ -43,7 +43,7 @@ object Move:
     promotion: PieceType,
     moveType: MoveType
   ): Move =
-    from.value | (to.value << toShift) | (promotion << promotionPieceShift) | (moveType.ordinal << moveTypeShift)
+    from.toInt | (to.toInt << toShift) | (promotion << promotionPieceShift) | (moveType.ordinal << moveTypeShift)
 
   def unapply(move: Move): Option[(Square, Square, PieceType, MoveType)] =
     Some((move.from, move.to, move.promotion, move.moveType))

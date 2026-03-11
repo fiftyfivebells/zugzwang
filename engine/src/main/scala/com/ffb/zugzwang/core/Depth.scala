@@ -9,7 +9,7 @@ object Depth:
   val Zero: Depth = 0
 
   extension (d: Depth)
-    inline def value: Int   = d
+    inline def toInt: Int   = d
     inline def toLong: Long = d.toLong
 
     inline def isZero: Boolean = d == 0

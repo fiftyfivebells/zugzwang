@@ -43,14 +43,14 @@ object Bitboard:
 
   def apply(n: Long): Bitboard = n
 
-  def from(sq: Square): Bitboard = 1L << sq.value
+  def from(sq: Square): Bitboard = 1L << sq.toInt
 
   def from(sqs: Square*): Bitboard =
-    sqs.foldLeft(0L: Bitboard)((bb, sq) => bb | (1 << sq.value))
+    sqs.foldLeft(0L: Bitboard)((bb, sq) => bb | (1 << sq.toInt))
 
-  inline def fileMaskFor(sq: Square): Bitboard = fileMasks(sq.file.value)
+  inline def fileMaskFor(sq: Square): Bitboard = fileMasks(sq.file.toInt)
 
-  inline def rankMaskFor(sq: Square): Bitboard = rankMasks(sq.rank.value)
+  inline def rankMaskFor(sq: Square): Bitboard = rankMasks(sq.rank.toInt)
 
   extension (bb: Bitboard)
 
@@ -112,9 +112,9 @@ object Bitboard:
     inline def isEmpty: Boolean  = bb == empty
     inline def nonEmpty: Boolean = bb != empty
 
-    inline def setBitAt(sq: Square): Bitboard = bb | (1L << sq.value)
+    inline def setBitAt(sq: Square): Bitboard = bb | (1L << sq.toInt)
 
-    inline def clearBitAt(sq: Square): Bitboard = bb & ~(1L << sq.value)
+    inline def clearBitAt(sq: Square): Bitboard = bb & ~(1L << sq.toInt)
 
     inline def trailingZeros: Int =
       java.lang.Long.numberOfTrailingZeros(bb)
@@ -131,7 +131,7 @@ object Bitboard:
 
     inline def reverse: Bitboard = java.lang.Long.reverse(bb.value)
 
-    def toString(): String =
+    def asString(): String =
       val sb = new StringBuilder
       for rank <- 7 to 0 by -1 do
         for file <- 7 to 0 by -1 do

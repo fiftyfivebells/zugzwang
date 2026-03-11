@@ -25,12 +25,12 @@ final case class SearchContext(
   val table: TranspositionTable,
   var nodes: Node = Node.zero,
   var stopped: Boolean = false,
-  val killers: KillersList = KillersList.initialize(Search.MaxPly.asInt),
+  val killers: KillersList = KillersList.initialize(Search.MaxPly.toInt),
   val history: Array[Array[Score]] = Array.ofDim[Score](64, 64),
-  val moveLists: Array[MoveList] = Array.fill(Search.MaxPly.asInt + Search.MaxQDepth + 1)(MoveList(256)),
-  val scoreBuffers: Array[ScoreBuffer] = Array.fill(Search.MaxPly.asInt + Search.MaxQDepth + 1)(ScoreBuffer.initial),
-  val quietsTried: Array[Array[Move]] = Array.fill(Search.MaxPly.asInt + 1)(new Array[Move](256)),
-  val quietsTriedCount: Array[Int] = new Array[Int](Search.MaxPly.asInt + 1)
+  val moveLists: Array[MoveList] = Array.fill(Search.MaxPly.toInt + Search.MaxQDepth + 1)(MoveList(256)),
+  val scoreBuffers: Array[ScoreBuffer] = Array.fill(Search.MaxPly.toInt + Search.MaxQDepth + 1)(ScoreBuffer.initial),
+  val quietsTried: Array[Array[Move]] = Array.fill(Search.MaxPly.toInt + 1)(new Array[Move](256)),
+  val quietsTriedCount: Array[Int] = new Array[Int](Search.MaxPly.toInt + 1)
 ):
 
   def storeKiller(ply: Ply, move: Move): Unit =
@@ -43,11 +43,11 @@ final case class SearchContext(
   private val HistoryMax = 16384
 
   def updateHistory(from: Int, to: Int, delta: Int): Unit =
-    val entry = history(from)(to).value
+    val entry = history(from)(to).toInt
     history(from)(to) = Score(entry + delta - entry * math.abs(delta) / HistoryMax)
 
   def historyBonus(depth: Depth): Int =
-    math.min(depth.value * depth.value, HistoryMax / 4)
+    math.min(depth.toInt * depth.toInt, HistoryMax / 4)
 
 object Search:
   @volatile
@@ -244,9 +244,9 @@ object Search:
     ctx: SearchContext,
     ply: Ply
   ): Boolean =
-    if depth.value < 3 ||
+    if depth.toInt < 3 ||
       position.isSideInCheck(position.activeSide) ||
-      ply.asInt == 0 ||
+      ply.toInt == 0 ||
       beta >= Score.Infinity ||
       !position.hasMajorPieces(position.activeSide)
     then false
@@ -260,8 +260,8 @@ object Search:
   private inline def computeReduction(depth: Depth, moveIndex: Int): Depth =
     if depth < Depth(3) || moveIndex < 3 then Depth.Zero
     else
-      val base = math.log(depth.value) * math.log(moveIndex) / 2.5
-      Depth(math.max(1, math.min(base.floor.toInt, depth.value - 1)))
+      val base = math.log(depth.toInt) * math.log(moveIndex) / 2.5
+      Depth(math.max(1, math.min(base.floor.toInt, depth.toInt - 1)))
 
   private inline def shouldReduce(
     position: MutablePosition,
@@ -314,7 +314,7 @@ object Search:
     if ttEntry.isDefined then
       SearchStats.ttHits += 1
       ttMove = ttEntry.move
-      if !isPvNode && ply.asInt > 0 && ttEntry.canCutoff(depth, alpha, beta, ply) then return ttEntry.score(ply)
+      if !isPvNode && ply.toInt > 0 && ttEntry.canCutoff(depth, alpha, beta, ply) then return ttEntry.score(ply)
 
     // internal iterative reduction: no TT hint at deep nodes → search one ply shallower
     val newDepth = if ttMove == Move.None && depth >= Depth(4) then
@@ -339,12 +339,12 @@ object Search:
       else Score.Zero
 
     val canDoFutility =
-      !isPvNode && newDepth <= Depth(3) && !inCheck && staticEval + newDepth.value * 150 <= alpha
+      !isPvNode && newDepth <= Depth(3) && !inCheck && staticEval + newDepth.toInt * 150 <= alpha
 
     // reverse futility pruning (static null move pruning)
     if !isPvNode && newDepth <= Depth(3) && !inCheck then
-      val mateGuard = Score.Checkmate - MaxPly.asInt
-      if beta < mateGuard && beta > -mateGuard && staticEval - 80 * newDepth.value >= beta then
+      val mateGuard = Score.Checkmate - MaxPly.toInt
+      if beta < mateGuard && beta > -mateGuard && staticEval - 80 * newDepth.toInt >= beta then
         SearchStats.rfpPrunes += 1
         return staticEval
 
@@ -358,11 +358,11 @@ object Search:
           SearchStats.razorPrunes += 1
           return qScore
 
-    val moveBuf = ctx.moveLists(ply.asInt)
+    val moveBuf = ctx.moveLists(ply.toInt)
     SearchMoveGen.fillMoveList(position, moveBuf)
     val moveArr   = moveBuf.unsafeBuffer
     val moveCount = moveBuf.size
-    val scoreArr  = ctx.scoreBuffers(ply.asInt)
+    val scoreArr  = ctx.scoreBuffers(ply.toInt)
 
     val currentKillers = ctx.killers.atPly(ply)
     MoveSorter.sortMoves(moveArr, scoreArr, moveCount, position, currentKillers, ctx.history, ttMove)
@@ -374,7 +374,7 @@ object Search:
     var quietMovesSearched = 0
     var ttFlag             = TTEntry.FlagUpper
 
-    ctx.quietsTriedCount(ply.asInt) = 0
+    ctx.quietsTriedCount(ply.toInt) = 0
 
     var i = 0
     while i < moveCount do
@@ -395,7 +395,7 @@ object Search:
         !move.isPromotion &&
         !currentKillers.doesContain(move) &&
         move != ttMove &&
-        quietMovesSearched >= LmpThreshold(searchDepth.value)
+        quietMovesSearched >= LmpThreshold(searchDepth.toInt)
       then
         SearchStats.lmpPrunes += 1
         i += 1
@@ -407,19 +407,19 @@ object Search:
 
           if !move.isCapture && !move.isPromotion then
             quietMovesSearched += 1
-            val qi = ctx.quietsTriedCount(ply.asInt)
+            val qi = ctx.quietsTriedCount(ply.toInt)
             if qi < 256 then
-              ctx.quietsTried(ply.asInt)(qi) = move
-              ctx.quietsTriedCount(ply.asInt) = qi + 1
+              ctx.quietsTried(ply.toInt)(qi) = move
+              ctx.quietsTriedCount(ply.toInt) = qi + 1
 
           val reduction = if shouldReduce(position, move, i, searchDepth, ply, ctx) then computeReduction(searchDepth, i) else Depth.Zero
           var score     = Score.Zero
 
           if reduction > Depth.Zero then
             SearchStats.lmrReductions += 1
-            val histScore = ctx.history(move.from.value)(move.to.value).value
+            val histScore = ctx.history(move.from.toInt)(move.to.toInt).toInt
             val histAdj   = histScore / LmrHistoryDivisor
-            val finalRed  = Depth(math.max(1, (reduction.value - histAdj)))
+            val finalRed  = Depth(math.max(1, (reduction.toInt - histAdj)))
 
             // Stage 1: reduced depth, null window
             score = -negamax(position, searchDepth - 1 - finalRed, -currentAlpha - 1, -currentAlpha, ctx, ply + 1)
@@ -454,12 +454,12 @@ object Search:
             if !move.isCapture && !move.isPromotion then
               ctx.storeKiller(ply, move)
               val bonus = ctx.historyBonus(newDepth)
-              ctx.updateHistory(move.from.value, move.to.value, bonus)
-              val count = ctx.quietsTriedCount(ply.asInt)
+              ctx.updateHistory(move.from.toInt, move.to.toInt, bonus)
+              val count = ctx.quietsTriedCount(ply.toInt)
               var qi    = 0
               while qi < count do
-                val q = ctx.quietsTried(ply.asInt)(qi)
-                if q != move then ctx.updateHistory(q.from.value, q.to.value, -bonus)
+                val q = ctx.quietsTried(ply.toInt)(qi)
+                if q != move then ctx.updateHistory(q.from.toInt, q.to.toInt, -bonus)
                 qi += 1
 
             return beta
@@ -476,7 +476,7 @@ object Search:
     if ctx.stopped then return currentAlpha
 
     if legalMovesFound == 0 then
-      if position.isSideInCheck(position.activeSide) then -Score.Checkmate + ply.asInt
+      if position.isSideInCheck(position.activeSide) then -Score.Checkmate + ply.toInt
       else Score.Stalemate
     else
       ctx.table.store(position.zobristHash, bestMove, bestScore, newDepth, ttFlag, ply)
@@ -502,7 +502,7 @@ object Search:
 
     if position.isSideInCheck(position.activeSide) then
       // Stand-pat is invalid when in check — must search all evasions
-      val moveBuf = ctx.moveLists(ply.asInt)
+      val moveBuf = ctx.moveLists(ply.toInt)
       SearchMoveGen.fillMoveList(position, moveBuf)
       val moveArr      = moveBuf.unsafeBuffer
       val moveCount    = moveBuf.size
@@ -525,7 +525,7 @@ object Search:
         i += 1
 
       if ctx.stopped then return bestScore
-      if legalMoves == 0 then return -Score.Checkmate + ply.asInt
+      if legalMoves == 0 then return -Score.Checkmate + ply.toInt
       bestScore
     else
       val standPat = PestoEvaluation.evaluate(position)
@@ -533,11 +533,11 @@ object Search:
 
       var currentAlpha = Score.max(alpha, standPat)
 
-      val captureBuf = ctx.moveLists(ply.asInt)
+      val captureBuf = ctx.moveLists(ply.toInt)
       SearchMoveGen.fillCaptures(position, captureBuf)
       val captureArr   = captureBuf.unsafeBuffer
       val captureCount = captureBuf.size
-      val scoreArr     = ctx.scoreBuffers(ply.asInt)
+      val scoreArr     = ctx.scoreBuffers(ply.toInt)
       MoveSorter.scoreCaptures(captureArr, scoreArr, captureCount, position)
       SearchStats.qSearchCapturesGenerated += captureCount
 

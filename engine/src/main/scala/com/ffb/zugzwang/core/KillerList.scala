@@ -10,17 +10,17 @@ object KillersList:
     inline def basePly: Killers = atPly(Ply(0))
 
     inline def atPly(ply: Ply): Killers =
-      val p = ply.asInt
+      val p = ply.toInt
       if p < kl.length then kl(p) else Killers.empty
 
     inline def updateFirst(ply: Ply, move: Move): Unit =
-      kl(ply.asInt).updateFirst(move)
+      kl(ply.toInt).updateFirst(move)
 
-    inline def getFirst(ply: Ply): Move = kl(ply.asInt).first
+    inline def getFirst(ply: Ply): Move = kl(ply.toInt).first
 
     inline def updateSecond(ply: Ply, move: Move): Unit =
-      kl(ply.asInt).updateSecond(move)
+      kl(ply.toInt).updateSecond(move)
 
-    inline def getSecond(ply: Ply): Move = kl(ply.asInt).second
+    inline def getSecond(ply: Ply): Move = kl(ply.toInt).second
 
-    inline def insertMove(ply: Ply, move: Move): Unit = kl(ply.asInt).insertMove(move)
+    inline def insertMove(ply: Ply, move: Move): Unit = kl(ply.toInt).insertMove(move)

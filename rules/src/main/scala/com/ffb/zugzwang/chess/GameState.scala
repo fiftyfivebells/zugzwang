@@ -97,7 +97,7 @@ final case class GameState(
     if activeSide == Color.Black then hash = hash ^ ZobristKeys.sideToMove
     hash = hash ^ ZobristKeys.castling(castleRights.maskValue)
     enPassant match
-      case Some(epSq) => hash = hash ^ ZobristKeys.epFile(epSq.file.value)
+      case Some(epSq) => hash = hash ^ ZobristKeys.epFile(epSq.file.toInt)
       case None       => ()
     hash
 

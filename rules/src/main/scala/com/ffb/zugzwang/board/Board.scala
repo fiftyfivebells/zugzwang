@@ -65,23 +65,23 @@ final case class Board private (
 
   def clearBoard: Board = Board.empty
 
-  def pieceAt(sq: Square): Piece = squares(sq.value)
+  def pieceAt(sq: Square): Piece = squares(sq.toInt)
 
   def putPieceAt(p: Piece, sq: Square): Board =
     if !p.isNoPiece then
       val newBitboard = pieces(p).setBitAt(sq)
       Board(
         pieces.updated(p, newBitboard),
-        squares.updated(sq.value, p)
+        squares.updated(sq.toInt, p)
       )
     else this
 
   def removePieceFrom(sq: Square): Board =
-    squares(sq.value) match
+    squares(sq.toInt) match
       case Piece.NoPiece => this
       case piece =>
         val newBitboard = pieces(piece).clearBitAt(sq)
-        val newSquares  = squares.updated(sq.value, Piece.NoPiece)
+        val newSquares  = squares.updated(sq.toInt, Piece.NoPiece)
 
         Board(pieces.updated(piece, newBitboard), newSquares)
 
@@ -147,8 +147,8 @@ object Board:
     case MoveType.EnPassant =>
       val piece = board.pieceAt(move.from)
       val epSquare = piece.color match
-        case Color.White => Square(move.to.value - 8)
-        case Color.Black => Square(move.to.value + 8)
+        case Color.White => Square(move.to.toInt - 8)
+        case Color.Black => Square(move.to.toInt + 8)
 
       board
         .removePieceFrom(move.from)

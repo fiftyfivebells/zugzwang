@@ -31,7 +31,7 @@ object SearchMoveGen:
 
         if piece == Piece.WhitePawn || piece == Piece.BlackPawn then
           var pawnAttacks = rawAttacks & (attackMask | (position.enPassantSq match
-            case Some(sq) => 1L << sq.value
+            case Some(sq) => 1L << sq.toInt
             case None     => 0L
           ))
           // first generate pawn attacks
@@ -48,8 +48,8 @@ object SearchMoveGen:
           // now handle pawn pushes
           var singlePush =
             ~occupied & (position.activeSide match
-              case Color.White => (1L << from.value) << 8
-              case Color.Black => (1L << from.value) >>> 8
+              case Color.White => (1L << from.toInt) << 8
+              case Color.Black => (1L << from.toInt) >>> 8
             )
           var doublePush =
             ~occupied & (position.activeSide match
@@ -106,7 +106,7 @@ object SearchMoveGen:
 
         if piece.isPawn then
           val epMask = position.enPassantSq match
-            case Some(sq) => 1L << sq.value
+            case Some(sq) => 1L << sq.toInt
             case None     => 0L
 
           var pawnAttacks = attackMask | (rawAttacks & epMask)
