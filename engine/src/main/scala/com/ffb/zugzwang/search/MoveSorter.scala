@@ -63,7 +63,8 @@ object MoveSorter:
     count: Int,
     position: MutablePosition,
     killers: Killers,
-    history: Array[Array[Score]],
+    history: Array[Array[Array[Int]]],
+    sideToMove: Int,
     ttMove: Move = Move.None,
     contHistoryArr: Array[Score] = Array[Score](),
     contBase1: Int = -1,
@@ -74,15 +75,14 @@ object MoveSorter:
       val move = moves(i)
       if move == ttMove then scores.setScore(i, TTMoveScore)
       else if move.isCapture then
-        val baseScore    = scoreMove(move, position)
-        val seeBonus     = if SEE.seeGE(position, move) then Score(10000) else Score.Zero
-        val historyScore = history(move.from.toInt)(move.to.toInt)
-        scores.setScore(i, baseScore + seeBonus + historyScore)
+        val baseScore = scoreMove(move, position)
+        val seeBonus  = if SEE.seeGE(position, move) then Score(10000) else Score.Zero
+        scores.setScore(i, baseScore + seeBonus)
       else if move == killers.first then scores.setScore(i, Killer1Bonus)
       else if move == killers.second then scores.setScore(i, Killer2Bonus)
       else
         val positionalScore = scoreMove(move, position)
-        val historyScore    = history(move.from.toInt)(move.to.toInt)
+        val historyScore    = Score(history(sideToMove)(move.from.toInt)(move.to.toInt))
         val ch1ch2 =
           if contBase1 > -1 || contBase2 > -1 then
             val moverType = position.pieceAt(move.from).pieceType
