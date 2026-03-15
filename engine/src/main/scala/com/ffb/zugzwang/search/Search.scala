@@ -1,5 +1,5 @@
 package com.ffb.zugzwang.search
-import com.ffb.zugzwang.chess.MutablePosition
+import com.ffb.zugzwang.chess.{MutablePosition, PieceType, Square}
 import com.ffb.zugzwang.core.{Depth, KillersList, Node, Ply, Score, ScoreBuffer, SearchTime, TimeControl}
 import com.ffb.zugzwang.evaluation.{PestoEvaluation, SEE}
 import com.ffb.zugzwang.move.{Move, MoveList}
@@ -30,7 +30,11 @@ final case class SearchContext(
   val moveLists: Array[MoveList] = Array.fill(Search.MaxPly.toInt + Search.MaxQDepth + 1)(MoveList(256)),
   val scoreBuffers: Array[ScoreBuffer] = Array.fill(Search.MaxPly.toInt + Search.MaxQDepth + 1)(ScoreBuffer.initial),
   val quietsTried: Array[Array[Move]] = Array.fill(Search.MaxPly.toInt + 1)(new Array[Move](256)),
-  val quietsTriedCount: Array[Int] = new Array[Int](Search.MaxPly.toInt + 1)
+  val quietsTriedCount: Array[Int] = new Array[Int](Search.MaxPly.toInt + 1),
+  val quietsTriedPieceType: Array[Array[PieceType]] = Array.fill(Search.MaxPly.toInt + 1)(new Array[PieceType](256)),
+  val contHistory: ContinuationHistoryTable = ContinuationHistoryTable(),
+  val stackPiece: Array[PieceType] = Array.fill(Search.MaxPly.toInt + 2)(PieceType.NoType),
+  val stackTo: Array[Square] = Array.fill(Search.MaxPly.toInt + 2)(Square.NoSquare)
 ):
 
   def storeKiller(ply: Ply, move: Move): Unit =
@@ -42,12 +46,41 @@ final case class SearchContext(
 
   private val HistoryMax = 16384
 
-  def updateHistory(from: Int, to: Int, delta: Int): Unit =
-    val entry = history(from)(to).toInt
-    history(from)(to) = Score(entry + delta - entry * math.abs(delta) / HistoryMax)
+  def updateHistory(from: Square, to: Square, delta: Score): Unit =
+    val entry = history(from.toInt)(to.toInt)
+    history(from.toInt)(to.toInt) = entry + delta - entry * math.abs(delta.toInt) / HistoryMax
 
-  def historyBonus(depth: Depth): Int =
-    math.min(depth.toInt * depth.toInt, HistoryMax / 4)
+  def historyBonus(depth: Depth): Score =
+    Score(math.min(depth.toInt * depth.toInt, HistoryMax / 4))
+
+  def contBase(ply: Ply, offset: Int): Int =
+    val idx = ply.toInt - offset
+    if idx >= 0 && stackTo(idx).isDefined then contHistory.baseOffset(stackPiece(idx), stackTo(idx))
+    else -1
+
+  def updateContHistoryAfterCut(
+    ply: Ply,
+    cutMove: Move,
+    movedPieceType: PieceType,
+    bonus: Score,
+    contBase1: Int,
+    contBase2: Int
+  ): Unit =
+//    Update cont history for the cutting move itself
+    if contBase1 >= 0 then contHistory.update(stackPiece(ply.toInt - 1), stackTo(ply.toInt - 1), movedPieceType, cutMove.to, bonus)
+    if contBase2 >= 0 then contHistory.update(stackPiece(ply.toInt - 2), stackTo(ply.toInt - 2), movedPieceType, cutMove.to, bonus)
+
+    // Apply malus to all previously tried quiet moves
+    val count = quietsTriedCount(ply.toInt)
+    var qi    = 0
+    while qi < count do
+      val q          = quietsTried(ply.toInt)(qi)
+      val qPieceType = quietsTriedPieceType(ply.toInt)(qi)
+      if q != cutMove then
+        updateHistory(q.from, q.to, -bonus)
+        if contBase1 >= 0 then contHistory.update(stackPiece(ply.toInt - 1), stackTo(ply.toInt - 1), qPieceType, q.to, -bonus)
+        if contBase2 >= 0 then contHistory.update(stackPiece(ply.toInt - 2), stackTo(ply.toInt - 2), qPieceType, q.to, -bonus)
+      qi += 1
 
 object Search:
   @volatile
@@ -56,10 +89,15 @@ object Search:
   private val LmpThreshold      = Array(0, 8, 12, 20, 28)
   private val LmrHistoryDivisor = 8192
 
-  val MaxPly     = Ply(128)
-  private val tt = new TranspositionTable(256)
+  val MaxPly               = Ply(128)
+  private val tt           = new TranspositionTable(256)
+  private val historyTable = Array.ofDim[Score](64, 64)
+  private val contHistory  = new ContinuationHistoryTable()
 
-  def clear(): Unit = tt.clear()
+  def clear(): Unit =
+    tt.clear()
+    contHistory.clear()
+    for i <- 0 until 64 do for j <- 0 until 64 do historyTable(i)(j) = Score.Zero
 
   def requestStop(): Unit = stopRequested = true
 
@@ -83,7 +121,9 @@ object Search:
       startTime = now,
       endTime = window.hardDeadline,
       depthLimit = limits.depth,
-      table = tt
+      table = tt,
+      history = historyTable,
+      contHistory = contHistory
     )
     tt.incrementGeneration()
 
@@ -251,8 +291,9 @@ object Search:
       !position.hasMajorPieces(position.activeSide)
     then false
     else
+      position.applyNullMove
       try
-        position.applyNullMove
+        ctx.stackTo(ply.toInt) = Square.NoSquare
         val score = -negamax(position, depth - 1 - nullMoveReduction(depth), -beta, -beta + 1, ctx, ply + 1)
         score >= beta
       finally position.unapplyNullMove
@@ -365,7 +406,12 @@ object Search:
     val scoreArr  = ctx.scoreBuffers(ply.toInt)
 
     val currentKillers = ctx.killers.atPly(ply)
-    MoveSorter.sortMoves(moveArr, scoreArr, moveCount, position, currentKillers, ctx.history, ttMove)
+
+    val contHistoryArr = ctx.contHistory.rawArray
+    val contBase1      = ctx.contBase(ply, 1)
+    val contBase2      = ctx.contBase(ply, 2)
+
+    MoveSorter.sortMoves(moveArr, scoreArr, moveCount, position, currentKillers, ctx.history, ttMove, contHistoryArr, contBase1, contBase2)
 
     var bestScore          = -Score.Infinity
     var bestMove           = Move.None // for tracking TT move
@@ -400,16 +446,22 @@ object Search:
         SearchStats.lmpPrunes += 1
         i += 1
       else
+
         position.applyMove(move)
 
         if !position.isSideInCheck(position.activeSide.enemy) then
+          val movedPieceType = position.pieceAt(move.to).pieceType
           legalMovesFound += 1
+
+          // ctx.stackPiece(ply.toInt) = movedPieceType
+          // ctx.stackTo(ply.toInt) = move.to
 
           if !move.isCapture && !move.isPromotion then
             quietMovesSearched += 1
             val qi = ctx.quietsTriedCount(ply.toInt)
             if qi < 256 then
               ctx.quietsTried(ply.toInt)(qi) = move
+              // ctx.quietsTriedPieceType(ply.toInt)(qi) = movedPieceType
               ctx.quietsTriedCount(ply.toInt) = qi + 1
 
           val reduction = if shouldReduce(position, move, i, searchDepth, ply, ctx) then computeReduction(searchDepth, i) else Depth.Zero
@@ -453,14 +505,10 @@ object Search:
 
             if !move.isCapture && !move.isPromotion then
               ctx.storeKiller(ply, move)
+
               val bonus = ctx.historyBonus(newDepth)
-              ctx.updateHistory(move.from.toInt, move.to.toInt, bonus)
-              val count = ctx.quietsTriedCount(ply.toInt)
-              var qi    = 0
-              while qi < count do
-                val q = ctx.quietsTried(ply.toInt)(qi)
-                if q != move then ctx.updateHistory(q.from.toInt, q.to.toInt, -bonus)
-                qi += 1
+              ctx.updateHistory(move.from, move.to, bonus)
+              ctx.updateContHistoryAfterCut(ply, move, movedPieceType, bonus, contBase1, contBase2)
 
             return beta
           if score > bestScore then
