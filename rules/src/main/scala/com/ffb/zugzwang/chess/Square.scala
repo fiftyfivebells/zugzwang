@@ -11,6 +11,8 @@ object Square:
     def file: File = File.of(sq)
     def rank: Rank = Rank.of(sq)
 
+    def isDefined: Boolean = sq != NoSquare
+
     def lastRank(c: Color): Boolean = c match
       case Color.White => rank.toInt == 7
       case Color.Black => rank.toInt == 0
