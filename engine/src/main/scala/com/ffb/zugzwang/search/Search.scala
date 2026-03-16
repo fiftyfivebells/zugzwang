@@ -34,7 +34,10 @@ final case class SearchContext(
   val quietsTriedPieceType: Array[Array[PieceType]] = Array.fill(Search.MaxPly.toInt + 1)(new Array[PieceType](256)),
   val contHistory: ContinuationHistoryTable = ContinuationHistoryTable(),
   val stackPiece: Array[PieceType] = Array.fill(Search.MaxPly.toInt + 2)(PieceType.NoType),
-  val stackTo: Array[Square] = Array.fill(Search.MaxPly.toInt + 2)(Square.NoSquare)
+  val stackTo: Array[Square] = Array.fill(Search.MaxPly.toInt + 2)(Square.NoSquare),
+  val captureHistory: Array[Int] = new Array[Int](12 * 64 * 6),
+  val capturesTried: Array[Move] = new Array[Move]((Search.MaxPly.toInt + 1) * 64),
+  val capturesTriedCount: Array[Int] = new Array[Int](Search.MaxPly.toInt + 1)
 ):
 
   def storeKiller(ply: Ply, move: Move): Unit =
@@ -53,10 +56,44 @@ final case class SearchContext(
   def historyBonus(depth: Depth): Score =
     Score(math.min(depth.toInt * depth.toInt, HistoryMax / 4))
 
+  private val CaptureHistMax = 16384
+
+  private inline def capIdx(movingPiece: Int, to: Int, capturedType: Int): Int =
+    movingPiece * 384 + to * 6 + capturedType
+
+  def updateCaptureHistory(movingPiece: Int, to: Int, capturedType: Int, delta: Int): Unit =
+    val idx   = capIdx(movingPiece, to, capturedType)
+    val entry = captureHistory(idx)
+    captureHistory(idx) = entry + delta - entry * math.abs(delta) / CaptureHistMax
+
   def contBase(ply: Ply, offset: Int): Int =
     val idx = ply.toInt - offset
     if idx >= 0 && stackTo(idx).isDefined then contHistory.baseOffset(stackPiece(idx), stackTo(idx))
     else -1
+
+  def trackQuiet(ply: Ply, move: Move): Unit =
+    val qi = quietsTriedCount(ply.toInt)
+    if qi < 256 then
+      quietsTried(ply.toInt)(qi) = move
+      quietsTriedCount(ply.toInt) = qi + 1
+
+  def trackCapture(ply: Ply, move: Move): Unit =
+    val ci = capturesTriedCount(ply.toInt)
+    if ci < 64 then
+      capturesTried(ply.toInt * 64 + ci) = move
+      capturesTriedCount(ply.toInt) = ci + 1
+
+  def updateCaptureHistoryAfterCut(ply: Ply, cutMove: Move, capBonus: Score, position: MutablePosition): Unit =
+    updateCaptureHistory(position.pieceAt(cutMove.from).index, cutMove.to.toInt, position.pieceAt(cutMove.to).pieceType, capBonus.toInt)
+    val cCount  = capturesTriedCount(ply.toInt)
+    val plyBase = ply.toInt * 64
+    var ci      = 0
+    while ci < cCount do
+      val c = capturesTried(plyBase + ci)
+      if c != cutMove then
+        val cVictim = position.pieceAt(c.to)
+        if !cVictim.isNoPiece then updateCaptureHistory(position.pieceAt(c.from).index, c.to.toInt, cVictim.pieceType, -capBonus.toInt)
+      ci += 1
 
   def updateContHistoryAfterCut(
     ply: Ply,
@@ -90,15 +127,17 @@ object Search:
   private val LmpThreshold      = Array(0, 8, 12, 20, 28)
   private val LmrHistoryDivisor = 8192
 
-  val MaxPly               = Ply(128)
-  private val tt           = new TranspositionTable(256)
-  private val historyTable = Array.ofDim[Int](2, 64, 64)
-  private val contHistory  = new ContinuationHistoryTable()
+  val MaxPly                      = Ply(128)
+  private val tt                  = new TranspositionTable(256)
+  private val historyTable        = Array.ofDim[Int](2, 64, 64)
+  private val contHistory         = new ContinuationHistoryTable()
+  private val captureHistoryTable = new Array[Int](12 * 64 * 6)
 
   def clear(): Unit =
     tt.clear()
     contHistory.clear()
     for s <- 0 until 2 do for i <- 0 until 64 do for j <- 0 until 64 do historyTable(s)(i)(j) = 0
+    java.util.Arrays.fill(captureHistoryTable, 0)
 
   def requestStop(): Unit = stopRequested = true
 
@@ -124,7 +163,8 @@ object Search:
       depthLimit = limits.depth,
       table = tt,
       history = historyTable,
-      contHistory = contHistory
+      contHistory = contHistory,
+      captureHistory = captureHistoryTable
     )
     tt.incrementGeneration()
 
@@ -431,7 +471,8 @@ object Search:
       ttMove,
       contHistoryArr,
       contBase1,
-      contBase2
+      contBase2,
+      ctx.captureHistory
     )
 
     var bestScore          = -Score.Infinity
@@ -442,6 +483,7 @@ object Search:
     var ttFlag             = TTEntry.FlagUpper
 
     ctx.quietsTriedCount(ply.toInt) = 0
+    ctx.capturesTriedCount(ply.toInt) = 0
 
     var i = 0
     while i < moveCount do
@@ -480,11 +522,8 @@ object Search:
 
           if !move.isCapture && !move.isPromotion then
             quietMovesSearched += 1
-            val qi = ctx.quietsTriedCount(ply.toInt)
-            if qi < 256 then
-              ctx.quietsTried(ply.toInt)(qi) = move
-              // ctx.quietsTriedPieceType(ply.toInt)(qi) = movedPieceType
-              ctx.quietsTriedCount(ply.toInt) = qi + 1
+            ctx.trackQuiet(ply, move)
+          else if move.isCapture then ctx.trackCapture(ply, move)
 
           val reduction = if shouldReduce(position, move, i, searchDepth, ply, ctx) then computeReduction(searchDepth, i) else Depth.Zero
           var score     = Score.Zero
@@ -531,6 +570,12 @@ object Search:
               val bonus = ctx.historyBonus(newDepth)
               ctx.updateHistory(movingSide, move.from.toInt, move.to.toInt, bonus.toInt)
               ctx.updateContHistoryAfterCut(ply, move, movedPieceType, bonus, contBase1, contBase2, movingSide)
+
+            if move.isCapture && !move.isPromotion then
+              val capturedPiece = position.pieceAt(move.to)
+              if !capturedPiece.isNoPiece then
+                val capBonus = ctx.historyBonus(newDepth)
+                ctx.updateCaptureHistoryAfterCut(ply, move, capBonus, position)
 
             return beta
           if score > bestScore then
@@ -608,7 +653,7 @@ object Search:
       val captureArr   = captureBuf.unsafeBuffer
       val captureCount = captureBuf.size
       val scoreArr     = ctx.scoreBuffers(ply.toInt)
-      MoveSorter.scoreCaptures(captureArr, scoreArr, captureCount, position)
+      MoveSorter.scoreCaptures(captureArr, scoreArr, captureCount, position, null)
       SearchStats.qSearchCapturesGenerated += captureCount
 
       var i = 0

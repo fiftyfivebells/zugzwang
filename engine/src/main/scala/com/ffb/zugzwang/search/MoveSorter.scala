@@ -68,7 +68,8 @@ object MoveSorter:
     ttMove: Move = Move.None,
     contHistoryArr: Array[Score] = Array[Score](),
     contBase1: Int = -1,
-    contBase2: Int = -1
+    contBase2: Int = -1,
+    captureHistory: Array[Int] = null
   ): Unit =
     var i = 0
     while i < count do
@@ -77,7 +78,14 @@ object MoveSorter:
       else if move.isCapture then
         val baseScore = scoreMove(move, position)
         val seeBonus  = if SEE.seeGE(position, move) then Score(10000) else Score.Zero
-        scores.setScore(i, baseScore + seeBonus)
+        val capScore =
+          if captureHistory != null then
+            val attacker = position.pieceAt(move.from)
+            val victim   = position.pieceAt(move.to)
+            if !victim.isNoPiece then captureHistory(attacker.index * 384 + move.to.toInt * 6 + victim.pieceType)
+            else 0
+          else 0
+        scores.setScore(i, baseScore + seeBonus + Score(capScore / 16))
       else if move == killers.first then scores.setScore(i, Killer1Bonus)
       else if move == killers.second then scores.setScore(i, Killer2Bonus)
       else
@@ -113,11 +121,20 @@ object MoveSorter:
       val tmpS = scores.getScore(index); scores.setScore(index, scores.getScore(bestIdx)); scores.setScore(bestIdx, tmpS)
     moves(index)
 
-  def scoreCaptures(moves: Array[Move], scores: ScoreBuffer, count: Int, position: MutablePosition): Unit =
+  def scoreCaptures(
+    moves: Array[Move],
+    scores: ScoreBuffer,
+    count: Int,
+    position: MutablePosition,
+    capHist: Array[Int] = null
+  ): Unit =
     var i = 0
     while i < count do
       val move     = moves(i)
       val victim   = position.pieceAt(move.to)
       val attacker = position.pieceAt(move.from)
-      scores.setScore(i, Score((victim.materialValue * 10) - attacker.materialValue))
+      val capScore =
+        if capHist != null && !victim.isNoPiece then capHist(attacker.index * 384 + move.to.toInt * 6 + victim.pieceType)
+        else 0
+      scores.setScore(i, Score((victim.materialValue * 10) - attacker.materialValue + capScore / 16))
       i += 1
