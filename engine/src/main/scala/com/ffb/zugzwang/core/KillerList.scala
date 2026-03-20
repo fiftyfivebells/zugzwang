@@ -24,3 +24,6 @@ object KillersList:
     inline def getSecond(ply: Ply): Move = kl(ply.toInt).second
 
     inline def insertMove(ply: Ply, move: Move): Unit = kl(ply.toInt).insertMove(move)
+
+    inline def clear(): Unit =
+      for i <- 0 until kl.size do kl(i) = Killers.empty
