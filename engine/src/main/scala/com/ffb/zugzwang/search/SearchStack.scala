@@ -37,7 +37,7 @@ object SearchStackEntry:
   def Default: SearchStackEntry = new SearchStackEntry
 
 final class SearchStack private (private val entries: Array[SearchStackEntry]):
-  def apply(ply: Ply): SearchStackEntry = entries(ply.toInt + SearchStack.Padding)
+  def at(ply: Ply): SearchStackEntry = entries(ply.toInt + SearchStack.Padding)
 
   def clear(): Unit =
     for i <- 0 until entries.size do entries(i).clear()

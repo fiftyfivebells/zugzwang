@@ -4,7 +4,7 @@ import scala.annotation.targetName
 
 opaque type Node = Long
 object Node:
-  val zero: Node = 0L
+  val Zero: Node = 0L
 
   def apply(in: Long): Node = in
 
