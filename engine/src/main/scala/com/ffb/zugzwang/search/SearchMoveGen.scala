@@ -11,7 +11,7 @@ object SearchMoveGen:
    * check).
    */
   def fillMoveList(position: MutablePosition, ml: MoveList): Unit =
-    ml.clear
+    ml.clear()
 
     val occupied = position.occupied
     val targets  = position.byColor(position.activeSide.enemy.ordinal)
@@ -89,7 +89,7 @@ object SearchMoveGen:
 
   /** Pseudolegal captures only. Used by quiescence search. */
   def fillCaptures(position: MutablePosition, ml: MoveList): Unit =
-    ml.clear
+    ml.clear()
 
     val occupied = position.occupied
     val targets  = position.byColor(position.activeSide.enemy.ordinal)

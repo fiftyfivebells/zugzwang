@@ -23,7 +23,7 @@ final case class MoveList(initialCapacity: Int = 256):
   def apply(index: Int): Option[Move] =
     if index >= count then None else Some(moves(index))
 
-  def clear: Unit = count = 0
+  def clear(): Unit = count = 0
 
   def toList: List[Move] =
     (0 until count).toList.map(moves(_))
