@@ -62,3 +62,6 @@ final case class MoveList(initialCapacity: Int = 256):
         moves(right) = leftMove
         moves(left) = rightMove
         right -= 1
+
+object MoveList:
+  def initialize: MoveList = new MoveList()
