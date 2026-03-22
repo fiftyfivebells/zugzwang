@@ -14,6 +14,8 @@ object PieceType:
     Array(100, 320, 330, 500, 900, 20000, 0)
 
   extension (pt: PieceType)
+    def isDefined: Boolean = pt >= 0 && pt < 6
+
     def name: String = pt match
       case NoType => ""
       case Pawn   => "p"

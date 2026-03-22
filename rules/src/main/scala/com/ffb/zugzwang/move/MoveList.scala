@@ -20,6 +20,8 @@ final class MoveList(initialCapacity: Int = 256):
 
   def size: Int = count
 
+  def unsafeGet(index: Int): Move = moves(index)
+
   def apply(index: Int): Option[Move] =
     if index >= count then None else Some(moves(index))
 

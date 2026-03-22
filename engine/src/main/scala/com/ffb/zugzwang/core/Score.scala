@@ -24,6 +24,8 @@ object Score:
 
     inline def toLong: Long = s.toLong
 
+    inline def abs: Score = Score(math.abs(s))
+
     @targetName("plusInt")
     inline def +(other: Int): Score = s + other
     @targetName("plusScore")
