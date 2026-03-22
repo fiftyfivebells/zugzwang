@@ -1,7 +1,7 @@
 package com.ffb.zugzwang.search
 
 import com.ffb.zugzwang.chess.{MutablePosition, Piece, PieceType, Square}
-import com.ffb.zugzwang.core.{Killers, Score, ScoreBuffer}
+import com.ffb.zugzwang.core.{Killers, Ply, Score, ScoreBuffer}
 import com.ffb.zugzwang.evaluation.{PieceSquareTables, SEE}
 import com.ffb.zugzwang.move.{Move, MoveType}
 
@@ -62,16 +62,13 @@ object MoveSorter:
     scores: ScoreBuffer,
     count: Int,
     position: MutablePosition,
-    killers: Killers,
-    history: Array[Array[Array[Int]]],
-    sideToMove: Int,
+    searchHistory: SearchHistory,
+    side: Int,
     ttMove: Move = Move.None,
-    contHistoryArr: Array[Score] = Array[Score](),
-    contBase1: Int = -1,
-    contBase2: Int = -1,
-    captureHistory: Array[Int] = null
+    ply: Ply = Ply.Base
   ): Unit =
-    var i = 0
+    val killers = searchHistory.killersAtPly(ply)
+    var i       = 0
     while i < count do
       val move = moves(i)
       if move == ttMove then scores.setScore(i, TTMoveScore)
@@ -79,31 +76,17 @@ object MoveSorter:
         val baseScore = scoreMove(move, position)
         val seeBonus  = if SEE.seeGE(position, move) then Score(10000) else Score.Zero
         val capScore =
-          if captureHistory != null then
-            val attacker = position.pieceAt(move.from)
-            val victim   = position.pieceAt(move.to)
-            if !victim.isNoPiece then captureHistory(attacker.index * 384 + move.to.toInt * 6 + victim.pieceType)
-            else 0
-          else 0
-        scores.setScore(i, baseScore + seeBonus + Score(capScore / 16))
+          val attacker = position.pieceAt(move.from)
+          val victim   = position.pieceAt(move.to)
+          if !victim.isNoPiece then searchHistory.captureScore(attacker, victim, move.to)
+          else Score.Zero
+        scores.setScore(i, baseScore + seeBonus + capScore / 16)
       else if move == killers.first then scores.setScore(i, Killer1Bonus)
       else if move == killers.second then scores.setScore(i, Killer2Bonus)
       else
         val positionalScore = scoreMove(move, position)
-        val historyScore    = Score(history(sideToMove)(move.from.toInt)(move.to.toInt))
-        val ch1ch2 =
-          if contBase1 > -1 || contBase2 > -1 then
-            val moverType = position.pieceAt(move.from).pieceType
-            val innerOff  = moverType * 64 + move.to.toInt
-
-            val ch1 = if contBase1 > -1 then contHistoryArr(contBase1 + innerOff) else Score.Zero
-            val ch2 = if contBase2 > -1 then contHistoryArr(contBase2 + innerOff) else Score.Zero
-
-            (ch1 + ch2) / 2
-          else Score.Zero
-
-        scores.setScore(i, positionalScore + historyScore + ch1ch2)
-
+        val historyScore    = searchHistory.quietMoveScore(ply, move, position.pieceAt(move.from))
+        scores.setScore(i, positionalScore + historyScore)
       i += 1
 
   inline def pickNext(moves: Array[Move], scores: ScoreBuffer, index: Int, limit: Int): Move =

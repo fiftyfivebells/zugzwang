@@ -1,7 +1,7 @@
 package com.ffb.zugzwang.search
 
 import com.ffb.zugzwang.chess.MutablePosition
-import com.ffb.zugzwang.core.{Depth, KillersList, Node, Ply, Score, ScoreBuffer, SearchTime, TimeControl}
+import com.ffb.zugzwang.core.{Depth, Node, Ply, Score, ScoreBuffer, SearchTime, TimeControl}
 import com.ffb.zugzwang.evaluation.{PestoEvaluation, SEE}
 import com.ffb.zugzwang.move.{Move, MoveList}
 import com.ffb.zugzwang.tools.DebugLogger
@@ -9,13 +9,9 @@ import com.ffb.zugzwang.tools.DebugLogger
 import scala.annotation.tailrec
 
 final class Searcher:
-  private val stack          = SearchStack.initialize()
-  private val killers        = KillersList.initialize(Search.MaxPly.toInt)
-  private val history        = Array.ofDim[Int](2, 64, 64)
-  private val contHistory    = ContinuationHistoryTable()
-  private val captureHistory = new Array[Score](12 * 64 * 6)
-
-  private val tt = new TranspositionTable(256)
+  private val stack         = SearchStack.initialize()
+  private val tt            = new TranspositionTable(256)
+  private val searchHistory = new SearchHistory(stack)
 
   private val moveLists =
     Array.fill(Search.MaxPly.toInt + Search.MaxQDepth.toInt + 1)(MoveList(256))
@@ -33,21 +29,10 @@ final class Searcher:
   private val LmpThreshold      = Array(0, 8, 12, 20, 28)
   private val LmrHistoryDivisor = 8192
 
-  private def storeKiller(ply: Ply, move: Move): Unit =
-    if ply >= Search.MaxPly then return
-
-    if killers.getFirst(ply) == move then return
-
-    killers.insertMove(ply, move)
-
   def clear(): Unit =
     tt.clear()
     stack.clear()
-    killers.clear()
-    contHistory.clear()
-    for i <- 0 to 1 do for j <- 0 until 64 do for k <- 0 until 64 do history(i)(j)(k) = 0
-
-    for i <- 0 until captureHistory.size do captureHistory(i) = Score.Zero
+    searchHistory.clear()
 
   def search(position: MutablePosition, limits: SearchLimits): Move =
     startTime = SearchTime.currentTime
@@ -75,8 +60,7 @@ final class Searcher:
       defaultScores,
       legalMoves.length,
       position,
-      killers.basePly,
-      history,
+      searchHistory,
       position.activeSide.ordinal
     )
     val defaultMove = MoveSorter.pickNext(legalMoves, defaultScores, 0, legalMoves.length)
@@ -168,7 +152,15 @@ final class Searcher:
     val moveArr   = moveBuf.unsafeBuffer
     val moveCount = moveBuf.size
     val scoreArr  = scoreBuffers(0)
-    MoveSorter.sortMoves(moveArr, scoreArr, moveCount, position, killers.basePly, history, position.activeSide.ordinal, ttMove)
+    MoveSorter.sortMoves(
+      moveArr,
+      scoreArr,
+      moveCount,
+      position,
+      searchHistory,
+      position.activeSide.ordinal,
+      ttMove
+    )
 
     @tailrec
     def loop(
@@ -240,7 +232,6 @@ final class Searcher:
     else
       position.applyNullMove
       try
-//        stackTo(ply.toInt) = Square.NoSquare
         val score = -negamax(position, depth - 1 - nullMoveReduction(depth), -beta, -beta + 1, ply + 1)
         score >= beta
       finally position.unapplyNullMove
@@ -262,7 +253,7 @@ final class Searcher:
     val givesCheck     = position.isSideInCheck(position.activeSide)
     val isCapture      = move.isCapture
     val isPromotion    = move.isPromotion
-    val currentKillers = killers.atPly(ply)
+    val currentKillers = searchHistory.killersAtPly(ply)
     val isKiller       = currentKillers.doesContain(move)
     val isGoodCapture  = isCapture && SEE.seeGE(position, move)
 
@@ -349,27 +340,22 @@ final class Searcher:
     val moveCount = moveBuf.size
     val scoreArr  = scoreBuffers(ply.toInt)
 
-    val currentKillers = killers.atPly(ply)
-
-    val contHistoryArr = contHistory.rawArray
-    val contBase1      = 0
-    val contBase2      = 0
+    val currentKillers = searchHistory.killersAtPly(ply)
 
     val prevEntry = stack.at(ply - 1)
     val currEntry = stack.at(ply)
+    currEntry.quietsTried.clear()
+    currEntry.capturesTried.clear()
 
     MoveSorter.sortMoves(
       moveArr,
       scoreArr,
       moveCount,
       position,
-      currentKillers,
-      history,
+      searchHistory,
       position.activeSide.ordinal,
       ttMove,
-      contHistoryArr,
-      contBase1,
-      contBase2
+      ply
     )
 
     var bestScore          = -Score.Infinity
@@ -423,12 +409,14 @@ final class Searcher:
 
           if reduction > Depth.Zero then
             SearchStats.lmrReductions += 1
-            val histScore = history(movingSide)(move.from.toInt)(move.to.toInt)
-            val histAdj   = histScore / LmrHistoryDivisor
-            val finalRed  = Depth(math.max(1, (reduction.toInt - histAdj)))
+            val movedPiece = position.pieceAt(move.to)
+            val histScore  = searchHistory.quietScore(movedPiece, move.to)
+            val histAdj    = histScore / LmrHistoryDivisor
+
+            val finalReduction = Depth(math.max(1, (reduction.toInt - histAdj.toInt)))
 
             // Stage 1: reduced depth, null window
-            score = -negamax(position, searchDepth - 1 - finalRed, -currentAlpha - 1, -currentAlpha, ply + 1)
+            score = -negamax(position, searchDepth - 1 - finalReduction, -currentAlpha - 1, -currentAlpha, ply + 1)
 
             if score > currentAlpha then
               SearchStats.lmrResearches += 1
@@ -441,8 +429,8 @@ final class Searcher:
             // Non-LMR, non-first move: PVS null window first, then full window re-search only at PV nodes
             score = -negamax(position, searchDepth - 1, -currentAlpha - 1, -currentAlpha, ply + 1)
             if score > currentAlpha && isPvNode then
-                SearchStats.pvsReSearches += 1
-                score = -negamax(position, searchDepth - 1, -beta, -currentAlpha, ply + 1)
+              SearchStats.pvsReSearches += 1
+              score = -negamax(position, searchDepth - 1, -beta, -currentAlpha, ply + 1)
           else
             // First legal move: full window search directly
             score = -negamax(position, searchDepth - 1, -beta, -currentAlpha, ply + 1)
@@ -454,23 +442,14 @@ final class Searcher:
             tt.store(position.zobristHash, move, beta, searchDepth, TTEntry.FlagLower, ply)
 
             if i == 0 then SearchStats.firstMoveCutoffs += 1
-            else if currentKillers.doesContain(move) then SearchStats.killerCutoffs += 1
+            else if searchHistory.killersAtPly(ply).doesContain(move) then SearchStats.killerCutoffs += 1
             else SearchStats.historyCutoffs += 1
 
-            if !move.isCapture && !move.isPromotion then storeKiller(ply, move)
-
-              val bonus = 0 // historyBonus(newDepth)
-              // ctx.updateHistory(movingSide, move.from.toInt, move.to.toInt, bonus.toInt)
-              // ctx.updateContHistoryAfterCut(ply, move, movedPieceType, bonus, contBase1, contBase2, movingSide)
-
-            if move.isCapture && !move.isPromotion then
-              val capturedPiece = position.pieceAt(move.to)
-              if !capturedPiece.isNoPiece then
-                val capBonus = Score.Zero
-                // ctx.historyBonus(newDepth)
-                // ctx.updateCaptureHistoryAfterCut(ply, move, capBonus, position)
+            if !move.isCapture && !move.isPromotion then searchHistory.updateAfterQuietCutoff(position, ply, move, newDepth)
+            else if move.isCapture && !move.isPromotion then searchHistory.updateAfterCaptureCutoff(position, ply, move, newDepth)
 
             return beta
+
           if score > bestScore then
             bestMove = move
             bestScore = score
@@ -489,7 +468,7 @@ final class Searcher:
     else
       tt.store(position.zobristHash, bestMove, bestScore, newDepth, ttFlag, ply)
       bestScore
-  
+
   private val QFutilityMargin = 150
   val MaxQDepth               = 10
 

@@ -20,6 +20,17 @@ final class SearchStackEntry:
   def addQuiet(move: Move): Unit   = quietsTried.add(move)
   def addCapture(move: Move): Unit = capturesTried.add(move)
 
+  // TODO: revisit this. I'm not sure this works like I expect
+  def isDefined: Boolean =
+    !(staticEval == Score.Zero &&
+      move.isNoMove &&
+      piece.isNoPiece &&
+      capturedPiece.isNoPiece &&
+      bestMove.isNoMove &&
+      reduction == Depth.Zero &&
+      !inCheck &&
+      !isPvNode)
+
   def clear(): Unit =
     staticEval = Score.Zero
     move = Move.None
