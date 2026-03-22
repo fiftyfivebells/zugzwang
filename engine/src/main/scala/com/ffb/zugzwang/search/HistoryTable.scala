@@ -51,6 +51,7 @@ object CaptureHistory extends HistoryTable:
 
       color * (PieceTypeCount * SquareCount * PieceTypeCount) +
         moving.pieceType * (SquareCount * PieceTypeCount) +
+        to.toInt * PieceTypeCount +
         captured.pieceType
 
     inline def add(moving: Piece, captured: Piece, to: Square, bonus: Score): Unit =
