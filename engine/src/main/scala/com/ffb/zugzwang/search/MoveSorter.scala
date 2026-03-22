@@ -2,7 +2,7 @@ package com.ffb.zugzwang.search
 
 import com.ffb.zugzwang.chess.{MutablePosition, Piece, PieceType, Square}
 import com.ffb.zugzwang.core.{Killers, Ply, Score, ScoreBuffer}
-import com.ffb.zugzwang.evaluation.{PieceSquareTables, SEE}
+import com.ffb.zugzwang.evaluation.PieceSquareTables
 import com.ffb.zugzwang.move.{Move, MoveType}
 
 object MoveSorter:
@@ -60,6 +60,7 @@ object MoveSorter:
   def sortMoves(
     moves: Array[Move],
     scores: ScoreBuffer,
+    meta: MoveMetadata,
     count: Int,
     position: MutablePosition,
     searchHistory: SearchHistory,
@@ -71,13 +72,20 @@ object MoveSorter:
     var i       = 0
     while i < count do
       val move = moves(i)
+      meta.populate(i, move, position, searchHistory, ply)
+
       if move == ttMove then scores.setScore(i, TTMoveScore)
-      else if move.isCapture then
+      else if meta.isPromotion(i) then
+        val promoValue = move.promotion.value
+        val capExtra =
+          if move.moveType == MoveType.CapturePromotion then Score(10000) else Score.Zero
+        scores.setScore(i, PromotionBase + capExtra + promoValue)
+      else if meta.isCapture(i) then
         val baseScore = scoreMove(move, position)
-        val seeBonus  = if SEE.seeGE(position, move) then Score(10000) else Score.Zero
+        val seeBonus  = if meta.isGoodNoisy(i) then Score(10000) else Score.Zero
+        val attacker  = position.pieceAt(move.from)
+        val victim    = position.pieceAt(move.to)
         val capScore =
-          val attacker = position.pieceAt(move.from)
-          val victim   = position.pieceAt(move.to)
           if !victim.isNoPiece then searchHistory.captureScore(attacker, victim, move.to)
           else Score.Zero
         scores.setScore(i, baseScore + seeBonus + capScore / 16)
@@ -85,11 +93,16 @@ object MoveSorter:
       else if move == killers.second then scores.setScore(i, Killer2Bonus)
       else
         val positionalScore = scoreMove(move, position)
-        val historyScore    = searchHistory.quietMoveScore(ply, move, position.pieceAt(move.from))
-        scores.setScore(i, positionalScore + historyScore)
+        scores.setScore(i, positionalScore + meta.historyScore(i))
       i += 1
 
-  inline def pickNext(moves: Array[Move], scores: ScoreBuffer, index: Int, limit: Int): Move =
+  inline def pickNext(
+    moves: Array[Move],
+    scores: ScoreBuffer,
+    meta: MoveMetadata | Null,
+    index: Int,
+    limit: Int
+  ): Move =
     var bestIdx   = index
     var bestScore = scores.getScore(index)
     var j         = index + 1
@@ -102,6 +115,7 @@ object MoveSorter:
     if bestIdx != index then
       val tmpM = moves(index); moves(index) = moves(bestIdx); moves(bestIdx) = tmpM
       val tmpS = scores.getScore(index); scores.setScore(index, scores.getScore(bestIdx)); scores.setScore(bestIdx, tmpS)
+      if meta != null then meta.swap(index, bestIdx)
     moves(index)
 
   def scoreCaptures(

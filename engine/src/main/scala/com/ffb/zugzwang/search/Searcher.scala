@@ -17,6 +17,8 @@ final class Searcher:
     Array.fill(Search.MaxPly.toInt + SearchConfig.qMaxDepth + 1)(MoveList(256))
   private val scoreBuffers =
     Array.fill(Search.MaxPly.toInt + SearchConfig.qMaxDepth + 1)(ScoreBuffer.initial)
+  private val moveMetadata =
+    Array.fill(Search.MaxPly.toInt + SearchConfig.qMaxDepth + 1)(MoveMetadata(256))
 
   private var startTime  = SearchTime.Zero
   private var endTime    = SearchTime.Zero
@@ -279,12 +281,14 @@ final class Searcher:
     val moveArr   = moveBuf.unsafeBuffer
     val moveCount = moveBuf.size
     val scoreArr  = scoreBuffers(ply.toInt)
+    val meta      = moveMetadata(ply.toInt)
 
     val currentKillers = searchHistory.killersAtPly(ply)
 
     MoveSorter.sortMoves(
       moveArr,
       scoreArr,
+      meta,
       moveCount,
       position,
       searchHistory,
@@ -302,11 +306,11 @@ final class Searcher:
 
     var i = 0
     while i < moveCount do
-      val move = MoveSorter.pickNext(moveArr, scoreArr, i, moveCount)
+      val move = MoveSorter.pickNext(moveArr, scoreArr, meta, i, moveCount)
 
       if canDoFutility &&
-        !move.isCapture &&
-        !move.isPromotion &&
+        !meta.isCapture(i) &&
+        !meta.isPromotion(i) &&
         move != ttMove &&
         legalMovesFound > 0
       then
@@ -315,8 +319,7 @@ final class Searcher:
       else if !isPvNode &&
         searchDepth <= Depth(SearchConfig.lmpMaxDepth) &&
         !inCheck &&
-        !move.isCapture &&
-        !move.isPromotion &&
+        meta.isQuiet(i) &&
         !currentKillers.doesContain(move) &&
         move != ttMove &&
         quietMovesSearched >= SearchConfig.lmpThresholds(searchDepth.toInt)
@@ -329,10 +332,10 @@ final class Searcher:
         if !position.isSideInCheck(position.activeSide.enemy) then
           legalMovesFound += 1
 
-          if !move.isCapture && !move.isPromotion then
+          if meta.isQuiet(i) then
             quietMovesSearched += 1
             currEntry.addQuiet(move)
-          else if move.isCapture then currEntry.addCapture(move)
+          else if meta.isCapture(i) then currEntry.addCapture(move)
 
           val reduction =
             if searchDepth.toInt >= SearchConfig.lmrMinDepth &&
@@ -385,8 +388,8 @@ final class Searcher:
             else if searchHistory.killersAtPly(ply).doesContain(move) then SearchStats.killerCutoffs += 1
             else SearchStats.historyCutoffs += 1
 
-            if !move.isCapture && !move.isPromotion then searchHistory.updateAfterQuietCutoff(position, ply, move, newDepth)
-            else if move.isCapture && !move.isPromotion then searchHistory.updateAfterCaptureCutoff(position, ply, move, newDepth)
+            if meta.isQuiet(i) then searchHistory.updateAfterQuietCutoff(position, ply, move, newDepth)
+            else if meta.isCapture(i) then searchHistory.updateAfterCaptureCutoff(position, ply, move, newDepth)
 
             return beta
 
@@ -465,12 +468,12 @@ final class Searcher:
       val captureArr   = captureBuf.unsafeBuffer
       val captureCount = captureBuf.size
       val scoreArr     = scoreBuffers(ply.toInt)
-      MoveSorter.scoreCaptures(captureArr, scoreArr, captureCount, position, null)
+      MoveSorter.scoreCaptures(captureArr, scoreArr, captureCount, position)
       SearchStats.qSearchCapturesGenerated += captureCount
 
       var i = 0
       while i < captureCount && !shouldStop() do
-        val move     = MoveSorter.pickNext(captureArr, scoreArr, i, captureCount)
+        val move     = MoveSorter.pickNext(captureArr, scoreArr, null, i, captureCount)
         val captured = position.pieceAt(move.to)
 
         if standPat + captured.materialValue + SearchConfig.qFutilityMargin >= currentAlpha then
