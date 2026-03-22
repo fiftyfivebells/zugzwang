@@ -6,7 +6,7 @@ import com.ffb.zugzwang.core.{Depth, SearchTime}
 import com.ffb.zugzwang.move.{MoveGenerator, Perft}
 import com.ffb.zugzwang.notation.FENParser
 import com.ffb.zugzwang.rules.Rules
-import com.ffb.zugzwang.search.{Search, SearchLimits, SearchStats}
+import com.ffb.zugzwang.search.{Search, SearchConfig, SearchLimits, SearchStats}
 import com.ffb.zugzwang.tools.DebugLogger
 
 import scala.annotation.tailrec
@@ -48,6 +48,15 @@ object UciMain:
 
         case "isready" :: _ =>
           println("readyok")
+          state
+
+        case "setoption" :: "name" :: rest =>
+          val parts = rest.mkString(" ").split("\\s+value\\s+", 2)
+          if parts.length == 2 then
+            val optName  = parts(0).trim
+            val optValue = parts(1).trim
+            if !SearchConfig.setOption(optName, optValue) then
+              DebugLogger.log(s"Unknown option: $optName")
           state
 
         case "position" :: rest =>

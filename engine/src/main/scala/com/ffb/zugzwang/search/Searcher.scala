@@ -14,9 +14,9 @@ final class Searcher:
   private val searchHistory = new SearchHistory(stack)
 
   private val moveLists =
-    Array.fill(Search.MaxPly.toInt + Search.MaxQDepth.toInt + 1)(MoveList(256))
+    Array.fill(Search.MaxPly.toInt + SearchConfig.qMaxDepth + 1)(MoveList(256))
   private val scoreBuffers =
-    Array.fill(Search.MaxPly.toInt + Search.MaxQDepth.toInt + 1)(ScoreBuffer.initial)
+    Array.fill(Search.MaxPly.toInt + SearchConfig.qMaxDepth + 1)(ScoreBuffer.initial)
 
   private var startTime  = SearchTime.Zero
   private var endTime    = SearchTime.Zero
@@ -24,10 +24,6 @@ final class Searcher:
 
   var nodes   = Node.Zero
   var stopped = false
-
-  // TODO: extract these out to config/global variables
-  private val LmpThreshold      = Array(0, 8, 12, 20, 28)
-  private val LmrHistoryDivisor = 8192
 
   def clear(): Unit =
     tt.clear()
@@ -74,9 +70,9 @@ final class Searcher:
       val now = SearchTime.currentTime
       if now >= softDeadline || currentDepth > depthLimit || stopped then return bestMove
 
-      var alpha          = if currentDepth >= Depth(5) then prevScore - 50 else -Score.Infinity
-      var beta           = if currentDepth >= Depth(5) then prevScore + 50 else Score.Infinity
-      var delta          = 50
+      var alpha          = if currentDepth >= Depth(SearchConfig.aspMinDepth) then prevScore - SearchConfig.aspWindowSize else -Score.Infinity
+      var beta           = if currentDepth >= Depth(SearchConfig.aspMinDepth) then prevScore + SearchConfig.aspWindowSize else Score.Infinity
+      var delta          = SearchConfig.aspWindowSize
       var attempts       = 0
       var score          = Score.Zero
       var searchComplete = false
@@ -88,7 +84,7 @@ final class Searcher:
           val rootBest = stack.at(Ply.Base).bestMove
           return if rootBest != Move.None then rootBest else bestMove
 
-        if (score <= alpha || score >= beta) && attempts < 3 then
+        if (score <= alpha || score >= beta) && attempts < SearchConfig.aspMaxAttempts then
           attempts += 1
           delta = delta * 2
 
@@ -121,7 +117,9 @@ final class Searcher:
         DebugLogger.log(e.getStackTrace().mkString("\n"))
         Move.None
 
-  private inline def nullMoveReduction(depth: Depth): Int = if depth > 6 then 3 else 2
+  private inline def nullMoveReduction(depth: Depth): Int =
+    if depth > SearchConfig.nmpDeepThreshold then SearchConfig.nmpDeepReduction
+    else SearchConfig.nmpBaseReduction
 
   private def attemptNullMove(
     position: MutablePosition,
@@ -129,7 +127,7 @@ final class Searcher:
     beta: Score,
     ply: Ply
   ): Boolean =
-    if depth.toInt < 3 ||
+    if depth.toInt < SearchConfig.nmpMinDepth ||
       position.isSideInCheck(position.activeSide) ||
       ply.toInt == 0 ||
       beta >= Score.Infinity ||
@@ -143,10 +141,10 @@ final class Searcher:
       finally position.unapplyNullMove
 
   private inline def computeReduction(depth: Depth, moveIndex: Int): Depth =
-    if depth < Depth(3) || moveIndex < 3 then Depth.Zero
+    if depth.toInt < SearchConfig.lmrMinDepth || moveIndex < SearchConfig.lmrMinMoveIndex then Depth.Zero
     else
-      val base = math.log(depth.toInt) * math.log(moveIndex) / 2.5
-      Depth(math.max(1, math.min(base.floor.toInt, depth.toInt - 1)))
+      val r = SearchConfig.lmrTable(math.min(depth.toInt, 127))(math.min(moveIndex, 127))
+      Depth(math.min(r, depth.toInt - 1))
 
   private inline def shouldReduce(
     position: MutablePosition,
@@ -163,8 +161,8 @@ final class Searcher:
     val isKiller       = currentKillers.doesContain(move)
     val isGoodCapture  = isCapture && SEE.seeGE(position, move)
 
-    depth >= Depth(3) &&
-    moveIndex >= 3 &&
+    depth >= Depth(SearchConfig.lmrMinDepth) &&
+    moveIndex >= SearchConfig.lmrMinMoveIndex &&
     !inCheck &&
     !givesCheck &&
     !isCapture &&
@@ -200,7 +198,7 @@ final class Searcher:
       if !isPvNode && ply.toInt > 0 && ttEntry.canCutoff(depth, alpha, beta, ply) then return ttEntry.score(ply)
 
     // internal iterative reduction: no TT hint at deep nodes → search one ply shallower
-    val newDepth = if ttMove == Move.None && depth >= Depth(4) then
+    val newDepth = if ttMove == Move.None && depth >= Depth(SearchConfig.iirMinDepth) then
       SearchStats.iirReductions += 1
       depth - 1
     else depth
@@ -209,7 +207,7 @@ final class Searcher:
 
     val inCheck = position.isSideInCheck(position.activeSide)
 
-    val extension   = if inCheck && isPvNode then Depth(1) else Depth.Zero
+    val extension   = if inCheck && (!SearchConfig.checkExtPvOnly || isPvNode) then Depth(1) else Depth.Zero
     val searchDepth = newDepth + extension
 
     if shouldStop() then return PestoEvaluation.evaluate(position)
@@ -218,22 +216,22 @@ final class Searcher:
       return quiesce(position, alpha, beta, ply)
 
     val staticEval =
-      if !isPvNode && newDepth <= Depth(3) && !inCheck then PestoEvaluation.evaluate(position)
+      if !isPvNode && newDepth <= Depth(SearchConfig.fpMaxDepth) && !inCheck then PestoEvaluation.evaluate(position)
       else Score.Zero
 
     val canDoFutility =
-      !isPvNode && !isRootNode && newDepth <= Depth(3) && !inCheck && staticEval + newDepth.toInt * 150 <= alpha
+      !isPvNode && !isRootNode && newDepth <= Depth(SearchConfig.fpMaxDepth) && !inCheck && staticEval + newDepth.toInt * SearchConfig.fpMarginPerDepth <= alpha
 
     // reverse futility pruning (static null move pruning)
-    if !isPvNode && !isRootNode && newDepth <= Depth(3) && !inCheck then
+    if !isPvNode && !isRootNode && newDepth <= Depth(SearchConfig.rfpMaxDepth) && !inCheck then
       val mateGuard = Score.Checkmate - Search.MaxPly.toInt
-      if beta < mateGuard && beta > -mateGuard && staticEval - 80 * newDepth.toInt >= beta then
+      if beta < mateGuard && beta > -mateGuard && staticEval - SearchConfig.rfpMarginPerDepth * newDepth.toInt >= beta then
         SearchStats.rfpPrunes += 1
         return staticEval
 
     // razoring: if static eval is well below alpha at a low depth, just go straight to quiesce
-    if !isPvNode && !isRootNode && newDepth <= Depth(2) && !inCheck then
-      val margin = if newDepth == Depth(1) then 300 else 600 // TODO: magic number alert
+    if !isPvNode && !isRootNode && newDepth <= Depth(SearchConfig.razorMaxDepth) && !inCheck then
+      val margin = if newDepth == Depth(1) then SearchConfig.razorMarginD1 else SearchConfig.razorMarginD2
       if staticEval + margin < alpha then
         val qScore = quiesce(position, alpha - 1, alpha, ply)
         SearchStats.razorProbes += 1
@@ -287,13 +285,13 @@ final class Searcher:
         SearchStats.futilityPrunes += 1
         i += 1
       else if !isPvNode &&
-        searchDepth <= Depth(3) &&
+        searchDepth <= Depth(SearchConfig.lmpMaxDepth) &&
         !inCheck &&
         !move.isCapture &&
         !move.isPromotion &&
         !currentKillers.doesContain(move) &&
         move != ttMove &&
-        quietMovesSearched >= LmpThreshold(searchDepth.toInt)
+        quietMovesSearched >= SearchConfig.lmpThresholds(searchDepth.toInt)
       then
         SearchStats.lmpPrunes += 1
         i += 1
@@ -317,7 +315,7 @@ final class Searcher:
             SearchStats.lmrReductions += 1
             val movedPiece = position.pieceAt(move.to)
             val histScore  = searchHistory.quietScore(movedPiece, move.to)
-            val histAdj    = histScore / LmrHistoryDivisor
+            val histAdj    = histScore / SearchConfig.lmrHistoryDivisor
 
             val finalReduction = Depth(math.max(1, (reduction.toInt - histAdj.toInt)))
 
@@ -376,15 +374,12 @@ final class Searcher:
       tt.store(position.zobristHash, bestMove, bestScore, newDepth, ttFlag, ply)
       bestScore
 
-  private val QFutilityMargin = 150
-  val MaxQDepth               = 10
-
   private def quiesce(position: MutablePosition, alpha: Score, beta: Score, ply: Ply, qDepth: Int = 0): Score =
     SearchStats.qNodes += 1
     nodes = nodes + 1
     SearchStats.qSearchMaxDepth = Math.max(qDepth, SearchStats.qSearchMaxDepth)
 
-    if qDepth >= MaxQDepth then return PestoEvaluation.evaluate(position)
+    if qDepth >= SearchConfig.qMaxDepth then return PestoEvaluation.evaluate(position)
 
     SearchStats.qTtProbes += 1
     val ttEntry = tt.probe(position.zobristHash)
@@ -440,7 +435,7 @@ final class Searcher:
         val move     = MoveSorter.pickNext(captureArr, scoreArr, i, captureCount)
         val captured = position.pieceAt(move.to)
 
-        if standPat + captured.materialValue + QFutilityMargin >= currentAlpha then
+        if standPat + captured.materialValue + SearchConfig.qFutilityMargin >= currentAlpha then
           if SEE.seeGE(position, move) then
             position.applyMove(move)
             if !position.isSideInCheck(position.activeSide.enemy) then

@@ -99,7 +99,6 @@ object Search:
   private var stopRequested = false
 
   val MaxPly           = Ply(128)
-  val MaxQDepth        = 10
   private val searcher = new Searcher
 
   def clear(): Unit = ()

@@ -10,9 +10,6 @@ final class SearchHistory(private val stack: SearchStack):
   private val captureHistory = CaptureHistory.empty
   private val contHistory    = ContinuationHistory.empty
 
-  private val HistoryMax        = 16384
-  private val CaptureHistoryMax = 16384
-
   private val QuietHistoryBonusScale = Score(1202)
   private val QuietHistoryBonusMax   = Score(207)
   private val QuietHistoryMalusScale = Score(200)
@@ -29,7 +26,7 @@ final class SearchHistory(private val stack: SearchStack):
   private val CaptureHistoryMalusMax   = Score(1185)
 
   private def historyBonus(depth: Depth): Score =
-    Score(math.min(depth.toInt * depth.toInt, HistoryMax / 4))
+    Score(math.min(depth.toInt * depth.toInt, SearchConfig.historyMax / 4))
 
   private def historyMalus(depth: Depth): Score =
     -historyBonus(depth)

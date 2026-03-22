@@ -4,8 +4,6 @@ import com.ffb.zugzwang.chess.{Piece, Square}
 import com.ffb.zugzwang.core.Score
 
 sealed trait HistoryTable:
-  protected val MaxHistory = Score(16384)
-
   protected inline val PieceTypeCount = 6
   protected inline val PieceCount     = 12
   protected inline val SquareCount    = 64
@@ -16,7 +14,7 @@ sealed trait HistoryTable:
     table(index) = gravity(current, bonus)
 
   private inline def gravity(current: Score, bonus: Score): Score =
-    current + bonus - current * bonus.abs / MaxHistory
+    current + bonus - current * bonus.abs / Score(SearchConfig.historyMax)
 
 object QuietHistory extends HistoryTable:
   opaque type Table = Array[Score]
