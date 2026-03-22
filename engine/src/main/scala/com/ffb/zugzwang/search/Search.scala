@@ -101,8 +101,7 @@ object Search:
   val MaxPly           = Ply(128)
   private val searcher = new Searcher
 
-  def clear(): Unit = ()
-  searcher.clear()
+  def clear(): Unit = searcher.clear()
 
   def requestStop(): Unit =
     stopRequested = true
