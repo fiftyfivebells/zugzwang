@@ -44,176 +44,82 @@ final class Searcher:
     SearchStats.reset()
     tt.incrementGeneration()
 
+    if !TimeControl.shouldSearch(limits.moveTime) then return Move.None
+
     val rootMl = MoveList(256)
     SearchMoveGen.fillMoveList(position, rootMl)
-    val legalMoves = rootMl.toArray.filter { move =>
+    var legalCount = 0
+    var onlyLegal  = Move.None
+    var mi         = 0
+    while mi < rootMl.size && legalCount < 2 do
+      val move = rootMl.unsafeBuffer(mi)
       position.applyMove(move)
-      val legal = !position.isSideInCheck(position.activeSide.enemy)
+      if !position.isSideInCheck(position.activeSide.enemy) then
+        legalCount += 1
+        onlyLegal = move
       position.unapplyMove(move)
-      legal
-    }
-    if legalMoves.isEmpty then return Move.None // no legal moves
+      mi += 1
 
-    val defaultScores = ScoreBuffer.initialize(legalMoves.length)
-    MoveSorter.sortMoves(
-      legalMoves,
-      defaultScores,
-      legalMoves.length,
-      position,
-      searchHistory,
-      position.activeSide.ordinal
-    )
-    val defaultMove = MoveSorter.pickNext(legalMoves, defaultScores, 0, legalMoves.length)
+    if legalCount == 0 then return Move.None
+    if legalCount == 1 then return onlyLegal
 
     @tailrec
-    def iterativeDeepening(currentDepth: Depth, bestMove: Move, prevScore: Score): Move =
-      val now           = SearchTime.currentTime
-      val outOfTime     = now >= window.softDeadline
-      val depthExceeded = currentDepth > limits.depth
+    def iterativeDeepening(
+      position: MutablePosition,
+      currentDepth: Depth,
+      bestMove: Move,
+      prevScore: Score,
+      softDeadline: SearchTime
+    ): Move =
+      val now = SearchTime.currentTime
+      if now >= softDeadline || currentDepth > depthLimit || stopped then return bestMove
 
-      if outOfTime || depthExceeded || stopped then return bestMove
+      var alpha          = if currentDepth >= Depth(5) then prevScore - 50 else -Score.Infinity
+      var beta           = if currentDepth >= Depth(5) then prevScore + 50 else Score.Infinity
+      var delta          = 50
+      var attempts       = 0
+      var score          = Score.Zero
+      var searchComplete = false
 
-      val (alpha, beta) =
-        if currentDepth >= Depth(5) then
-          val windowSize = 50 // TODO: maybe experiment with window sizes?
-          (prevScore - windowSize, prevScore + windowSize)
-        else (-Score.Infinity, Score.Infinity)
+      while !searchComplete do
+        score = negamax(position, currentDepth, alpha, beta, Ply.Base)
 
-      val result = findBestMoveWithAspiration(position, currentDepth, alpha, beta)
+        if SearchTime.currentTime >= endTime || stopped then
+          val rootBest = stack.at(Ply.Base).bestMove
+          return if rootBest != Move.None then rootBest else bestMove
 
-      val after = SearchTime.currentTime
-      if after >= window.hardDeadline then return bestMove
+        if (score <= alpha || score >= beta) && attempts < 3 then
+          attempts += 1
+          delta = delta * 2
 
-      val timeTaken  = after - startTime
+          if score <= alpha then
+            SearchStats.aspirationFailLows += 1
+            alpha = Score.max(alpha - delta, -Score.Infinity)
+
+          if score >= beta then
+            SearchStats.aspirationFailHighs += 1
+            beta = Score.min(beta + delta, Score.Infinity)
+        else searchComplete = true
+
+      val rootEntry    = stack.at(Ply.Base)
+      val nextBestMove = if rootEntry.bestMove != Move.None then rootEntry.bestMove else bestMove
+
+      val timeTaken  = SearchTime.currentTime - startTime
       val totalNodes = Node(SearchStats.nodes + SearchStats.qNodes)
       val nps        = totalNodes.perSecond(timeTaken.toLong)
-      val scoreStr   = result.score.format
       println(
-        s"info depth $currentDepth score $scoreStr nodes ${totalNodes.toString} nps $nps time ${timeTaken.toString} pv ${result.move.toUci}"
+        s"info depth $currentDepth score ${score.format} nodes ${totalNodes.toString} nps $nps time ${timeTaken.toString} pv ${nextBestMove.toUci}"
       )
 
-      val nextBestMove = if result.move != Move.None then result.move else bestMove
-      iterativeDeepening(currentDepth + 1, nextBestMove, result.score)
+      iterativeDeepening(position, currentDepth + 1, nextBestMove, score, softDeadline)
 
-    try
-      if TimeControl.shouldSearch(limits.moveTime) then iterativeDeepening(Depth(1), defaultMove, Score.Draw)
-      else defaultMove
+    try iterativeDeepening(position, Depth(1), Move.None, Score.Draw, window.softDeadline)
     catch
       case e =>
         DebugLogger.log("CRASH")
         DebugLogger.log(e.getMessage())
         DebugLogger.log(e.getStackTrace().mkString("\n"))
-        defaultMove
-
-  def findBestMoveWithAspiration(
-    position: MutablePosition,
-    depth: Depth,
-    initialAlpha: Score,
-    initialBeta: Score
-  ): SearchResult =
-    var alpha = initialAlpha
-    var beta  = initialBeta
-
-    var result = findBestMove(position, depth, alpha, beta)
-
-    var delta       = 50
-    val maxAttempts = 3
-    var attempts    = 0
-
-    while (result.score <= alpha || result.score >= beta) && attempts < maxAttempts do
-      attempts += 1
-      delta = delta * 2
-
-      if result.score <= alpha then
-        SearchStats.aspirationFailLows += 1
-        alpha = alpha - delta
-        if alpha < -Score.Infinity then alpha = -Score.Infinity
-
-      if result.score >= beta then
-        SearchStats.aspirationFailHighs += 1
-        beta = beta + delta
-        if beta > Score.Infinity then beta = Score.Infinity
-
-      result = findBestMove(position, depth, alpha, beta)
-
-    result
-
-  def findBestMove(
-    position: MutablePosition,
-    depth: Depth,
-    alpha: Score,
-    beta: Score
-  ): SearchResult =
-    val ttEntry = tt.probe(position.zobristHash)
-    val ttMove  = if ttEntry.isDefined then ttEntry.move else Move.None
-
-    val moveBuf = moveLists(0)
-    SearchMoveGen.fillMoveList(position, moveBuf)
-    val moveArr   = moveBuf.unsafeBuffer
-    val moveCount = moveBuf.size
-    val scoreArr  = scoreBuffers(0)
-    MoveSorter.sortMoves(
-      moveArr,
-      scoreArr,
-      moveCount,
-      position,
-      searchHistory,
-      position.activeSide.ordinal,
-      ttMove
-    )
-
-    @tailrec
-    def loop(
-      moveIndex: Int,
-      bestMove: Move,
-      alpha: Score,
-      beta: Score,
-      legalMoves: Int,
-      firstLegalMove: Move = Move.None,
-      ply: Ply = Ply.Base
-    ): SearchResult =
-      if moveIndex >= moveCount then
-        if legalMoves == 0 then
-          if position.isSideInCheck(position.activeSide) then SearchResult(Move.None, -Score.Checkmate)
-          else SearchResult(Move.None, Score.Stalemate)
-        else
-          val finalMove = if bestMove == Move.None then firstLegalMove else bestMove
-          val ttFlag    = if bestMove == Move.None then TTEntry.FlagUpper else TTEntry.FlagExact
-          tt.store(position.zobristHash, finalMove, alpha, depth, ttFlag, ply)
-          SearchResult(finalMove, alpha)
-      else
-        val move = MoveSorter.pickNext(moveArr, scoreArr, moveIndex, moveCount)
-        position.applyMove(move)
-        if position.isSideInCheck(position.activeSide.enemy) then
-          position.unapplyMove(move)
-          loop(moveIndex + 1, bestMove, alpha, beta, legalMoves, firstLegalMove, ply)
-        else
-          val newFirstLegalMove = if firstLegalMove == Move.None then move else firstLegalMove
-
-          val rawScore =
-            if legalMoves == 0 then
-              // first move, full window search
-              -negamax(position, depth - 1, -beta, -alpha, ply + 1)
-            else
-              val nullScore = -negamax(position, depth - 1, -alpha - 1, -alpha, ply + 1)
-              // need to re-search with full window if nullScore is in [alpha..beta]
-              if nullScore > alpha && nullScore < beta then -negamax(position, depth - 1, -beta, -alpha, ply + 1)
-              else nullScore
-
-          val comparisonScore =
-            if rawScore == Score.Draw then
-              alpha match
-                case a if a < Score.Draw => rawScore + Score.DrawBias
-                case a if a > Score.Draw => rawScore - Score.DrawBias
-                case _                   => rawScore
-            else rawScore
-
-          val (newAlpha, newBestMove) = if comparisonScore > alpha then (rawScore, move) else (alpha, bestMove)
-          position.unapplyMove(move)
-
-          loop(moveIndex + 1, newBestMove, newAlpha, beta, legalMoves + 1, newFirstLegalMove, ply)
-
-    loop(0, Move.None, alpha, beta, 0)
+        Move.None
 
   private inline def nullMoveReduction(depth: Depth): Int = if depth > 6 then 3 else 2
 
@@ -276,7 +182,8 @@ final class Searcher:
     SearchStats.nodes += 1
     nodes = nodes + 1
 
-    val isPvNode = beta - alpha > 1
+    val isPvNode   = beta - alpha > 1
+    val isRootNode = ply == Ply.Base
 
     if ply >= Search.MaxPly then return PestoEvaluation.evaluate(position)
 
@@ -298,7 +205,7 @@ final class Searcher:
       depth - 1
     else depth
 
-    if !isPvNode && attemptNullMove(position, newDepth, beta, ply) then return beta
+    if !isPvNode && !isRootNode && attemptNullMove(position, newDepth, beta, ply) then return beta
 
     val inCheck = position.isSideInCheck(position.activeSide)
 
@@ -315,17 +222,17 @@ final class Searcher:
       else Score.Zero
 
     val canDoFutility =
-      !isPvNode && newDepth <= Depth(3) && !inCheck && staticEval + newDepth.toInt * 150 <= alpha
+      !isPvNode && !isRootNode && newDepth <= Depth(3) && !inCheck && staticEval + newDepth.toInt * 150 <= alpha
 
     // reverse futility pruning (static null move pruning)
-    if !isPvNode && newDepth <= Depth(3) && !inCheck then
+    if !isPvNode && !isRootNode && newDepth <= Depth(3) && !inCheck then
       val mateGuard = Score.Checkmate - Search.MaxPly.toInt
       if beta < mateGuard && beta > -mateGuard && staticEval - 80 * newDepth.toInt >= beta then
         SearchStats.rfpPrunes += 1
         return staticEval
 
     // razoring: if static eval is well below alpha at a low depth, just go straight to quiesce
-    if !isPvNode && newDepth <= Depth(2) && !inCheck then
+    if !isPvNode && !isRootNode && newDepth <= Depth(2) && !inCheck then
       val margin = if newDepth == Depth(1) then 300 else 600 // TODO: magic number alert
       if staticEval + margin < alpha then
         val qScore = quiesce(position, alpha - 1, alpha, ply)
@@ -346,6 +253,8 @@ final class Searcher:
     val currEntry = stack.at(ply)
     currEntry.quietsTried.clear()
     currEntry.capturesTried.clear()
+    currEntry.bestMove = Move.None
+    currEntry.isPvNode = isPvNode
 
     MoveSorter.sortMoves(
       moveArr,
@@ -395,9 +304,6 @@ final class Searcher:
         if !position.isSideInCheck(position.activeSide.enemy) then
           val movedPieceType = position.pieceAt(move.to).pieceType
           legalMovesFound += 1
-
-          // ctx.stackPiece(ply.toInt) = movedPieceType
-          // ctx.stackTo(ply.toInt) = move.to
 
           if !move.isCapture && !move.isPromotion then
             quietMovesSearched += 1
@@ -456,6 +362,7 @@ final class Searcher:
           if score > currentAlpha then
             currentAlpha = score
             ttFlag = TTEntry.FlagExact
+            currEntry.bestMove = move
         else position.unapplyMove(move) // illegal move
 
         i += 1
