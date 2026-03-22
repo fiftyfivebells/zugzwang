@@ -10,6 +10,7 @@ object Score:
   val Draw: Score      = Score(0)
   val DrawBias: Score  = Score(1)
   val Zero: Score      = Score(0)
+  val NoScore: Score   = Score(Int.MinValue)
 
   def apply(in: Int): Score = in
 
