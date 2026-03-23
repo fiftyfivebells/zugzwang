@@ -82,9 +82,7 @@ final class Searcher:
       while !searchComplete do
         score = negamax(position, currentDepth, alpha, beta, Ply.Base)
 
-        if SearchTime.currentTime >= endTime || stopped then
-          val rootBest = stack.at(Ply.Base).bestMove
-          return if rootBest != Move.None then rootBest else bestMove
+        if SearchTime.currentTime >= endTime || stopped then return bestMove
 
         if (score <= alpha || score >= beta) && attempts < SearchConfig.aspMaxAttempts then
           attempts += 1
@@ -245,7 +243,7 @@ final class Searcher:
     val inCheck = position.isSideInCheck(position.activeSide)
     currEntry.inCheck = inCheck
 
-    if shouldStop() then return Score.Zero
+    if shouldStop() then return PestoEvaluation.evaluate(position)
 
     // null move pruning
     if !isPvNode && !isRootNode && !inCheck && attemptNullMove(position, newDepth, beta, ply) then return beta
