@@ -55,8 +55,7 @@ object UciMain:
           if parts.length == 2 then
             val optName  = parts(0).trim
             val optValue = parts(1).trim
-            if !SearchConfig.setOption(optName, optValue) then
-              DebugLogger.log(s"Unknown option: $optName")
+            if !SearchConfig.setOption(optName, optValue) then DebugLogger.log(s"Unknown option: $optName")
           state
 
         case "position" :: rest =>

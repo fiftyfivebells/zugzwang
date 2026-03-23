@@ -65,7 +65,7 @@ final class SearchHistory(private val stack: SearchStack):
     val ch1 = contHistScore(ply, 1, piece, move.to)
     val ch2 = contHistScore(ply, 2, piece, move.to)
 
-    qh + ch1 + ch2
+    qh + (ch1 + ch2) / 2
 
   def quietScore(piece: Piece, to: Square): Score =
     quietHistory.get(piece, to)
@@ -93,10 +93,11 @@ final class SearchHistory(private val stack: SearchStack):
     var i          = 0
     val triedCount = entry.quietsTried.count
     while i < triedCount do
-      val q      = entry.quietsTried.unsafeGet(i)
-      val qPiece = position.pieceAt(q.from)
-      quietHistory.add(qPiece, q.to, malus)
-      updateContHist(ply, qPiece, q.to, malus)
+      val q = entry.quietsTried.unsafeGet(i)
+      if q != cutoffMove then
+        val qPiece = position.pieceAt(q.from)
+        quietHistory.add(qPiece, q.to, malus)
+        updateContHist(ply, qPiece, q.to, malus)
 
       i += 1
 
