@@ -153,7 +153,10 @@ object SearchMoveGen:
       if activeSide == Color.White then (Square.E1, Square.G1)
       else (Square.E8, Square.G8)
 
-    if squares.forall(!position.isSquareAttacked(_, activeSide.enemy))
+    val rookSq = if activeSide == Color.White then Square.H1 else Square.H8
+
+    if !position.pieceAt(rookSq).isNoPiece
+      && squares.forall(!position.isSquareAttacked(_, activeSide.enemy))
       && (occupied & mask).isEmpty && !position.isSideInCheck(activeSide)
     then ml.add(Move(from, to, MoveType.CastleKingside))
 
@@ -171,7 +174,10 @@ object SearchMoveGen:
       if activeSide == Color.White then (Square.E1, Square.C1)
       else (Square.E8, Square.C8)
 
-    if squares.forall(!position.isSquareAttacked(_, activeSide.enemy))
+    val rookSq = if activeSide == Color.White then Square.A1 else Square.A8
+
+    if !position.pieceAt(rookSq).isNoPiece
+      && squares.forall(!position.isSquareAttacked(_, activeSide.enemy))
       && (occupied & mask).isEmpty && !position.isSideInCheck(activeSide)
     then ml.add(Move(from, to, MoveType.CastleQueenside))
 
