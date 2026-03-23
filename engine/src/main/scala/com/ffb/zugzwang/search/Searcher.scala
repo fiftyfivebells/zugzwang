@@ -1,9 +1,9 @@
 package com.ffb.zugzwang.search
 
-import com.ffb.zugzwang.chess.MutablePosition
+import com.ffb.zugzwang.chess.{Color, MutablePosition, Square}
 import com.ffb.zugzwang.core.{Depth, Killers, Node, Ply, Score, ScoreBuffer, SearchTime, TimeControl}
 import com.ffb.zugzwang.evaluation.{PestoEvaluation, SEE}
-import com.ffb.zugzwang.move.{Move, MoveList}
+import com.ffb.zugzwang.move.{Move, MoveList, MoveType}
 import com.ffb.zugzwang.tools.DebugLogger
 
 import scala.annotation.tailrec
@@ -227,6 +227,14 @@ final class Searcher:
     if ttEntry.isDefined then
       SearchStats.ttHits += 1
       ttMove = ttEntry.move
+      // A castle move cached when the rook existed may be replayed after the rook
+      // is captured, bypassing SearchMoveGen's rook-presence check. Discard it.
+      if ttMove.moveType == MoveType.CastleKingside || ttMove.moveType == MoveType.CastleQueenside then
+        val rookSq =
+          if ttMove.moveType == MoveType.CastleKingside then if position.activeSide == Color.White then Square.H1 else Square.H8
+          else if position.activeSide == Color.White then Square.A1
+          else Square.A8
+        if position.pieceAt(rookSq).isNoPiece then ttMove = Move.None
       if !isPvNode && ply.toInt > 0 && ttEntry.canCutoff(depth, alpha, beta, ply) then return ttEntry.score(ply)
 
     val newDepth = if ttMove == Move.None && depth >= Depth(SearchConfig.iirMinDepth) then
