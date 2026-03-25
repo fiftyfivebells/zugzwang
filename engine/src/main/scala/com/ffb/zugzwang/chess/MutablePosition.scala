@@ -4,6 +4,7 @@ import com.ffb.zugzwang.board.{Bitboard, Board}
 import com.ffb.zugzwang.chess.PieceType.{Bishop, Knight, Queen, Rook}
 import com.ffb.zugzwang.chess.zobrist.{Zobrist, ZobristHash, ZobristKeys}
 import com.ffb.zugzwang.move.{HQSlidingAttacks, KingAttacks, KnightAttacks, Move, MoveType, PawnAttacks}
+import com.ffb.zugzwang.tools.DebugLogger
 
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.ListBuffer
@@ -216,11 +217,12 @@ final class MutablePosition(
           else (Square.H8, Square.F8)
 
         val rook = squares(rookFrom.toInt) // should be the rook
-        // rook moves rookFrom -> rookTo
-        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookFrom.toInt)
-        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookTo.toInt)
-
-        movePiece(rookFrom, rookTo)
+        if rook.isNoPiece then DebugLogger.log(s"WARN: CastleKingside applied but no rook at $rookFrom move=$move")
+        else
+          // rook moves rookFrom -> rookTo
+          zobristHash ^= ZobristKeys.pieceSquare(rook)(rookFrom.toInt)
+          zobristHash ^= ZobristKeys.pieceSquare(rook)(rookTo.toInt)
+          movePiece(rookFrom, rookTo)
 
         // castling rights are removed when king castles
         castleRights = castleRights.removeAll(activeSide)
@@ -237,10 +239,11 @@ final class MutablePosition(
           else (Square.A8, Square.D8)
 
         val rook = squares(rookFrom.toInt)
-        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookFrom.toInt)
-        zobristHash ^= ZobristKeys.pieceSquare(rook)(rookTo.toInt)
-
-        movePiece(rookFrom, rookTo)
+        if rook.isNoPiece then DebugLogger.log(s"WARN: CastleQueenside applied but no rook at $rookFrom move=$move")
+        else
+          zobristHash ^= ZobristKeys.pieceSquare(rook)(rookFrom.toInt)
+          zobristHash ^= ZobristKeys.pieceSquare(rook)(rookTo.toInt)
+          movePiece(rookFrom, rookTo)
 
         castleRights = castleRights.removeAll(activeSide)
 
