@@ -2,7 +2,7 @@ package com.ffb.zugzwang.search
 
 import com.ffb.zugzwang.chess.{MutablePosition, Piece, PieceType, Square}
 import com.ffb.zugzwang.core.{Killers, Ply, Score, ScoreBuffer}
-import com.ffb.zugzwang.evaluation.PieceSquareTables
+import com.ffb.zugzwang.evaluation.MoveOrderingTables
 import com.ffb.zugzwang.move.{Move, MoveType}
 
 object MoveSorter:
@@ -49,8 +49,8 @@ object MoveSorter:
     if move.moveType == MoveType.DoublePush then ()
 
     // quiet moves
-    val beforePst = PieceSquareTables.value(PieceSquareTables.MidgamePieceSquareTables, mover, move.from)
-    val afterPst  = PieceSquareTables.value(PieceSquareTables.MidgamePieceSquareTables, mover, move.to)
+    val beforePst = MoveOrderingTables.value(mover, move.from)
+    val afterPst  = MoveOrderingTables.value(mover, move.to)
 
     val delta    = afterPst - beforePst
     val pstDelta = if mover.isWhite then delta else -delta
