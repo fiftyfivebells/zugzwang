@@ -6,18 +6,14 @@ final case class TimeWindow(
 )
 
 object TimeControl:
-  private val OverheadMs: Long      = 10L // TODO: maybe make this configurable?
   private val InstantCutoffMs: Long = 5L
-  private val SoftRatio: Double     = 0.85
 
-  def computeTimeWindow(budgetMs: SearchTime): TimeWindow =
-    if budgetMs.isMax then TimeWindow(budgetMs - OverheadMs, budgetMs)
+  def computeTimeWindow(softBudgetMs: SearchTime, hardBudgetMs: SearchTime): TimeWindow =
+    if softBudgetMs.isMax then TimeWindow(softBudgetMs, hardBudgetMs)
     else
-      val now        = SearchTime.currentTime
-      val safeBudget = Math.max(0, budgetMs.toLong - OverheadMs)
-      val soft       = now + (safeBudget * SoftRatio).toLong
-      val hard       = now + safeBudget
-
+      val now  = SearchTime.currentTime
+      val soft = now + softBudgetMs.toLong
+      val hard = now + hardBudgetMs.toLong
       TimeWindow(soft, hard)
 
   def shouldSearch(budgetMs: SearchTime): Boolean = budgetMs > InstantCutoffMs

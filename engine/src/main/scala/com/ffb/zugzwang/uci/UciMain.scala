@@ -157,20 +157,23 @@ object UciMain:
 
         state
 
+  private val OverheadMs = 10L
+
   private def parseTime(params: List[String], side: Color): SearchLimits =
     def millisFrom(key: String): Option[Long] =
       findKeywordByValue(params, key).map(_.toLong)
 
     millisFrom("movetime") match
       case Some(time) =>
-        // Fixed time search
-        SearchLimits(moveTime = SearchTime(time))
+        val safeTime = math.max(1L, time - OverheadMs)
+        SearchLimits(moveTime = SearchTime(safeTime), endTime = SearchTime(safeTime))
 
       case None =>
         val wTime = millisFrom("wtime")
         val bTime = millisFrom("btime")
         val wInc  = millisFrom("winc").getOrElse(0L)
         val bInc  = millisFrom("binc").getOrElse(0L)
+        val mtg   = millisFrom("movestogo")
 
         val (timeOpt, inc) = side match
           case Color.White => (wTime, wInc)
@@ -178,17 +181,21 @@ object UciMain:
 
         timeOpt match
           case Some(timeRemaining) =>
-            val estimatedMovesToGo = 30
+            val available = math.max(0L, timeRemaining - OverheadMs)
 
-            val baseTime = timeRemaining / estimatedMovesToGo
-            val budget   = baseTime + inc
+            val movesToGo = mtg.getOrElse {
+              math.max(10L, math.min(30L, available / 100))
+            }
 
-            val maxBudget    = timeRemaining / 7
-            val cappedBudget = math.min(budget, maxBudget)
+            val baseTime = available / movesToGo
+            val incBonus = (inc * 8) / 10
+            val budget   = baseTime + incBonus
 
-            val safeBudget = math.max(10, cappedBudget - 20)
+            val maxBudget  = available / 5
+            val softBudget = math.max(2L, math.min(budget, maxBudget))
+            val hardBudget = math.max(5L, math.min(softBudget * 5 / 2, available))
 
-            SearchLimits(moveTime = SearchTime(safeBudget))
+            SearchLimits(moveTime = SearchTime(softBudget), endTime = SearchTime(hardBudget))
 
           case None =>
             val depth = findKeywordByValue(params, "depth").map(_.toInt).getOrElse(6)

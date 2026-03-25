@@ -34,7 +34,7 @@ final class Searcher:
 
   def search(position: MutablePosition, limits: SearchLimits): Move =
     startTime = SearchTime.currentTime
-    val window = TimeControl.computeTimeWindow(limits.moveTime)
+    val window = TimeControl.computeTimeWindow(limits.moveTime, limits.endTime)
     endTime = window.hardDeadline
     depthLimit = limits.depth
     nodes = Node.Zero
@@ -68,8 +68,10 @@ final class Searcher:
       prevScore: Score,
       softDeadline: SearchTime
     ): Move =
-      val now = SearchTime.currentTime
-      if now >= softDeadline || currentDepth > depthLimit || stopped then return bestMove
+      if currentDepth > Depth(1) then
+        val now = SearchTime.currentTime
+        if now >= softDeadline || stopped then return bestMove
+      if currentDepth > depthLimit || stopped then return bestMove
 
       var alpha          = if currentDepth >= Depth(SearchConfig.aspMinDepth) then prevScore - SearchConfig.aspWindowSize else -Score.Infinity
       var beta           = if currentDepth >= Depth(SearchConfig.aspMinDepth) then prevScore + SearchConfig.aspWindowSize else Score.Infinity
@@ -108,13 +110,16 @@ final class Searcher:
 
       iterativeDeepening(position, currentDepth + 1, nextBestMove, score, softDeadline)
 
-    try iterativeDeepening(position, Depth(1), Move.None, Score.Draw, window.softDeadline)
-    catch
-      case e =>
-        DebugLogger.log("CRASH")
-        DebugLogger.log(e.getMessage())
-        DebugLogger.log(e.getStackTrace().mkString("\n"))
-        Move.None
+    val result =
+      try iterativeDeepening(position, Depth(1), Move.None, Score.Draw, window.softDeadline)
+      catch
+        case e =>
+          DebugLogger.log("CRASH")
+          DebugLogger.log(e.getMessage())
+          DebugLogger.log(e.getStackTrace().mkString("\n"))
+          Move.None
+
+    if result == Move.None && onlyLegal != Move.None then onlyLegal else result
 
   private inline def nullMoveReduction(depth: Depth): Int =
     if depth > SearchConfig.nmpDeepThreshold then SearchConfig.nmpDeepReduction
