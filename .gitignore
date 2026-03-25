@@ -46,3 +46,4 @@ dist/
 # === Optional: local env stuff ===
 .env
 .envrc
+releases/*.jar
