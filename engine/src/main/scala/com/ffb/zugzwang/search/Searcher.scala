@@ -59,7 +59,6 @@ final class Searcher:
       mi += 1
 
     if legalCount == 0 then return Move.None
-    if legalCount == 1 then return onlyLegal
 
     @tailrec
     def iterativeDeepening(
