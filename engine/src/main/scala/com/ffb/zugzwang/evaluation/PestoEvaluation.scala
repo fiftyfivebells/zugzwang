@@ -2,7 +2,6 @@ package com.ffb.zugzwang.evaluation
 
 import com.ffb.zugzwang.chess.{Color, MutablePosition, Piece, PieceType, Square}
 import com.ffb.zugzwang.core.Score
-
 import scala.annotation.tailrec
 
 object PestoEvaluation:
@@ -25,29 +24,6 @@ object PestoEvaluation:
 
     phase.min(TotalPhase)
 
-  private inline def getPstValue(piece: Piece, square: Square, tables: Array[Array[Int]]): Int =
-    PieceSquareTables.value(tables, piece, square)
-
-  private inline def evaluateGamePhase(
-    position: MutablePosition,
-    pst: Array[Array[Int]],
-    materialValues: Array[Int]
-  ): Score =
-    @tailrec
-    def loop(totalScore: Score, square: Square): Score =
-      if square == Square.NoSquare then totalScore
-      else
-        val piece = position.pieceAt(square)
-        if !piece.isNoPiece then
-          val pstValue = getPstValue(piece, square, pst)
-          val value    = materialValues(piece.pieceType) + pstValue
-          val newScore = if piece.isWhite then totalScore + value else totalScore - value
-
-          loop(newScore, square.next)
-        else loop(totalScore, square.next)
-
-    loop(Score(0), Square.H1)
-
   private def isInsufficientMaterial(pos: MutablePosition): Boolean =
     // 1. if there are any pawns, rooks, or queens, it is NOT insufficient
     if (pos.pieces(Piece.WhitePawn) | pos.pieces(Piece.BlackPawn)).nonEmpty then return false
@@ -69,13 +45,38 @@ object PestoEvaluation:
 
     false
 
+  def evaluateMaterialScore(position: MutablePosition): (Int, Int) =
+
+    @tailrec()
+    def loop(pieceType: PieceType, score: (Int, Int)): (Int, Int) =
+      if pieceType == PieceType.King then score
+      else
+        val white = position.pieces(pieceType).popCount
+        val black = position.pieces(pieceType + 6).popCount
+
+        val midGame = score._1 + MidgameValues(pieceType) * (white - black)
+        val endGame = score._2 + EndgameValues(pieceType) * (white - black)
+
+        loop(PieceType(pieceType + 1), (midGame, endGame))
+
+    loop(PieceType.Pawn, (0, 0))
+
   def evaluate(position: MutablePosition): Score =
     if isInsufficientMaterial(position) then return Score.Draw
 
-    val mgScore = evaluateGamePhase(position, PieceSquareTables.MidgamePieceSquareTables, MidgameValues)
-    val egScore = evaluateGamePhase(position, PieceSquareTables.EndgamePieceSquareTables, EndgameValues)
-    val phase   = calculatePhase(position)
+    var (mg, eg) = evaluateMaterialScore(position)
 
-    val score = (mgScore * phase + egScore * (TotalPhase - phase)) / TotalPhase
-
-    if position.activeSide == Color.White then score else -score
+    // PST scores (iterate occupied squares only — faster than 64-square loop)
+    position.occupied.foreach { sq =>
+      val piece = position.pieceAt(sq)
+      val mgPst = PieceSquareTables.value(PieceSquareTables.MidgamePieceSquareTables, piece, sq)
+      val egPst = PieceSquareTables.value(PieceSquareTables.EndgamePieceSquareTables, piece, sq)
+      if piece.isWhite then
+        mg += mgPst; eg += egPst
+      else
+        mg -= mgPst; eg -= egPst
+    }
+    // Taper between midgame and endgame
+    val phase = calculatePhase(position)
+    val score = (mg * phase + eg * (TotalPhase - phase)) / TotalPhase
+    if position.activeSide == Color.White then Score(score) else Score(-score)
