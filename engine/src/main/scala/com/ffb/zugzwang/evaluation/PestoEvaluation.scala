@@ -15,6 +15,10 @@ object PestoEvaluation:
   val MidgameValues = Array(82, 337, 365, 477, 1025, 0)
   val EndgameValues = Array(94, 281, 297, 512, 936, 0)
 
+  // === HCE Constants (tune via Texel) ===
+  private inline val BishopPairBonusMg = 30
+  private inline val BishopPairBonusEg = 50
+
   private inline def calculatePhase(position: MutablePosition): Int =
     val phase =
       position.pieceTypeCount(PieceType.Knight) * KnightPhase +
@@ -76,6 +80,19 @@ object PestoEvaluation:
       else
         mg -= mgPst; eg -= egPst
     }
+
+    // Material counts (reused for both material score and piece activity terms)
+    val wBishops = position.pieces(Piece.WhiteBishop).popCount
+    val bBishops = position.pieces(Piece.BlackBishop).popCount
+
+    // Bishop pair bonus
+    if wBishops >= 2 then
+      mg += BishopPairBonusMg
+      eg += BishopPairBonusEg
+    if bBishops >= 2 then
+      mg -= BishopPairBonusMg
+      eg -= BishopPairBonusEg
+
     // Taper between midgame and endgame
     val phase = calculatePhase(position)
     val score = (mg * phase + eg * (TotalPhase - phase)) / TotalPhase
