@@ -1,7 +1,9 @@
 package com.ffb.zugzwang.evaluation
 
+import com.ffb.zugzwang.board.Bitboard
 import com.ffb.zugzwang.chess.{Color, MutablePosition, Piece, PieceType, Square}
 import com.ffb.zugzwang.core.Score
+
 import scala.annotation.tailrec
 
 object PestoEvaluation:
@@ -15,9 +17,38 @@ object PestoEvaluation:
   val MidgameValues = Array(82, 337, 365, 477, 1025, 0)
   val EndgameValues = Array(94, 281, 297, 512, 936, 0)
 
-  // === HCE Constants (tune via Texel) ===
+  // HCE constants (tune via Texel)
   private inline val BishopPairBonusMg = 30
   private inline val BishopPairBonusEg = 50
+
+  // passed pawn marginal bonus — extra value of being unblockable, on top of PST
+  // index = rank from pawn's own perspective (0=rank1, 7=rank8, both impossible for pawns)
+  private val PassedPawnMgBonus = Array(0, 0, 0, 2, 5, 10, 20, 0)
+  private val PassedPawnEgBonus = Array(0, 0, 2, 5, 10, 20, 40, 0)
+
+  // precomputed passed pawn masks: own file + adjacent files, all ranks strictly ahead.
+  // col = sq & 7: 0 = H-file, 7 = A-file. fileH << col gives the file mask for column col.
+  private val WhitePassedPawnMasks: IArray[Bitboard] = IArray.tabulate(64) { sq =>
+    val rank = sq >> 3
+    val col  = sq & 7
+    val files =
+      Bitboard.fileH << col.toLong |
+        (if col > 0 then Bitboard.fileH << (col - 1).toLong else Bitboard.empty) |
+        (if col < 7 then Bitboard.fileH << (col + 1).toLong else Bitboard.empty)
+    val ahead = if rank < 7 then Bitboard((-1L) << ((rank + 1) * 8)) else Bitboard.empty
+    files & ahead
+  }
+
+  private val BlackPassedPawnMasks: IArray[Bitboard] = IArray.tabulate(64) { sq =>
+    val rank = sq >> 3
+    val col  = sq & 7
+    val files =
+      Bitboard.fileH << col.toLong |
+        (if col > 0 then Bitboard.fileH << (col - 1).toLong else Bitboard.empty) |
+        (if col < 7 then Bitboard.fileH << (col + 1).toLong else Bitboard.empty)
+    val behind = if rank > 0 then Bitboard((1L << (rank * 8)) - 1) else Bitboard.empty
+    files & behind
+  }
 
   private inline def calculatePhase(position: MutablePosition): Int =
     val phase =
@@ -85,13 +116,31 @@ object PestoEvaluation:
     val wBishops = position.pieces(Piece.WhiteBishop).popCount
     val bBishops = position.pieces(Piece.BlackBishop).popCount
 
-    // Bishop pair bonus
+    // bishop pair bonus
     if wBishops >= 2 then
       mg += BishopPairBonusMg
       eg += BishopPairBonusEg
     if bBishops >= 2 then
       mg -= BishopPairBonusMg
       eg -= BishopPairBonusEg
+
+    // passed pawn bonus (marginal: extra value of being unblockable, on top of PST)
+    val wPawns = position.pieces(Piece.WhitePawn)
+    val bPawns = position.pieces(Piece.BlackPawn)
+
+    wPawns.foreach { sq =>
+      if (WhitePassedPawnMasks(sq.toInt) & bPawns).isEmpty then
+        val rank = sq.toInt >> 3
+        mg += PassedPawnMgBonus(rank)
+        eg += PassedPawnEgBonus(rank)
+    }
+
+    bPawns.foreach { sq =>
+      if (BlackPassedPawnMasks(sq.toInt) & wPawns).isEmpty then
+        val rank = 7 - (sq.toInt >> 3)
+        mg -= PassedPawnMgBonus(rank)
+        eg -= PassedPawnEgBonus(rank)
+    }
 
     // Taper between midgame and endgame
     val phase = calculatePhase(position)
