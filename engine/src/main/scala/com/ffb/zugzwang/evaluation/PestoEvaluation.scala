@@ -21,6 +21,11 @@ object PestoEvaluation:
   private inline val BishopPairBonusMg = 30
   private inline val BishopPairBonusEg = 50
 
+  private inline val RookOpenFileMg     = 25
+  private inline val RookOpenFileEg     = 15
+  private inline val RookSemiOpenFileMg = 12
+  private inline val RookSemiOpenFileEg = 8
+
   // passed pawn marginal bonus — extra value of being unblockable, on top of PST
   // index = rank from pawn's own perspective (0=rank1, 7=rank8, both impossible for pawns)
   private val PassedPawnMgBonus = Array(0, 0, 0, 2, 5, 10, 20, 0)
@@ -140,6 +145,28 @@ object PestoEvaluation:
         val rank = 7 - (sq.toInt >> 3)
         mg -= PassedPawnMgBonus(rank)
         eg -= PassedPawnEgBonus(rank)
+    }
+
+    // rook on open/semi-open file
+    val wRooks = position.pieces(Piece.WhiteRook)
+    val bRooks = position.pieces(Piece.BlackRook)
+
+    wRooks.foreach { sq =>
+      val fileMask = Bitboard.fileH << (sq.toInt & 7).toLong
+      if (fileMask & wPawns).isEmpty then
+        if (fileMask & bPawns).isEmpty then
+          mg += RookOpenFileMg; eg += RookOpenFileEg
+        else
+          mg += RookSemiOpenFileMg; eg += RookSemiOpenFileEg
+    }
+
+    bRooks.foreach { sq =>
+      val fileMask = Bitboard.fileH << (sq.toInt & 7).toLong
+      if (fileMask & bPawns).isEmpty then
+        if (fileMask & wPawns).isEmpty then
+          mg -= RookOpenFileMg; eg -= RookOpenFileEg
+        else
+          mg -= RookSemiOpenFileMg; eg -= RookSemiOpenFileEg
     }
 
     // Taper between midgame and endgame
