@@ -26,10 +26,10 @@ object PestoEvaluation:
   private inline val RookSemiOpenFileMg = 12
   private inline val RookSemiOpenFileEg = 8
 
-  // passed pawn marginal bonus — extra value of being unblockable, on top of PST
-  // index = rank from pawn's own perspective (0=rank1, 7=rank8, both impossible for pawns)
-  private val PassedPawnMgBonus = Array(0, 0, 0, 2, 5, 10, 20, 0)
-  private val PassedPawnEgBonus = Array(0, 0, 2, 5, 10, 20, 40, 0)
+  // passed pawn bonus — marginal premium for being unblockable, on top of PST advancement signal
+  // index = rank from pawn's perspective (0=rank1, 7=rank8, both impossible)
+  private val PassedPawnMgBonus = Array(0, 0, 3, 8, 15, 30, 55, 0)
+  private val PassedPawnEgBonus = Array(0, 0, 5, 12, 25, 45, 80, 0)
 
   // precomputed passed pawn masks: own file + adjacent files, all ranks strictly ahead.
   // col = sq & 7: 0 = H-file, 7 = A-file. fileH << col gives the file mask for column col.
