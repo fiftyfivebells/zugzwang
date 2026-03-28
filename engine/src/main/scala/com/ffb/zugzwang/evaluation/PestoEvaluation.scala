@@ -26,6 +26,9 @@ object PestoEvaluation:
   private inline val RookSemiOpenFileMg = 12
   private inline val RookSemiOpenFileEg = 8
 
+  private inline val ShieldMissingMg  = 20
+  private inline val ShieldAdvancedMg = 10
+
   // passed pawn bonus — marginal premium for being unblockable, on top of PST advancement signal
   // index = rank from pawn's perspective (0=rank1, 7=rank8, both impossible)
   private val PassedPawnMgBonus = Array(0, 0, 3, 8, 15, 30, 55, 0)
@@ -168,6 +171,31 @@ object PestoEvaluation:
         else
           mg -= RookSemiOpenFileMg; eg -= RookSemiOpenFileEg
     }
+
+    // king safety — pawn shield (midgame only; phase taper handles endgame fade)
+    var wKingSq = 0
+    position.pieces(Piece.WhiteKing).foreach(sq => wKingSq = sq.toInt)
+    val wKingCol     = wKingSq & 7
+    val wShieldRanks = Bitboard.rank2 | Bitboard.rank3
+    var wCol         = (wKingCol - 1).max(0)
+    while wCol <= (wKingCol + 1).min(7) do
+      val fileMask    = Bitboard.fileH << wCol.toLong
+      val pawnsOnFile = fileMask & wPawns
+      if pawnsOnFile.isEmpty then mg -= ShieldMissingMg
+      else if (pawnsOnFile & wShieldRanks).isEmpty then mg -= ShieldAdvancedMg
+      wCol += 1
+
+    var bKingSq = 0
+    position.pieces(Piece.BlackKing).foreach(sq => bKingSq = sq.toInt)
+    val bKingCol     = bKingSq & 7
+    val bShieldRanks = Bitboard.rank6 | Bitboard.rank7
+    var bCol         = (bKingCol - 1).max(0)
+    while bCol <= (bKingCol + 1).min(7) do
+      val fileMask    = Bitboard.fileH << bCol.toLong
+      val pawnsOnFile = fileMask & bPawns
+      if pawnsOnFile.isEmpty then mg += ShieldMissingMg
+      else if (pawnsOnFile & bShieldRanks).isEmpty then mg += ShieldAdvancedMg
+      bCol += 1
 
     // Taper between midgame and endgame
     val phase = calculatePhase(position)
