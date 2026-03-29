@@ -29,6 +29,9 @@ object PestoEvaluation:
   private inline val ShieldMissingMg  = 20
   private inline val ShieldAdvancedMg = 10
 
+  private inline val KnightOutpostMg = 25
+  private inline val KnightOutpostEg = 15
+
   // passed pawn bonus — marginal premium for being unblockable, on top of PST advancement signal
   // index = rank from pawn's perspective (0=rank1, 7=rank8, both impossible)
   private val PassedPawnMgBonus = Array(0, 0, 3, 8, 15, 30, 55, 0)
@@ -196,6 +199,38 @@ object PestoEvaluation:
       if pawnsOnFile.isEmpty then mg += ShieldMissingMg
       else if (pawnsOnFile & bShieldRanks).isEmpty then mg += ShieldAdvancedMg
       bCol += 1
+
+    // knight outpost bonus
+    val wKnights = position.pieces(Piece.WhiteKnight)
+    val bKnights = position.pieces(Piece.BlackKnight)
+
+    (wKnights & (Bitboard.rank4 | Bitboard.rank5 | Bitboard.rank6)).foreach { sq =>
+      val s   = sq.toInt
+      val col = s & 7
+      val safeFromAttack =
+        (col == 0 || (bPawns & Bitboard(1L << (s + 7))).isEmpty) &&
+          (col == 7 || (bPawns & Bitboard(1L << (s + 9))).isEmpty)
+      val supportedByPawn =
+        (col > 0 && (wPawns & Bitboard(1L << (s - 9))).nonEmpty) ||
+          (col < 7 && (wPawns & Bitboard(1L << (s - 7))).nonEmpty)
+      if safeFromAttack && supportedByPawn then
+        mg += KnightOutpostMg
+        eg += KnightOutpostEg
+    }
+
+    (bKnights & (Bitboard.rank3 | Bitboard.rank4 | Bitboard.rank5)).foreach { sq =>
+      val s   = sq.toInt
+      val col = s & 7
+      val safeFromAttack =
+        (col == 0 || (wPawns & Bitboard(1L << (s - 9))).isEmpty) &&
+          (col == 7 || (wPawns & Bitboard(1L << (s - 7))).isEmpty)
+      val supportedByPawn =
+        (col > 0 && (bPawns & Bitboard(1L << (s + 7))).nonEmpty) ||
+          (col < 7 && (bPawns & Bitboard(1L << (s + 9))).nonEmpty)
+      if safeFromAttack && supportedByPawn then
+        mg -= KnightOutpostMg
+        eg -= KnightOutpostEg
+    }
 
     // Taper between midgame and endgame
     val phase = calculatePhase(position)

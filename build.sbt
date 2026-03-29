@@ -4,7 +4,7 @@ import scala.sys.process
 inThisBuild(
   List(
     organization      := "com.ffb",
-    version           := "0.9.1",
+    version           := "1.0.0",
     scalaVersion      := "3.7.2",
     semanticdbEnabled := true,
     scalacOptions ++= Seq("-deprecation", "-Wunused:imports")
@@ -17,7 +17,7 @@ lazy val rules = (project in file("rules"))
     scalafmtOnCompile := true,
     scalafixOnCompile := true,
     libraryDependencies ++= Seq(
-      "org.scalatest"          %% "scalatest"                 % "3.2.16" % Test,
+      "org.scalatest"          %% "scalatest"                  % "3.2.16" % Test,
       "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4"
     )
   )
@@ -26,9 +26,9 @@ lazy val engine = (project in file("engine"))
   .dependsOn(rules)
   .enablePlugins(JmhPlugin, BuildInfoPlugin)
   .settings(
-    name              := "zugzwang-engine",
-    scalafmtOnCompile := true,
-    scalafixOnCompile := true,
+    name                                            := "zugzwang-engine",
+    scalafmtOnCompile                               := true,
+    scalafixOnCompile                               := true,
     libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
     libraryDependencies += "org.scalatest"          %% "scalatest"                  % "3.2.16" % Test,
     buildInfoKeys := Seq[BuildInfoKey](
@@ -52,8 +52,8 @@ lazy val engine = (project in file("engine"))
       case x => (assembly / assemblyMergeStrategy).value(x)
     },
     assembly / assemblyJarName := {
-      val v        = version.value
-      val z        = "zugzwang"
+      val v = version.value
+      val z = "zugzwang"
       val isTagged = Try(
         process.Process("git describe --exact-match --tags HEAD").!!.trim.nonEmpty
       ).getOrElse(false)
