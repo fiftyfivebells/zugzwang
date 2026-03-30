@@ -1,7 +1,7 @@
 package com.ffb.zugzwang.search
 
 import com.ffb.zugzwang.chess.{Color, MutablePosition, Square}
-import com.ffb.zugzwang.core.{Depth, Killers, Node, Ply, Score, ScoreBuffer, SearchTime, TimeControl}
+import com.ffb.zugzwang.core.{Depth, Killers, Node, Ply, Score, ScoreBuffer, SearchTime, TimeControl, TimeManager}
 import com.ffb.zugzwang.evaluation.{PestoEvaluation, SEE}
 import com.ffb.zugzwang.move.{Move, MoveList, MoveType}
 import com.ffb.zugzwang.tools.DebugLogger
@@ -20,12 +20,16 @@ final class Searcher:
   private val moveMetadata =
     Array.fill(Search.MaxPly.toInt + SearchConfig.qMaxDepth + 1)(MoveMetadata(256))
 
+  private val timeManager = new TimeManager
+
   private var startTime  = SearchTime.Zero
   private var endTime    = SearchTime.Zero
   private var depthLimit = Depth(100) // TODO: make this some predefined constant value
 
   var nodes   = Node.Zero
   var stopped = false
+
+  private var infoEmitted = false
 
   def clear(): Unit =
     tt.clear()
@@ -39,38 +43,55 @@ final class Searcher:
     depthLimit = limits.depth
     nodes = Node.Zero
     stopped = false
+    infoEmitted = false
     SearchStats.reset()
     tt.incrementGeneration()
 
-    if !TimeControl.shouldSearch(limits.moveTime) then return Move.None
+    val softBudgetMs =
+      if window.softDeadline.isMax then Long.MaxValue / 4
+      else window.softDeadline.toLong - startTime.toLong
+    val hardBudgetMs =
+      if window.hardDeadline.isMax then Long.MaxValue / 4
+      else window.hardDeadline.toLong - startTime.toLong
+    timeManager.init(softBudgetMs, hardBudgetMs, startTime.toLong)
 
     val rootMl = MoveList(256)
     SearchMoveGen.fillMoveList(position, rootMl)
     var legalCount = 0
-    var onlyLegal  = Move.None
+    var firstLegal = Move.None
     var mi         = 0
     while mi < rootMl.size && legalCount < 2 do
       val move = rootMl.unsafeBuffer(mi)
       position.applyMove(move)
       if !position.isSideInCheck(position.activeSide.enemy) then
         legalCount += 1
-        onlyLegal = move
+        if legalCount == 1 then firstLegal = move
       position.unapplyMove(move)
       mi += 1
 
-    if legalCount == 0 then return Move.None
+    if legalCount == 0 then return Move.None // checkmate or stalemate
+
+    // Single legal move: no need to search, return it immediately
+    if legalCount == 1 then
+      val timeTaken = SearchTime.currentTime - startTime
+      println(s"info depth 1 score cp 0 nodes 1 nps 0 time ${timeTaken.toString} pv ${firstLegal.toUci}")
+      return firstLegal
+
+    // Budget too small to search meaningfully: return first legal move
+    if !TimeControl.shouldSearch(limits.moveTime) then
+      println(s"info depth 0 score cp 0 nodes 1 nps 0 time 0 pv ${firstLegal.toUci}")
+      return firstLegal
 
     @tailrec
     def iterativeDeepening(
       position: MutablePosition,
       currentDepth: Depth,
       bestMove: Move,
-      prevScore: Score,
-      softDeadline: SearchTime
+      prevScore: Score
     ): Move =
       if currentDepth > Depth(1) then
         val now = SearchTime.currentTime
-        if now >= softDeadline || stopped then return bestMove
+        if !timeManager.shouldContinue(bestMove.value, prevScore.toInt, currentDepth.toInt - 1, now.toLong) || stopped then return bestMove
       if currentDepth > depthLimit || stopped then return bestMove
 
       var alpha          = if currentDepth >= Depth(SearchConfig.aspMinDepth) then prevScore - SearchConfig.aspWindowSize else -Score.Infinity
@@ -104,22 +125,28 @@ final class Searcher:
       val timeTaken  = SearchTime.currentTime - startTime
       val totalNodes = Node(SearchStats.nodes + SearchStats.qNodes)
       val nps        = totalNodes.perSecond(timeTaken.toLong)
+      infoEmitted = true
       println(
         s"info depth $currentDepth score ${score.format} nodes ${totalNodes.toString} nps $nps time ${timeTaken.toString} pv ${nextBestMove.toUci}"
       )
 
-      iterativeDeepening(position, currentDepth + 1, nextBestMove, score, softDeadline)
+      iterativeDeepening(position, currentDepth + 1, nextBestMove, score)
 
     val result =
-      try iterativeDeepening(position, Depth(1), Move.None, Score.Draw, window.softDeadline)
+      try iterativeDeepening(position, Depth(1), firstLegal, Score.Draw)
       catch
         case e =>
           DebugLogger.log("CRASH")
           DebugLogger.log(e.getMessage())
           DebugLogger.log(e.getStackTrace().mkString("\n"))
-          Move.None
+          firstLegal
 
-    if result == Move.None && onlyLegal != Move.None then onlyLegal else result
+    if !infoEmitted then
+      val timeTaken  = SearchTime.currentTime - startTime
+      val totalNodes = Node(SearchStats.nodes + SearchStats.qNodes)
+      println(s"info depth 0 score cp 0 nodes ${totalNodes.toString} nps 0 time ${timeTaken.toString} pv ${result.toUci}")
+
+    if result.isNoMove then firstLegal else result
 
   private inline def nullMoveReduction(depth: Depth): Int =
     if depth > SearchConfig.nmpDeepThreshold then SearchConfig.nmpDeepReduction
