@@ -37,6 +37,7 @@ object UciMain:
 
           println(s"id name Zugzwang $versionStr")
           println(s"id author Stephen Bell")
+          println("option name MoveOverhead type spin default 50 min 0 max 5000")
           println("uciok")
           state
 
@@ -55,7 +56,10 @@ object UciMain:
           if parts.length == 2 then
             val optName  = parts(0).trim
             val optValue = parts(1).trim
-            if !SearchConfig.setOption(optName, optValue) then DebugLogger.log(s"Unknown option: $optName")
+            if optName.toLowerCase == "moveoverhead" then
+              try moveOverheadMs = optValue.toLong
+              catch case _: NumberFormatException => ()
+            else if !SearchConfig.setOption(optName, optValue) then DebugLogger.log(s"Unknown option: $optName")
           state
 
         case "position" :: rest =>
@@ -137,7 +141,7 @@ object UciMain:
         state
 
       case _ =>
-        val limits         = parseTime(tokens, state.activeSide)
+        val limits         = parseTime(tokens, state.activeSide, state.fullMoveClock)
         val searchPosition = MutablePosition.from(state)
 
         isSearching = true
@@ -157,15 +161,15 @@ object UciMain:
 
         state
 
-  private val OverheadMs = 10L
+  private var moveOverheadMs: Long = 50L
 
-  private def parseTime(params: List[String], side: Color): SearchLimits =
+  private def parseTime(params: List[String], side: Color, moveNumber: Int): SearchLimits =
     def millisFrom(key: String): Option[Long] =
       findKeywordByValue(params, key).map(_.toLong)
 
     millisFrom("movetime") match
       case Some(time) =>
-        val safeTime = math.max(1L, time - OverheadMs)
+        val safeTime = math.max(1L, time - moveOverheadMs)
         SearchLimits(moveTime = SearchTime(safeTime), endTime = SearchTime(safeTime))
 
       case None =>
@@ -181,19 +185,23 @@ object UciMain:
 
         timeOpt match
           case Some(timeRemaining) =>
-            val available = math.max(0L, timeRemaining - OverheadMs)
+            val available = math.max(0L, timeRemaining - moveOverheadMs)
 
-            val movesToGo = mtg.getOrElse {
-              math.max(10L, math.min(30L, available / 100))
+            // Estimate moves remaining based on move number (assume ~50 total moves)
+            val estimatedMovesLeft = mtg.getOrElse {
+              math.max(10L, (50 - moveNumber).toLong)
             }
 
-            val baseTime = available / movesToGo
-            val incBonus = (inc * 8) / 10
-            val budget   = baseTime + incBonus
+            val baseTime = if estimatedMovesLeft > 0 then available / estimatedMovesLeft else available
+            val incBonus = (inc * 75) / 100 // use 75% of increment
+            val optimum  = baseTime + incBonus
 
-            val maxBudget  = available / 5
-            val softBudget = math.max(2L, math.min(budget, maxBudget))
-            val hardBudget = math.max(5L, math.min(softBudget * 5 / 2, available))
+            // Soft limit: capped at 25% of remaining time
+            val softBudget = math.max(1L, math.min(optimum, available / 4))
+
+            // Hard limit: 5x soft, capped at 30% of remaining
+            val hardCap    = math.min(softBudget * 5, available * 30 / 100)
+            val hardBudget = math.max(2L, math.min(hardCap, available))
 
             SearchLimits(moveTime = SearchTime(softBudget), endTime = SearchTime(hardBudget))
 
