@@ -13,12 +13,14 @@ object SearchMoveGen:
   def fillMoveList(position: MutablePosition, ml: MoveList): Unit =
     ml.clear()
 
-    val occupied = position.occupied
-    val targets  = position.byColor(position.activeSide.enemy.ordinal)
-    // this is the bulk of the moves. This should cover all of the attacks for every piece,
-    // and then quiet moves for all pieces except for pawns
-    Piece.byColor(position.activeSide) foreach { piece =>
-      // handle pawns separately
+    val occupied   = position.occupied
+    val targets    = position.byColor(position.activeSide.enemy.ordinal)
+    val epBitboard = if position.enPassantSq.isDefined then 1L << position.enPassantSq.toInt else 0L
+
+    val piecesArr = Piece.byColor(position.activeSide)
+    var pieceIdx  = 0
+    while pieceIdx < piecesArr.length do
+      val piece  = piecesArr(pieceIdx)
       var pieces = position.pieces(piece)
 
       while pieces.nonEmpty do
@@ -30,17 +32,13 @@ object SearchMoveGen:
         var quietMask  = rawAttacks & ~occupied
 
         if piece == Piece.WhitePawn || piece == Piece.BlackPawn then
-          var pawnAttacks = rawAttacks & (attackMask | (position.enPassantSq match
-            case Some(sq) => 1L << sq.toInt
-            case None     => 0L
-          ))
+          var pawnAttacks = rawAttacks & (attackMask | epBitboard)
           // first generate pawn attacks
           while pawnAttacks.nonEmpty do
             val to = Square(pawnAttacks.trailingZeros)
             pawnAttacks = pawnAttacks.removeLsb
 
-            if position.enPassantSq.isDefined && to == position.enPassantSq.get then
-              position.enPassantSq.foreach(sq => ml.add(Move(from, to, MoveType.EnPassant)))
+            if (epBitboard & (1L << to.toInt)) != 0L then ml.add(Move(from, to, MoveType.EnPassant))
             else if to.lastRank(position.activeSide) then addPromotions(from, to, isCapture = true, ml)
             else ml.add(Move(from, to, MoveType.Capture))
 
@@ -82,7 +80,7 @@ object SearchMoveGen:
             quietMask = quietMask.removeLsb
 
             ml.add(Move(from, to, MoveType.Quiet))
-    }
+      pieceIdx += 1
 
     // castles
     if !position.castleRights.isEmpty then castleMoves(occupied, position.activeSide, position.castleRights, position, ml)
@@ -91,10 +89,14 @@ object SearchMoveGen:
   def fillCaptures(position: MutablePosition, ml: MoveList): Unit =
     ml.clear()
 
-    val occupied = position.occupied
-    val targets  = position.byColor(position.activeSide.enemy.ordinal)
+    val occupied   = position.occupied
+    val targets    = position.byColor(position.activeSide.enemy.ordinal)
+    val epBitboard = if position.enPassantSq.isDefined then 1L << position.enPassantSq.toInt else 0L
 
-    Piece.byColor(position.activeSide) foreach { piece =>
+    val piecesArr = Piece.byColor(position.activeSide)
+    var pieceIdx  = 0
+    while pieceIdx < piecesArr.length do
+      val piece  = piecesArr(pieceIdx)
       var pieces = position.pieces(piece)
 
       while pieces.nonEmpty do
@@ -105,17 +107,13 @@ object SearchMoveGen:
         var attackMask = rawAttacks & targets
 
         if piece.isPawn then
-          val epMask = position.enPassantSq match
-            case Some(sq) => 1L << sq.toInt
-            case None     => 0L
-
-          var pawnAttacks = attackMask | (rawAttacks & epMask)
+          var pawnAttacks = attackMask | (rawAttacks & epBitboard)
 
           while pawnAttacks.nonEmpty do
             val to = Square(pawnAttacks.trailingZeros)
             pawnAttacks = pawnAttacks.removeLsb
 
-            if position.enPassantSq.contains(to) then ml.add(Move(from, to, MoveType.EnPassant))
+            if (epBitboard & (1L << to.toInt)) != 0L then ml.add(Move(from, to, MoveType.EnPassant))
             else if to.lastRank(position.activeSide) then
               // these are only capture promotions
               addPromotions(from, to, isCapture = true, ml)
@@ -125,7 +123,7 @@ object SearchMoveGen:
             val to = Square(attackMask.trailingZeros)
             attackMask = attackMask.removeLsb
             ml.add(Move(from, to, MoveType.Capture))
-    }
+      pieceIdx += 1
 
   private def castleMoves(
     occupied: Bitboard,
@@ -145,20 +143,20 @@ object SearchMoveGen:
     position: MutablePosition,
     ml: MoveList
   ): Unit =
-    val (squares, mask) =
-      if activeSide == Color.White then (List(Square.F1, Square.G1), Bitboard.f1g1Mask)
-      else (List(Square.F8, Square.G8), Bitboard.f8g8mask)
-
-    val (from, to) =
-      if activeSide == Color.White then (Square.E1, Square.G1)
-      else (Square.E8, Square.G8)
-
-    val rookSq = if activeSide == Color.White then Square.H1 else Square.H8
-
-    if !position.pieceAt(rookSq).isNoPiece
-      && squares.forall(!position.isSquareAttacked(_, activeSide.enemy))
-      && (occupied & mask).isEmpty && !position.isSideInCheck(activeSide)
-    then ml.add(Move(from, to, MoveType.CastleKingside))
+    val enemy = activeSide.enemy
+    if activeSide == Color.White then
+      if !position.pieceAt(Square.H1).isNoPiece
+        && !position.isSquareAttacked(Square.F1, enemy)
+        && !position.isSquareAttacked(Square.G1, enemy)
+        && (occupied & Bitboard.f1g1Mask).isEmpty
+        && !position.isSideInCheck(activeSide)
+      then ml.add(Move(Square.E1, Square.G1, MoveType.CastleKingside))
+    else if !position.pieceAt(Square.H8).isNoPiece
+      && !position.isSquareAttacked(Square.F8, enemy)
+      && !position.isSquareAttacked(Square.G8, enemy)
+      && (occupied & Bitboard.f8g8mask).isEmpty
+      && !position.isSideInCheck(activeSide)
+    then ml.add(Move(Square.E8, Square.G8, MoveType.CastleKingside))
 
   private def queensideCastle(
     occupied: Bitboard,
@@ -166,20 +164,20 @@ object SearchMoveGen:
     position: MutablePosition,
     ml: MoveList
   ): Unit =
-    val (squares, mask) =
-      if activeSide == Color.White then (List(Square.C1, Square.D1), Bitboard.b1c1d1Mask)
-      else (List(Square.C8, Square.D8), Bitboard.b8c8d8Mask)
-
-    val (from, to) =
-      if activeSide == Color.White then (Square.E1, Square.C1)
-      else (Square.E8, Square.C8)
-
-    val rookSq = if activeSide == Color.White then Square.A1 else Square.A8
-
-    if !position.pieceAt(rookSq).isNoPiece
-      && squares.forall(!position.isSquareAttacked(_, activeSide.enemy))
-      && (occupied & mask).isEmpty && !position.isSideInCheck(activeSide)
-    then ml.add(Move(from, to, MoveType.CastleQueenside))
+    val enemy = activeSide.enemy
+    if activeSide == Color.White then
+      if !position.pieceAt(Square.A1).isNoPiece
+        && !position.isSquareAttacked(Square.C1, enemy)
+        && !position.isSquareAttacked(Square.D1, enemy)
+        && (occupied & Bitboard.b1c1d1Mask).isEmpty
+        && !position.isSideInCheck(activeSide)
+      then ml.add(Move(Square.E1, Square.C1, MoveType.CastleQueenside))
+    else if !position.pieceAt(Square.A8).isNoPiece
+      && !position.isSquareAttacked(Square.C8, enemy)
+      && !position.isSquareAttacked(Square.D8, enemy)
+      && (occupied & Bitboard.b8c8d8Mask).isEmpty
+      && !position.isSideInCheck(activeSide)
+    then ml.add(Move(Square.E8, Square.C8, MoveType.CastleQueenside))
 
   private def addPromotions(
     from: Square,
@@ -190,7 +188,7 @@ object SearchMoveGen:
     val moveType =
       if isCapture then MoveType.CapturePromotion else MoveType.Promotion
 
-    val promotions =
-      List(PieceType.Knight, PieceType.Bishop, PieceType.Rook, PieceType.Queen)
-
-    promotions foreach { pt => ml.add(Move(from, to, pt, moveType)) }
+    ml.add(Move(from, to, PieceType.Queen, moveType))
+    ml.add(Move(from, to, PieceType.Rook, moveType))
+    ml.add(Move(from, to, PieceType.Bishop, moveType))
+    ml.add(Move(from, to, PieceType.Knight, moveType))

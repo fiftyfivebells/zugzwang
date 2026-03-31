@@ -8,7 +8,7 @@ final class PositionUndoState:
   var movedPiece: Piece      = Piece.NoPiece
 
   var prevCastleRights: CastleRights = CastleRights.initial
-  var prevEnPassant: Option[Square]  = None
+  var prevEnPassant: Square          = Square.NoSquare
   var prevHalfMove: Int              = 0
   var prevFullMove: Int              = 1
 

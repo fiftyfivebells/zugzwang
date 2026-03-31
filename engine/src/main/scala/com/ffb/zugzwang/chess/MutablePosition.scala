@@ -13,7 +13,7 @@ final class MutablePosition(
   var pieces: Array[Bitboard],
   var squares: Array[Piece],
   var activeSide: Color,
-  var enPassantSq: Option[Square],
+  var enPassantSq: Square,
   var castleRights: CastleRights,
   var halfMoveClock: Int,
   var fullMoveClock: Int,
@@ -181,14 +181,12 @@ final class MutablePosition(
 
     zobristHash ^= ZobristKeys.castling(oldCastleMask)
 
-    currentEp match
-      case Some(sq) => zobristHash ^= ZobristKeys.epFile(Square.file(sq).toInt)
-      case None     => ()
+    if currentEp.isDefined then zobristHash ^= ZobristKeys.epFile(Square.file(currentEp).toInt)
 
     zobristHash ^= ZobristKeys.sideToMove
 
     // clear ep by default (may be set again below)
-    enPassantSq = None
+    enPassantSq = Square.NoSquare
 
     val from  = move.from
     val to    = move.to
@@ -295,7 +293,7 @@ final class MutablePosition(
           val epSquare =
             if activeSide == Color.White then Square(to.toInt - 8)
             else Square(to.toInt + 8)
-          enPassantSq = Some(epSquare)
+          enPassantSq = epSquare
 
         updateCastleRightsOnMove(moved, from, state.captured, to)
 
@@ -309,9 +307,7 @@ final class MutablePosition(
     val newCastleMask = castleRights.maskValue
     zobristHash ^= ZobristKeys.castling(newCastleMask)
 
-    enPassantSq match
-      case Some(sq) => zobristHash ^= ZobristKeys.epFile(Square.file(sq).toInt)
-      case None     => ()
+    if enPassantSq.isDefined then zobristHash ^= ZobristKeys.epFile(Square.file(enPassantSq).toInt)
 
     // flip side to move in the position
     activeSide = activeSide.enemy
@@ -378,8 +374,8 @@ final class MutablePosition(
     state.prevHalfMove = halfMoveClock
     state.prevFullMove = fullMoveClock
 
-    if enPassantSq.isDefined then zobristHash ^= ZobristKeys.epFile(Square.file(enPassantSq.get).toInt)
-    enPassantSq = None
+    if enPassantSq.isDefined then zobristHash ^= ZobristKeys.epFile(Square.file(enPassantSq).toInt)
+    enPassantSq = Square.NoSquare
 
     zobristHash ^= ZobristKeys.sideToMove
     activeSide = activeSide.enemy
@@ -450,7 +446,7 @@ final class MutablePosition(
       board = Board.from(IArray.from(pieces), ArraySeq.unsafeWrapArray(squares)),
       activeSide,
       castleRights,
-      enPassantSq,
+      if enPassantSq.isDefined then Some(enPassantSq) else None,
       halfMoveClock,
       fullMoveClock,
       history = getZobristHistorySnapshot
@@ -462,7 +458,7 @@ object MutablePosition:
       Array.from(state.board.pieces),
       Array.from(state.board.squares),
       state.activeSide,
-      state.enPassant,
+      state.enPassant.getOrElse(Square.NoSquare),
       state.castleRights,
       state.halfMoveClock,
       state.fullMoveClock

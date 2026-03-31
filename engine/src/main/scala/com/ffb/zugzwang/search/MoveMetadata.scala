@@ -1,6 +1,6 @@
 package com.ffb.zugzwang.search
 
-import com.ffb.zugzwang.chess.{MutablePosition, PieceType}
+import com.ffb.zugzwang.chess.{MutablePosition, Piece}
 import com.ffb.zugzwang.core.{Ply, Score}
 import com.ffb.zugzwang.evaluation.SEE
 import com.ffb.zugzwang.move.Move
@@ -8,10 +8,10 @@ import com.ffb.zugzwang.move.Move
 // Per-move metadata pre-computed during move scoring, carried forward to search time.
 // Avoids repeated pieceAt() calls and SEE invocations in the move loop.
 final class MoveMetadata(capacity: Int):
-  val pieceType: Array[PieceType]    = new Array[PieceType](capacity)
-  val capturedType: Array[PieceType] = new Array[PieceType](capacity)
-  val historyScore: Array[Score]     = new Array[Score](capacity)
-  val flags: Array[Byte]             = new Array[Byte](capacity)
+  val moverPiece: Array[Piece]    = new Array[Piece](capacity)
+  val capturedPiece: Array[Piece] = new Array[Piece](capacity)
+  val historyScore: Array[Score]  = new Array[Score](capacity)
+  val flags: Array[Byte]          = new Array[Byte](capacity)
 
   private inline val FlagCapture: 1   = 1
   private inline val FlagPromotion: 2 = 2
@@ -31,14 +31,15 @@ final class MoveMetadata(capacity: Int):
     ply: Ply
   ): Unit =
     val piece = position.pieceAt(move.from)
-    pieceType(i) = piece.pieceType
+    moverPiece(i) = piece
 
     var f: Int = 0
     if move.isCapture then
       f |= FlagCapture
-      capturedType(i) = position.pieceAt(move.to).pieceType
+      val victim = position.pieceAt(move.to)
+      capturedPiece(i) = victim
       if SEE.seeGE(position, move) then f |= FlagGoodNoisy
-    else capturedType(i) = PieceType.NoType
+    else capturedPiece(i) = Piece.NoPiece
 
     if move.isPromotion then f |= FlagPromotion
     if !move.isCapture && !move.isPromotion then f |= FlagQuiet
@@ -50,11 +51,11 @@ final class MoveMetadata(capacity: Int):
       else Score.Zero
 
   def swap(i: Int, j: Int): Unit =
-    var tmpPt: PieceType = PieceType.NoType
-    var tmpScore: Score  = Score.Zero
-    var tmpByte: Byte    = 0
+    var tmpPiece: Piece = Piece.NoPiece
+    var tmpScore: Score = Score.Zero
+    var tmpByte: Byte   = 0
 
-    tmpPt = pieceType(i); pieceType(i) = pieceType(j); pieceType(j) = tmpPt
-    tmpPt = capturedType(i); capturedType(i) = capturedType(j); capturedType(j) = tmpPt
+    tmpPiece = moverPiece(i); moverPiece(i) = moverPiece(j); moverPiece(j) = tmpPiece
+    tmpPiece = capturedPiece(i); capturedPiece(i) = capturedPiece(j); capturedPiece(j) = tmpPiece
     tmpScore = historyScore(i); historyScore(i) = historyScore(j); historyScore(j) = tmpScore
     tmpByte = flags(i); flags(i) = flags(j); flags(j) = tmpByte

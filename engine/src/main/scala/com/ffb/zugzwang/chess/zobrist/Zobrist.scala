@@ -18,8 +18,6 @@ object Zobrist:
 
     hash = hash ^ ZobristKeys.castling(position.castleRights.maskValue)
 
-    position.enPassantSq match
-      case Some(epSq) => hash = hash ^ ZobristKeys.epFile(epSq.file.toInt)
-      case None       => () // only set ep square if it actually exists in the position
+    if position.enPassantSq.isDefined then hash = hash ^ ZobristKeys.epFile(position.enPassantSq.file.toInt)
 
     hash

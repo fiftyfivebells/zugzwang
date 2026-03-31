@@ -64,8 +64,7 @@ object KingAttacks:
 
 object Attacks:
 
-  private val sliders = HQSlidingAttacks
-  // private val sliders = MagicSlidingAttacks
+  private val sliders = MagicSlidingAttacks
 
   inline def attacks(piece: Piece, from: Square, occupied: Bitboard): Bitboard =
     piece match

@@ -70,8 +70,6 @@ object MagicSlidingAttacks extends SlidingAttackGen:
 
   // Initialize all magic bitboard tables
   def initializeMagicBitboards(): Unit =
-    println("Initializing magic bitboards...")
-
     // Initialize bishop magics
     for square <- 0 until 64 do
       bishopMagics(square) = MagicNumberGenerator.createMagicEntryForSquare(
@@ -80,8 +78,6 @@ object MagicSlidingAttacks extends SlidingAttackGen:
         true
       )
 
-      if square % 8 == 0 then println(s"Initialized bishop magics for rank ${square / 8}")
-
     // Initialize rook magics
     for square <- 0 until 64 do
       rookMagics(square) = MagicNumberGenerator.createMagicEntryForSquare(
@@ -89,19 +85,6 @@ object MagicSlidingAttacks extends SlidingAttackGen:
         RookMagics(square),
         false
       )
-
-      if square % 8 == 0 then println(s"Initialized rook magics for rank ${square / 8}")
-
-    // Calculate total memory usage
-    val rookTableSizes   = rookMagics.map(_.attacks.length).sum
-    val bishopTableSizes = bishopMagics.map(_.attacks.length).sum
-    val totalMemory =
-      (rookTableSizes + bishopTableSizes) * 8 // 8 bytes per Long
-
-    println(s"Magic bitboards initialized successfully!")
-    println(s"Rook tables: ${rookTableSizes} entries")
-    println(s"Bishop tables: ${bishopTableSizes} entries")
-    println(s"Total memory usage: ${totalMemory / 1024} KB")
 
   // // Validation function to test the tables
   // def validateMagicTables(): Boolean = {

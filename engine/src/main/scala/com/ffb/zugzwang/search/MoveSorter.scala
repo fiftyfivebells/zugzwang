@@ -81,10 +81,13 @@ object MoveSorter:
           if move.moveType == MoveType.CapturePromotion then Score(10000) else Score.Zero
         scores.setScore(i, PromotionBase + capExtra + promoValue)
       else if meta.isCapture(i) then
-        val baseScore = scoreMove(move, position)
+        val attacker = meta.moverPiece(i)
+        val victim   = meta.capturedPiece(i)
+        val victimValue =
+          if move.moveType == MoveType.EnPassant then PieceType.Pawn.value
+          else victim.materialValue
+        val baseScore = CaptureBase + (victimValue * 10) - attacker.materialValue
         val seeBonus  = if meta.isGoodNoisy(i) then Score(10000) else Score.Zero
-        val attacker  = position.pieceAt(move.from)
-        val victim    = position.pieceAt(move.to)
         val capScore =
           if !victim.isNoPiece then searchHistory.captureScore(attacker, victim, move.to)
           else Score.Zero
@@ -92,7 +95,16 @@ object MoveSorter:
       else if move == killers.first then scores.setScore(i, Killer1Bonus)
       else if move == killers.second then scores.setScore(i, Killer2Bonus)
       else
-        val positionalScore = scoreMove(move, position)
+        val mover = meta.moverPiece(i)
+        val positionalScore =
+          move.moveType match
+            case MoveType.CastleKingside | MoveType.CastleQueenside => CastleBonus
+            case _ =>
+              val beforePst = MoveOrderingTables.value(mover, move.from)
+              val afterPst  = MoveOrderingTables.value(mover, move.to)
+              val delta     = afterPst - beforePst
+              val pstDelta  = if mover.isWhite then delta else -delta
+              Score(pstDelta * PstDeltaWeight)
         scores.setScore(i, positionalScore + meta.historyScore(i))
       i += 1
 
