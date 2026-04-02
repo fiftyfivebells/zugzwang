@@ -185,25 +185,60 @@ object UciMain:
 
         timeOpt match
           case Some(timeRemaining) =>
-            val available = math.max(0L, timeRemaining - moveOverheadMs)
+            val available = math.max(1L, timeRemaining - moveOverheadMs)
+            val ply       = math.max(0, (moveNumber - 1) * 2) // approximate half-move count
 
-            // Estimate moves remaining based on move number (assume ~50 total moves)
-            val estimatedMovesLeft = mtg.getOrElse {
-              math.max(10L, (50 - moveNumber).toLong)
-            }
+            // Move horizon: ~50 moves normally, but shrink when clock is low.
+            // At 500ms remaining, plan for ~2.5 moves instead of 50.
+            val scaledTimeSec = available / 1000.0
+            val centiMTG: Int = mtg match
+              case Some(m) => math.min(m.toInt * 100, 5000)
+              case None =>
+                if available < 1000L then math.max(100, (available * 5.051 / 1000.0).toInt)
+                else 5051
 
-            val baseTime = if estimatedMovesLeft > 0 then available / estimatedMovesLeft else available
-            val incBonus = (inc * 75) / 100 // use 75% of increment
-            val optimum  = baseTime + incBonus
+            // Total time budget across all remaining moves, accounting for
+            // increment on future moves and overhead on every future move.
+            val timeLeft = math.max(1L, available + (inc * (centiMTG - 100) - moveOverheadMs * (200 + centiMTG)) / 100)
 
-            // Soft limit: capped at 25% of remaining time
-            val softBudget = math.max(1L, math.min(optimum, available / 4))
+            val (optScale, maxScale): (Double, Double) = mtg match
+              case None =>
+                // Sudden death: log-scaled constants (Stockfish model)
+                val logTimeSec  = math.log10(math.max(0.001, scaledTimeSec))
+                val optConstant = math.min(0.0029869 + 0.00033554 * logTimeSec, 0.004905)
+                val maxConstant = math.max(3.3744 + 3.0608 * logTimeSec, 3.1441)
+                val opt = math.min(
+                  0.012112 + math.pow(ply + 3.23, 0.469) * optConstant,
+                  0.194 * available.toDouble / timeLeft
+                )
+                val mx = math.min(6.873, maxConstant + ply / 12.35)
+                (opt, mx)
+              case Some(_) =>
+                // Moves-to-go mode
+                val mtgMoves = centiMTG / 100.0
+                val opt = math.min(
+                  (0.88 + ply / 116.4) / mtgMoves,
+                  0.88 * available.toDouble / timeLeft
+                )
+                val mx = math.min(6.873, 1.3 + 0.11 * mtgMoves)
+                (opt, mx)
 
-            // Hard limit: 5x soft, capped at 30% of remaining
-            val hardCap    = math.min(softBudget * 5, available * 30 / 100)
-            val hardBudget = math.max(2L, math.min(hardCap, available))
+            val softBudget = math.max(1L, (optScale * timeLeft).toLong)
+            val hardBudget = math
+              .max(
+                softBudget,
+                math.min(
+                  (0.81 * available - moveOverheadMs).toLong,
+                  (maxScale * softBudget).toLong
+                )
+              )
+              .max(2L)
 
-            SearchLimits(moveTime = SearchTime(softBudget), endTime = SearchTime(hardBudget))
+            SearchLimits(
+              moveTime = SearchTime(softBudget),
+              endTime = SearchTime(hardBudget),
+              ply = ply
+            )
 
           case None =>
             val depth = findKeywordByValue(params, "depth").map(_.toInt).getOrElse(6)

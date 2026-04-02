@@ -6,7 +6,8 @@ import com.ffb.zugzwang.move.Move
 final case class SearchLimits(
   depth: Depth = Depth(100),
   moveTime: SearchTime = SearchTime.maxTime,
-  endTime: SearchTime = SearchTime.maxTime
+  endTime: SearchTime = SearchTime.maxTime,
+  ply: Int = 0
 )
 
 final case class SearchResult(
