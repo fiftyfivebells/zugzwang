@@ -29,12 +29,14 @@ final class Searcher:
   var nodes   = Node.Zero
   var stopped = false
 
-  private var infoEmitted = false
+  private var infoEmitted        = false
+  private var lastCompletedScore = 0
 
   def clear(): Unit =
     tt.clear()
     stack.clear()
     searchHistory.clear()
+    timeManager.clearCarryOver()
 
   def search(position: MutablePosition, limits: SearchLimits): Move =
     startTime = SearchTime.currentTime
@@ -91,7 +93,8 @@ final class Searcher:
     ): Move =
       if currentDepth > Depth(1) then
         val now = SearchTime.currentTime
-        if !timeManager.shouldContinue(bestMove.value, prevScore.toInt, currentDepth.toInt - 1, now.toLong) || stopped then return bestMove
+        if !timeManager.shouldContinue(bestMove.value, prevScore.toInt, currentDepth.toInt - 1, now.toLong, 0.0) || stopped then
+          return bestMove
       if currentDepth > depthLimit || stopped then return bestMove
 
       var alpha          = if currentDepth >= Depth(SearchConfig.aspMinDepth) then prevScore - SearchConfig.aspWindowSize else -Score.Infinity
@@ -129,6 +132,7 @@ final class Searcher:
       println(
         s"info depth $currentDepth score ${score.format} nodes ${totalNodes.toString} nps $nps time ${timeTaken.toString} pv ${nextBestMove.toUci}"
       )
+      lastCompletedScore = score.toInt
 
       iterativeDeepening(position, currentDepth + 1, nextBestMove, score)
 
@@ -140,6 +144,8 @@ final class Searcher:
           DebugLogger.log(e.getMessage())
           DebugLogger.log(e.getStackTrace().mkString("\n"))
           firstLegal
+
+    timeManager.onSearchComplete(lastCompletedScore)
 
     if !infoEmitted then
       val timeTaken  = SearchTime.currentTime - startTime
