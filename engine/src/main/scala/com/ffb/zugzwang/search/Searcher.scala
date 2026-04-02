@@ -32,6 +32,9 @@ final class Searcher:
   private var infoEmitted        = false
   private var lastCompletedScore = 0
 
+  private var rootBestMoveNodeCount: Long = 0L
+  private var rootTotalNodeCount: Long    = 0L
+
   def clear(): Unit =
     tt.clear()
     stack.clear()
@@ -88,9 +91,15 @@ final class Searcher:
     ): Move =
       if currentDepth > Depth(1) then
         val now = SearchTime.currentTime
-        if !timeManager.shouldContinue(bestMove.value, prevScore.toInt, currentDepth.toInt - 1, now.toLong, 0.0) || stopped then
+        val bmNodeFrac =
+          if rootTotalNodeCount > 0 then rootBestMoveNodeCount.toDouble / rootTotalNodeCount
+          else 0.0
+        if !timeManager.shouldContinue(bestMove.value, prevScore.toInt, currentDepth.toInt - 1, now.toLong, bmNodeFrac) || stopped then
           return bestMove
       if currentDepth > depthLimit || stopped then return bestMove
+
+      rootBestMoveNodeCount = 0L
+      rootTotalNodeCount = 0L
 
       var alpha          = if currentDepth >= Depth(SearchConfig.aspMinDepth) then prevScore - SearchConfig.aspWindowSize else -Score.Infinity
       var beta           = if currentDepth >= Depth(SearchConfig.aspMinDepth) then prevScore + SearchConfig.aspWindowSize else Score.Infinity
@@ -365,6 +374,7 @@ final class Searcher:
         SearchStats.lmpPrunes += 1
         i += 1
       else
+        val preNodes = if isRootNode then SearchStats.nodes + SearchStats.qNodes else 0L
         position.applyMove(move)
 
         if !position.isSideInCheck(position.activeSide.enemy) then
@@ -417,6 +427,11 @@ final class Searcher:
           if score > bestScore then
             bestMove = move
             bestScore = score
+
+          if isRootNode then
+            val moveNodes = (SearchStats.nodes + SearchStats.qNodes) - preNodes
+            rootTotalNodeCount += moveNodes
+            if move == bestMove then rootBestMoveNodeCount = moveNodes
 
           if score >= beta then
             SearchStats.betaCutoffs += 1
