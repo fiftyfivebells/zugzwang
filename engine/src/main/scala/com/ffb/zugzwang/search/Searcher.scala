@@ -79,11 +79,6 @@ final class Searcher:
       println(s"info depth 1 score cp 0 nodes 1 nps 0 time ${timeTaken.toString} pv ${firstLegal.toUci}")
       return firstLegal
 
-    // Budget too small to search meaningfully: return first legal move
-    if !TimeControl.shouldSearch(limits.moveTime) then
-      println(s"info depth 0 score cp 0 nodes 1 nps 0 time 0 pv ${firstLegal.toUci}")
-      return firstLegal
-
     @tailrec
     def iterativeDeepening(
       position: MutablePosition,
