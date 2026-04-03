@@ -547,7 +547,7 @@ final class Searcher:
 
   private inline def shouldStop(): Boolean =
     if stopped then true
-    else if (nodes & 2047L).isZero && SearchTime.currentTime >= endTime then
+    else if (nodes & 511L).isZero && SearchTime.currentTime >= endTime then
       stopped = true
       true
     else false
