@@ -1,36 +1,40 @@
 package com.ffb.zugzwang.core
 
-/**
- * Dynamic time manager using the Stockfish/Calvin model.
- *
- * Four continuous multiplicative factors adjust the soft limit after each
- * completed iterative deepening iteration:
- *
- * adjustedSoft = soft × fallingEval × reduction × bestMoveInstability ×
- * nodeTmFactor
- *
- * All fields are primitives — no allocation, no Option, no boxing.
- */
+object TimeManager:
+  // tunable TM parameters (settable via UCI setoption)
+  // TODO: these should be made into typed fields
+  var tmStabilityCenter: Double  = 4.0
+  var tmInstabilityCoeff: Double = 2.14
+  var tmInstabilityBase: Double  = 1.02
+  var tmHardLimitFraction: Int   = 60 // percentage (0-100)
+
 final class TimeManager:
-  // Limits (set once per search via init)
+  // limits get set once per search via the init function
   private var softLimitMs: Long = 0L
   private var hardLimitMs: Long = 0L
   private var startTimeMs: Long = 0L
 
-  // Iteration tracking
+  // iteration tracking
   private var lastBestMove: Int            = 0
   private var lastBestMoveDepth: Int       = 1
   private var totalBestMoveChanges: Double = 0.0
 
-  // Score tracking (ring buffer of last 4 iteration scores)
+  // score tracking (buffer of last 4 iteration scores)
   private val iterScores: Array[Int] = new Array[Int](4)
   private var iterIdx: Int           = 0
 
-  // Carry-over between moves (persists across searches)
+  // carry over between moves (persists across searches)
   private var previousTimeReduction: Double = 1.0
   private var bestPreviousAvgScore: Int     = 0
 
-  /** Initialize for a new search. Called before iterative deepening begins. */
+  // diagnostic fields
+  private var lastFallingEval: Double  = 1.0
+  private var lastReduction: Double    = 1.0
+  private var lastInstability: Double  = 1.02
+  private var lastNodeTM: Double       = 1.0
+  private var lastAdjustedSoft: Double = 0.0
+  private var lastElapsed: Long        = 0L
+
   def init(softMs: Long, hardMs: Long, startMs: Long): Unit =
     softLimitMs = softMs
     hardLimitMs = hardMs
@@ -41,22 +45,6 @@ final class TimeManager:
     java.util.Arrays.fill(iterScores, 0)
     iterIdx = 0
 
-  /**
-   * Called after each completed iteration. Returns true if search should
-   * continue to the next depth.
-   *
-   * @param bestMoveValue
-   *   Move.value (Int) of the best move at this depth
-   * @param score
-   *   Score (Int, centipawns) at this depth
-   * @param depth
-   *   Depth just completed (1-indexed)
-   * @param nowMs
-   *   Current time in milliseconds
-   * @param bestMoveNodeFraction
-   *   Fraction of total root nodes spent on best move (0.0 to 1.0). Pass 0.0 if
-   *   not tracked yet (disables node TM).
-   */
   def shouldContinue(
     bestMoveValue: Int,
     score: Int,
@@ -64,25 +52,27 @@ final class TimeManager:
     nowMs: Long,
     bestMoveNodeFraction: Double
   ): Boolean =
-    // Depth-only or infinite mode: always continue
     if softLimitMs >= Long.MaxValue / 4 then return true
 
-    // --- Track best move changes ---
-    // Age out old changes (halve each iteration, so recent changes weigh more)
+    // best move change tracking
+    // halve each iteration so recent changes weigh more
     totalBestMoveChanges /= 2.0
     if bestMoveValue != lastBestMove then
       totalBestMoveChanges += 1.0
       lastBestMoveDepth = depth
     lastBestMove = bestMoveValue
 
-    // --- Update score ring buffer ---
     val prevIterScore = iterScores(iterIdx)
     iterScores(iterIdx) = score
     iterIdx = (iterIdx + 1) & 3
 
-    // --- Factor 1: Falling eval (0.580 to 1.667) ---
-    // Responds to score drops vs both the previous search's average and the
-    // previous iteration within this search. Proportional, not binary.
+    // TODO: tune the values below. I took them from a mix of Calvin and Stockfish
+    // everything with a comment is tunable and probably needs some trial and error
+    // to figure out the best values for this engine
+
+    // falling eval (0.580 to 1.667)
+    // responds to score drops vs both the previous search's average and the
+    // previous iteration within this search
     val fallingEval = math.max(
       0.580,
       math.min(
@@ -92,46 +82,49 @@ final class TimeManager:
       )
     )
 
-    // --- Factor 2: Best move stability (sigmoid, ~0.50 to ~2.0) ---
-    // Smooth logistic curve centered at (lastBestMoveDepth + 12.15).
-    // When many iterations pass without the best move changing,
-    // timeReduction drops below 1.0, which increases `reduction`.
+    // best move stability (sigmoid, ~0.50 to ~2.0)
+    // smooth logistic curve centered at (lastBestMoveDepth + 12.15).
+    // when many iterations pass without the best move changing,
+    // timeReduction drops below 1.0, which increases reduction
     val k             = 0.51
-    val center        = lastBestMoveDepth + 12.15
+    val center        = lastBestMoveDepth + TimeManager.tmStabilityCenter
     val timeReduction = 0.66 + 0.85 / (0.98 + math.exp(-k * (depth - center)))
     val reduction     = (1.43 + previousTimeReduction) / (2.28 * timeReduction)
     previousTimeReduction = timeReduction
 
-    // --- Factor 3: Best move instability (>= 1.02) ---
-    // More best-move changes across iterations → more time.
-    val bestMoveInstability = 1.02 + 2.14 * totalBestMoveChanges
+    // best move instability (>= 1.02)
+    // more best-move changes across iterations means more time.
+    val bestMoveInstability = TimeManager.tmInstabilityBase + TimeManager.tmInstabilityCoeff * totalBestMoveChanges
 
-    // --- Factor 4: Node TM (0.76 or 1.0) ---
+    // node tm (0.76 or 1.0)
     // If ≥93.3% of nodes went to the best move, the position is trivially decided.
     val nodeTmFactor =
       if bestMoveNodeFraction >= 0.9334 then 0.76
       else 1.0
 
-    // --- Combined adjusted soft limit ---
     val adjustedSoft = softLimitMs.toDouble *
       fallingEval * reduction * bestMoveInstability * nodeTmFactor
 
     val elapsed        = nowMs - startTimeMs
     val effectiveLimit = math.min(adjustedSoft, hardLimitMs.toDouble)
 
+    lastFallingEval = fallingEval
+    lastReduction = reduction
+    lastInstability = bestMoveInstability
+    lastNodeTM = nodeTmFactor
+    lastAdjustedSoft = adjustedSoft
+    lastElapsed = elapsed
+
     elapsed < effectiveLimit
 
-  /**
-   * Called at the end of each search (after bestmove is printed) to carry score
-   * context to the next move's time management.
-   *
-   * @param bestScore
-   *   The final score of the completed search
-   */
-  def onSearchComplete(bestScore: Int): Unit =
-    bestPreviousAvgScore = bestScore
+  def onSearchComplete(bestScore: Int): Unit = bestPreviousAvgScore = bestScore
 
-  /** Reset carry-over state. Called on ucinewgame. */
+  def diagnosticString: String =
+    f"soft=$softLimitMs hard=$hardLimitMs elapsed=$lastElapsed " +
+      f"adjSoft=${lastAdjustedSoft.toLong} " +
+      f"falling=$lastFallingEval%.3f reduction=$lastReduction%.3f " +
+      f"instability=$lastInstability%.3f nodeTM=$lastNodeTM%.2f"
+
   def clearCarryOver(): Unit =
     previousTimeReduction = 1.0
     bestPreviousAvgScore = 0

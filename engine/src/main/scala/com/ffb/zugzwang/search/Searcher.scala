@@ -31,6 +31,7 @@ final class Searcher:
 
   private var infoEmitted        = false
   private var lastCompletedScore = 0
+  private var lastCompletedDepth = 0
 
   private var rootBestMoveNodeCount: Long = 0L
   private var rootTotalNodeCount: Long    = 0L
@@ -76,7 +77,7 @@ final class Searcher:
 
     if legalCount == 0 then return Move.None // checkmate or stalemate
 
-    // Single legal move: no need to search, return it immediately
+    // single legal move: no need to search, return it immediately
     if legalCount == 1 then
       val timeTaken = SearchTime.currentTime - startTime
       println(s"info depth 1 score cp 0 nodes 1 nps 0 time ${timeTaken.toString} pv ${firstLegal.toUci}")
@@ -87,10 +88,16 @@ final class Searcher:
       position: MutablePosition,
       currentDepth: Depth,
       bestMove: Move,
-      prevScore: Score
+      prevScore: Score,
+      lastIterationMs: Long
     ): Move =
       if currentDepth > Depth(1) then
         val now = SearchTime.currentTime
+        if !endTime.isMax then
+          val elapsed    = now.toLong - startTime.toLong
+          val hardBudget = endTime.toLong - startTime.toLong
+          if elapsed > hardBudget * TimeManager.tmHardLimitFraction / 100 then return bestMove
+          if lastIterationMs * 4 > (endTime.toLong - now.toLong) then return bestMove
         val bmNodeFrac =
           if rootTotalNodeCount > 0 then rootBestMoveNodeCount.toDouble / rootTotalNodeCount
           else 0.0
@@ -137,17 +144,28 @@ final class Searcher:
         s"info depth $currentDepth score ${score.format} nodes ${totalNodes.toString} nps $nps time ${timeTaken.toString} pv ${nextBestMove.toUci}"
       )
       lastCompletedScore = score.toInt
+      lastCompletedDepth = currentDepth.toInt
 
-      iterativeDeepening(position, currentDepth + 1, nextBestMove, score)
+      val iterationEndTime = SearchTime.currentTime
+      val thisIterationMs  = iterationEndTime.toLong - startTime.toLong
+
+      iterativeDeepening(position, currentDepth + 1, nextBestMove, score, thisIterationMs)
 
     val result =
-      try iterativeDeepening(position, Depth(1), firstLegal, Score.Draw)
+      try iterativeDeepening(position, Depth(1), firstLegal, Score.Draw, 0L)
       catch
         case e =>
           DebugLogger.log("CRASH")
           DebugLogger.log(e.getMessage())
           DebugLogger.log(e.getStackTrace().mkString("\n"))
           firstLegal
+
+    val tmElapsed    = SearchTime.currentTime - startTime
+    val tmTotalNodes = Node(SearchStats.nodes + SearchStats.qNodes)
+    DebugLogger.log(
+      s"TM: depth=$lastCompletedDepth nodes=${tmTotalNodes.toString} " +
+        s"time=${tmElapsed.toLong}ms ${timeManager.diagnosticString}"
+    )
 
     timeManager.onSearchComplete(lastCompletedScore)
 
@@ -266,7 +284,7 @@ final class Searcher:
     if ttEntry.isDefined then
       SearchStats.ttHits += 1
       ttMove = ttEntry.move
-      // A castle move cached when the rook existed may be replayed after the rook
+      // a castle move cached when the rook existed may be replayed after the rook
       // is captured, bypassing SearchMoveGen's rook-presence check. Discard it.
       if ttMove.moveType == MoveType.CastleKingside || ttMove.moveType == MoveType.CastleQueenside then
         val rookSq =
@@ -306,7 +324,7 @@ final class Searcher:
     val staticEval = if !inCheck then PestoEvaluation.evaluate(position) else Score.Zero
     currEntry.staticEval = staticEval
 
-    // TODO: future feature: improving detecion
+    // TODO: future feature: improving detection
     // val improving = ply > 1 && Score.isDefined(staticEval) &&
     //   Score.isDefined(stack(ply - 2).staticEval) &&
     //   staticEval > stack(ply - 2).staticEval

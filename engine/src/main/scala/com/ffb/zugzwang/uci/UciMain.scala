@@ -37,7 +37,11 @@ object UciMain:
 
           println(s"id name Zugzwang $versionStr")
           println(s"id author Stephen Bell")
-          println("option name MoveOverhead type spin default 50 min 0 max 5000")
+          println("option name Move Overhead type spin default 10 min 0 max 5000")
+          println("option name TmStabilityCenter type string default 4.0")
+          println("option name TmInstabilityCoeff type string default 2.14")
+          println("option name TmInstabilityBase type string default 1.02")
+          println("option name TmHardLimitFraction type spin default 60 min 20 max 90")
           println("uciok")
           state
 
@@ -56,7 +60,7 @@ object UciMain:
           if parts.length == 2 then
             val optName  = parts(0).trim
             val optValue = parts(1).trim
-            if optName.toLowerCase == "moveoverhead" then
+            if optName.toLowerCase == "move overhead" then
               try moveOverheadMs = optValue.toLong
               catch case _: NumberFormatException => ()
             else if !SearchConfig.setOption(optName, optValue) then DebugLogger.log(s"Unknown option: $optName")
@@ -88,7 +92,7 @@ object UciMain:
           return
 
         case _ =>
-          state // Ignore unknown and return current state
+          state // ignore unknown and return current state
 
       uciLoop(nextState, lines)
 
@@ -161,7 +165,7 @@ object UciMain:
 
         state
 
-  private var moveOverheadMs: Long = 50L
+  private var moveOverheadMs: Long = 10L
 
   private def parseTime(params: List[String], side: Color, moveNumber: Int): SearchLimits =
     def millisFrom(key: String): Option[Long] =
@@ -188,22 +192,25 @@ object UciMain:
             val available = math.max(1L, timeRemaining - moveOverheadMs)
             val ply       = math.max(0, (moveNumber - 1) * 2) // approximate half-move count
 
-            // Move horizon: ~50 moves normally, but shrink when clock is low.
-            // At 500ms remaining, plan for ~2.5 moves instead of 50.
             val scaledTimeSec = available / 1000.0
+            val moveHorizon   = 80 // TODO: make this tuneable by a uci option
+            val movesFloor    = 10
+
             val centiMTG: Int = mtg match
               case Some(m) => math.min(m.toInt * 100, 5000)
-              case None =>
-                if available < 1000L then math.max(100, (available * 5.051 / 1000.0).toInt)
-                else 5051
+              case None    => math.max(movesFloor, moveHorizon - (moveNumber - 1)) * 100
 
-            // Total time budget across all remaining moves, accounting for
+            // total time budget across all remaining moves, accounting for
             // increment on future moves and overhead on every future move.
-            val timeLeft = math.max(1L, available + (inc * (centiMTG - 100) - moveOverheadMs * (200 + centiMTG)) / 100)
+            val timeLeft = math.max(
+              available / 2, // floor: never let timeLeft drop below half of available
+              available + (inc * (centiMTG - 100) - moveOverheadMs * (200 + centiMTG)) / 100
+            )
 
             val (optScale, maxScale): (Double, Double) = mtg match
               case None =>
-                // Sudden death: log-scaled constants (Stockfish model)
+                // TODO: this could probably be tuned, I just took stockfish's values here
+                // sudden death: log-scaled constants (stockfish model)
                 val logTimeSec  = math.log10(math.max(0.001, scaledTimeSec))
                 val optConstant = math.min(0.0029869 + 0.00033554 * logTimeSec, 0.004905)
                 val maxConstant = math.max(3.3744 + 3.0608 * logTimeSec, 3.1441)
@@ -214,7 +221,7 @@ object UciMain:
                 val mx = math.min(6.873, maxConstant + ply / 12.35)
                 (opt, mx)
               case Some(_) =>
-                // Moves-to-go mode
+                // moves-to-go mode
                 val mtgMoves = centiMTG / 100.0
                 val opt = math.min(
                   (0.88 + ply / 116.4) / mtgMoves,
