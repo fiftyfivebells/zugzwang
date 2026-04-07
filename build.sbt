@@ -4,7 +4,7 @@ import scala.sys.process
 inThisBuild(
   List(
     organization      := "com.ffb",
-    version           := "1.0.0",
+    version           := "1.1.0",
     scalaVersion      := "3.7.2",
     semanticdbEnabled := true,
     scalacOptions ++= Seq("-deprecation", "-Wunused:imports")
